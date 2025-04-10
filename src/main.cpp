@@ -1,14 +1,18 @@
 // The MIT License (MIT)
 //
 // Copyright (c) 2021-2024 Alexander Kurbatov
-
-#include "Bot.h"
+//#undef byte
+#define BACKWARD_HAS_BFD 1
+#include "backward/backward.hpp"
+#include "Bot.hpp"
 
 #include <sc2api/sc2_coordinator.h>
 #include <sc2api/sc2_gametypes.h>
 #include <sc2utils/sc2_arg_parser.h>
 
 #include <iostream>
+
+//#define BUILD_FOR_LADDER
 
 #ifdef BUILD_FOR_LADDER
 namespace
@@ -36,6 +40,7 @@ void ParseArguments(int argc, char* argv[], Options* options_)
             {"-x", "--OpponentId", "PlayerId of opponent", false},
         });
 
+
     arg_parser.Parse(argc, argv);
 
     std::string GamePortStr;
@@ -57,30 +62,39 @@ void ParseArguments(int argc, char* argv[], Options* options_)
 
 int main(int argc, char* argv[])
 {
-    Options options;
-    ParseArguments(argc, argv, &options);
+    backward::SignalHandling sh;
+
+    Options Options;
+    ParseArguments(argc, argv, &Options);
+
+    printf("PARSED OPTIONS: GamePort:%d StartPort:%d OppID:%s Server:%s\n", Options.GamePort, Options.StartPort, Options.OpponentId.c_str(), Options.ServerAddress.c_str());
 
     sc2::Coordinator coordinator;
     Bot bot;
 
-    size_t num_agents = 2;
-    coordinator.SetParticipants({ CreateParticipant(sc2::Race::Random, &bot, "BlankBot") });
+    // Add the custom bot, it will control the players.
+    int num_agents = 2;
+    coordinator.SetParticipants({
+        CreateParticipant(sc2::Race::Protoss, &bot), });
+    //bot.SetOpponentId(Options.OpponentId);
 
-    std::cout << "Connecting to port " << options.GamePort << std::endl;
-    coordinator.Connect(options.GamePort);
-    coordinator.SetupPorts(num_agents, options.StartPort, false);
-
-    // NB (alkurbatov): Increase speed of steps processing.
-    // Disables ability to control your bot during game.
-    // Recommended for competitions.
+    // Request the feature layers to allow the use of the single drop micro
+    sc2::FeatureLayerSettings settings;
+    coordinator.SetFeatureLayers(settings);
+    // Connect to the game client
+    std::cout << "Connecting to port " << Options.GamePort << std::endl;
+    coordinator.Connect(Options.GamePort);
+    coordinator.SetupPorts(num_agents, Options.StartPort, false);
+    // Set the unit selection policy
+    // (if true, the selection will jump around everywhere so it can be harder to debug and doesn't allow a human to play at the same time)
     coordinator.SetRawAffectsSelection(true);
-
+    // Join the already started game
     coordinator.JoinGame();
-    coordinator.SetTimeoutMS(10000);
+    coordinator.SetTimeoutMS(120000);	// 2 min
     std::cout << "Successfully joined game" << std::endl;
-
-    while (coordinator.Update())
-    {}
+    // Step forward the game simulation.
+    while (coordinator.Update()) {
+    }
 
     return 0;
 }
@@ -89,38 +103,34 @@ int main(int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
-    if (argc < 2)
-    {
-        std::cerr << "Provide either name of the map file or path to it!" << std::endl;
-        return 1;
-    }
-
+    //backward::SignalHandling sh;
+    srand(clock());
     sc2::Coordinator coordinator;
     coordinator.LoadSettings(argc, argv);
 
-    // NOTE: Uncomment to start the game in full screen mode.
-    // coordinator.SetFullScreen(true);
-
-    // NOTE: Uncomment to play at normal speed.
-    // coordinator.SetRealtime(true);
-
     Bot bot;
-    coordinator.SetParticipants(
-        {
-            CreateParticipant(sc2::Race::Random, &bot, "BlankBot"),
-            CreateComputer(
-                sc2::Race::Random,
-                sc2::Difficulty::CheatInsane,
-                sc2::AIBuild::Rush,
-                "CheatInsane"
-                )
-        });
+    sc2::Difficulty diff = sc2::Difficulty::Easy;
+    sc2::Race race = (sc2::Race)(std::rand() % 4);  // Race::Random;
+    coordinator.SetParticipants({ CreateParticipant(sc2::Race::Protoss, &bot), CreateComputer(race, diff) });
+
+    
 
     coordinator.LaunchStarcraft();
-    coordinator.StartGame(argv[1]);
+    //std::string maps[6] = { "5_13/Oceanborn513AIE.SC2Map",  "5_13/Equilibrium513AIE.SC2Map",
+    //                       "5_13/GoldenAura513AIE.SC2Map", "5_13/Gresvan513AIE.SC2Map",
+    //                       "5_13/HardLead513AIE.SC2Map",   "5_13/SiteDelta513AIE.SC2Map" };
 
-    while (coordinator.Update())
-    {}
+    std::string maps[6] = { "AbyssalReefAIE.SC2Map",  "AcropolisAIE.SC2Map",
+                            "AutomatonAIE.SC2Map", "EphemeronAIE.SC2Map",
+                            "InterloperAIE.SC2Map",   "ThunderbirdAIE.SC2Map" };
+
+    int r = std::rand() % 6;
+    printf("rand %d [%d %d %d %d %d %d] %d\n", r, std::rand(), std::rand(), std::rand(), std::rand(), std::rand(),
+        std::rand(), RAND_MAX);
+
+    coordinator.StartGame(maps[r]);
+    while (coordinator.Update()) {
+    }
 
     return 0;
 }

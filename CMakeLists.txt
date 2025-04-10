@@ -27,6 +27,9 @@ option(BUILD_FOR_LADDER "Create build for the AIArena ladder" OFF)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Symbol Export
+set (CMAKE_ENABLE_EXPORTS TRUE)
+
 # Specify output directories
 set(EXECUTABLE_OUTPUT_PATH "${PROJECT_BINARY_DIR}/bin")
 
