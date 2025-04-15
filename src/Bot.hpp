@@ -101,6 +101,75 @@ struct Bot: sc2::Agent
 
         onStepProfiler.midLog("oS-macroExec");
 
+#ifndef BUILD_FOR_LADDER
+        std::vector<ChatMessage> chats = Observation()->GetChatMessages();
+        for (int i = 0; i < chats.size(); i++) {
+            printf("[%s]\n", chats[i].message.c_str());
+            if (chats[i].message[0] == '.') {
+                std::string command = "";
+                int commandPtr = 0;
+                std::vector<std::string> arguments;
+                for (commandPtr = 1; commandPtr < 50; commandPtr++) {
+                    char c = chats[i].message[commandPtr];
+                    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
+                        command += c;
+                    }
+                    else {
+                        commandPtr++;
+                        break;
+                    }
+                }
+                while (commandPtr < chats[i].message.size()) {
+                    std::string arg = "";
+                    for (commandPtr; commandPtr < chats[i].message.size(); commandPtr++) {
+                        char c = chats[i].message[commandPtr];
+                        if (c != ' ') {
+                            arg += c;
+                        }
+                        if (c == ' ' || commandPtr == chats[i].message.size() - 1) {
+                            arguments.push_back(arg);
+                            commandPtr++;
+                            break;
+                        }
+                    }
+                }
+
+                Actions()->SendChat("Command: " + command);
+                for (std::string argument : arguments) {
+                    Actions()->SendChat(argument);
+                }
+
+                if (command == "s") { //spawn
+                    if (spawnCommandMap.find(arguments[0]) != spawnCommandMap.end()) {
+                        DebugCreateUnit(this, spawnCommandMap[arguments[0]], Observation()->GetCameraPos(), 1);
+                    }
+                }
+                else if (command == "se") { //spawn enemy
+                    if (spawnCommandMap.find(arguments[0]) != spawnCommandMap.end()) {
+                        DebugCreateUnit(this, spawnCommandMap[arguments[0]], Observation()->GetCameraPos(), 2);
+                    }
+                }
+                else if (command == "v") { //spawn enemy
+                    Debug()->DebugShowMap();
+                }
+                else if (command == "kn") { //spawn enemy
+                    Units units = Observation()->GetUnits(sc2::Unit::Alliance::Neutral);
+                    for (const Unit* unit : units) {
+                        Debug()->DebugKillUnit(unit);
+                    }
+                }
+                else if (command == "m") { //spawn enemy
+                    Aux::saveMasterBitmap("command.bmp");
+                }
+                else {
+                    Actions()->SendChat("Invalid Command " + command);
+                }
+            }
+        }
+#endif
+
+        onStepProfiler.midLog("oS-CLI");
+        
         DebugText(this, strprintf("%.3fms", lastDT / 1000.0));
 
         Aux::displayExpansions(this);
@@ -122,12 +191,17 @@ struct Bot: sc2::Agent
         //UnitWrapper u(unit_);
         //UnitManager::self_units.insert(std::make_shared<UnitWrapper>(unit_));
         UnitManager::add(UnitManager::self_units, unit_);
+        Aux::loadUnitPlacement(Aux::SELF_BUILDINGS, unit_->pos, unit_->unit_type);
     }
 
     //! Called when an enemy unit enters vision from out of fog of war.
     //!< \param unit The unit entering vision.
     virtual void OnUnitEnterVision(const sc2::Unit* unit_) {
+        std::cout << sc2::UnitTypeToName(unit_->unit_type) <<
+            "(" << unit_->tag << ") was created E" << std::endl;
+
         UnitManager::add(UnitManager::enemy_units, unit_);
+        Aux::loadUnitPlacement(Aux::ENEMY_BUILDINGS, unit_->pos, unit_->unit_type); //TODO: ENEMY UNITS WHEN get() is called WILL CHECK IF THEIR POSITION IS DIFFERENT FROM THEIR OLD POSITION AND IF SO, REWORK THE PATHING GRID
     }
 
     //!  Called when a neutral unit is created. For example, mineral fields observed for the first time
@@ -142,6 +216,9 @@ struct Bot: sc2::Agent
         std::cout << sc2::UnitTypeToName(unit_->unit_type) <<
              "(" << unit_->tag << ") was destroyed" << std::endl;
         UnitManager::remove(unit_);
+        if (unit_->alliance == Unit::Neutral) {
+            Aux::unloadNeutralUnitPlacement(this, unit_->pos, unit_->unit_type);
+        }
     }
 
     //! Called when an upgrade is finished, warp gate, ground weapons, baneling speed, etc.
