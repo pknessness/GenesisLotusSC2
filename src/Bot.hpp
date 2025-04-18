@@ -14,6 +14,65 @@
 #include "auxiliary/debugging.hpp"
 #include "unitwrappers/unitmanager.hpp"
 #include "auxiliary/macromanager.hpp"
+#include "unitwrappers/nexus.hpp"
+#include "unitwrappers/vespene.hpp"
+
+#define DEBUG
+
+namespace UnitManager {
+    void add(UnitWrapperMap& units, const Unit* unit_, Agent* const agent) {
+        UnitTypeID stype = getSuperType(unit_->unit_type);
+        if (unit_->alliance == Unit::Self) {
+            if (stype == UNIT_TYPEID::PROTOSS_PROBE) {
+                units[stype].insert(std::make_shared<Probe>(unit_));
+                return;
+            }else if (stype == UNIT_TYPEID::PROTOSS_NEXUS) {
+                std::shared_ptr<Nexus> nexus = std::make_shared<Nexus>(unit_);
+                nexus->init(agent);
+                units[stype].insert(nexus);
+                return;
+            }
+        }
+        else if (unit_->alliance == Unit::Neutral) {
+            if (stype == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER) {
+                units[stype].insert(std::make_shared<Vespene>(unit_, stype));
+                return;
+            }
+        }
+        units[stype].insert(std::make_shared<UnitWrapper>(unit_, stype));
+    }
+
+    void remove(const Unit* unit_) {
+        UnitTypeID stype = getSuperType(unit_->unit_type);
+        UnitWrapperMap* units;
+        if (unit_->alliance == Unit::Alliance::Self) {
+            units = &self_units;
+        }
+        else if (unit_->alliance == Unit::Alliance::Neutral) {
+            units = &neutral_units;
+        }
+        else if (unit_->alliance == Unit::Alliance::Enemy) {
+            units = &enemy_units;
+        }
+        else {
+            printf("NO TEAM, YOU FUCKED UP\n");
+            throw 5;
+        }
+        bool removed = false;
+        for (auto it = (*units)[stype].begin(); it != (*units)[stype].end(); it++) {
+            if ((*it)->self == unit_->tag) {
+                (*it)->setDead();
+                (*units)[stype].erase(it);
+                removed = true;
+                break;
+            }
+        }
+        if (!removed) {
+            printf("NOT REMOVED, YOU FUCKED UP\n");
+            throw 5;
+        }
+    }
+}
 
 // The main bot class.
 struct Bot: sc2::Agent
@@ -33,10 +92,13 @@ struct Bot: sc2::Agent
         Aux::masterMap = std::make_shared<map2d<uint8_t>>(Aux::mapWidth_cache, Aux::mapHeight_cache, true);
         Aux::setupMasterMap(this);
 
+        Aux::allData(this);
+
         std::cout << "New game started!" << std::endl;
-        MacroManager::addAction(MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::PointDefault()));
+        MacroManager::addAction(MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::criticalPoints[Aux::SELF_FIRSTPYLON_POINT]));
         MacroManager::addAction(MacroBuilding(ABILITY_ID::BUILD_GATEWAY, Aux::PointDefault()));
         MacroManager::addAction(MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR, Aux::PointDefault()));
+        MacroManager::addAction(MacroBuilding(ABILITY_ID::BUILD_CYBERNETICSCORE, Aux::PointDefault()));
         MacroManager::addAction(MacroGateway(ABILITY_ID::TRAIN_ADEPT));
         //std::vector<MacroAction> build_order = {
         //    MacroBuilding(ABILITY_ID::BUILD_PYLON, P2D(Aux::staging_location)),
@@ -96,6 +158,78 @@ struct Bot: sc2::Agent
     //! In realtime this function gets called as often as possible after request/responses are received from the game gathering observation state.
     void OnStep(){
         Profiler onStepProfiler("onStep");
+
+        UnitWrappers probes = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PROBE);
+        for (auto it = probes.begin(); it != probes.end(); it++) {
+            Profiler onStepProfiler("pE");
+            UnitWrapperPtr p = *it;
+            ProbePtr probe = std::static_pointer_cast<Probe>(p);
+            probe->execute(this);
+#ifdef DEBUG
+            UnitWrapperPtr target = probe->getTargetTag(this);
+            if (target != nullptr) {
+                DebugLine(this, target->pos3D(this) + Point3D{ 0,0,1 }, probe->pos3D(this) + Point3D{ 0,0,1 });
+            }
+#endif
+        }
+
+        onStepProfiler.midLog("oS-probeExec");
+
+        int numProbes = 0;
+        int numProbesMax = 0;
+        //onStepProfiler.midLog("ProbeCreation1");
+        for (UnitWrapperPtr nexusWrap : UnitManager::getSelf(UNIT_TYPEID::PROTOSS_NEXUS)) {
+            int numProbesN = 0;
+            int numProbesMaxN = 0;
+            float percentUntilViable = 1.0F - (Aux::getStats(UNIT_TYPEID::PROTOSS_PROBE, this).build_time / Aux::getStats(UNIT_TYPEID::PROTOSS_NEXUS, this).build_time);
+            //onStepProfiler.midLog("ProbeCreation2");
+            if (nexusWrap->get(this)->build_progress < percentUntilViable) {
+                continue;
+            }
+            if (((Nexus*)nexusWrap)->assimilator1 != NullTag) {
+                //if (Observation()->GetUnit(((Nexus*)nexusWrap)->assimilator1) == nullptr) {
+                //    ((Nexus*)nexusWrap)->assimilator1 = NullTag;
+                //} else {
+                //    numProbesMaxN += 3;
+                //    numProbesN += probeTargetting[((Nexus*)nexusWrap)->assimilator1];
+                //}
+                numProbesMaxN += 3;
+                numProbesN += probeTargetting[((Nexus*)nexusWrap)->assimilator1];
+            }
+            //onStepProfiler.midLog("ProbeCreation3");
+            if (((Nexus*)nexusWrap)->assimilator2 != NullTag) {
+                //if (Observation()->GetUnit(((Nexus*)nexusWrap)->assimilator2) == nullptr) {
+                //    ((Nexus*)nexusWrap)->assimilator2 = NullTag;
+                //}
+                //else {
+                //    numProbesMaxN += 3;
+                //    numProbesN += probeTargetting[((Nexus*)nexusWrap)->assimilator2];
+                //}
+                numProbesMaxN += 3;
+                numProbesN += probeTargetting[((Nexus*)nexusWrap)->assimilator2];
+            }
+            //onStepProfiler.midLog("ProbeCreation4");
+            for (int i = 0; i < 8; i++) {
+                if (((Nexus*)nexusWrap)->minerals[i] != nullptr) {
+                    numProbesMaxN += 2;
+                    numProbesN += probeTargetting[((Nexus*)nexusWrap)->minerals[i]->self];
+                    if (((Nexus*)nexusWrap)->minerals[i]->get(this) != nullptr) {
+                        Point3D po = ((Nexus*)nexusWrap)->minerals[i]->pos3D(this);
+                        DebugBox(this, po + Point3D{ -0.125, -0.125, 3 }, po + Point3D{ 0.125, 0.125, 3.25 }, Colors::Red);
+                    }
+                }
+            }
+            //onStepProfiler.midLog("ProbeCreation5");
+            DebugText(this, strprintf("%d/%d", numProbesN, numProbesMaxN), nexusWrap->pos3D(this) + Point3D{ 0,0, 5.5 });
+            numProbes += numProbesN;
+            numProbesMax += numProbesMaxN;
+        }
+
+        if ((numProbes + 1) < numProbesMax && Macro::actions[UNIT_TYPEID::PROTOSS_NEXUS].size() == 0) {
+            Macro::addProbe();
+        }
+
+        onStepProfiler.midLog("ProbeCreation");
 
         MacroManager::execute(this);
 
@@ -176,6 +310,49 @@ struct Bot: sc2::Agent
 
         onStepProfiler.midLog("oS-Debug");
 
+        std::string profilestr = "";
+        static int max1 = 0;
+        static int max2 = 0;
+        static int max3 = 0;
+        static int max4 = 0;
+        static int max5 = 0;
+        for (auto itr = profilerMap.begin(); itr != profilerMap.end(); itr++) {
+            std::string name = itr->first;
+            int strlen = (int)(name.size());
+            max1 = std::max(strlen + 1, max1);
+            for (int i = 0; i < (max1 - strlen); i++) {
+                name += " ";
+            }
+            std::string dtstr = strprintf("AVG:%.3f", ((double)itr->second) / profilerCount[itr->first] / 1000.0);
+            strlen = (int)(dtstr.size());
+            max2 = std::max(strlen + 1, max2);
+            for (int i = 0; i < (max2 - strlen); i++) {
+                dtstr += " ";
+            }
+            std::string totstr = strprintf("TOT:%.3f/%d", itr->second / 1000.0, profilerCount[itr->first]);
+            strlen = (int)(totstr.size());
+            max3 = std::max(strlen + 1, max3);
+            for (int i = 0; i < (max3 - strlen); i++) {
+                totstr += " ";
+            }
+            std::string lateststr = strprintf("LAT:%.3f", profilerLast[itr->first].time() / 1000.0);
+            strlen = (int)(lateststr.size());
+            max4 = std::max(strlen + 1, max4);
+            for (int i = 0; i < (max4 - strlen); i++) {
+                lateststr += " ";
+            }
+            std::string maxstr = strprintf("MAX:%.3f", profilerMax[itr->first] / 1000.0);
+            strlen = (int)(maxstr.size());
+            max5 = std::max(strlen + 1, max5);
+            for (int i = 0; i < (max4 - strlen); i++) {
+                maxstr += " ";
+            }
+            profilestr += (name + lateststr + dtstr + maxstr + "\n");
+        }
+        DebugText(this, profilestr, Point2D(0.61F, 0.41F), Color(1, 212, 41), 8);
+
+        onStepProfiler.midLog("oS-ProfilerLog");
+
         SendDebug(this);
 
         onStepProfiler.midLog("oS-SendDebug");
@@ -190,8 +367,10 @@ struct Bot: sc2::Agent
             "(" << unit_->tag << ") was created" << std::endl;
         //UnitWrapper u(unit_);
         //UnitManager::self_units.insert(std::make_shared<UnitWrapper>(unit_));
-        UnitManager::add(UnitManager::self_units, unit_);
-        Aux::loadUnitPlacement(Aux::SELF_BUILDINGS, unit_->pos, unit_->unit_type);
+        if (unit_->tag != 0) {
+            UnitManager::add(UnitManager::self_units, unit_, this);
+            Aux::loadUnitPlacement(Aux::SELF_BUILDINGS, unit_->pos, unit_->unit_type);
+        }
     }
 
     //! Called when an enemy unit enters vision from out of fog of war.
@@ -200,14 +379,14 @@ struct Bot: sc2::Agent
         std::cout << sc2::UnitTypeToName(unit_->unit_type) <<
             "(" << unit_->tag << ") was created E" << std::endl;
 
-        UnitManager::add(UnitManager::enemy_units, unit_);
+        UnitManager::add(UnitManager::enemy_units, unit_, this);
         Aux::loadUnitPlacement(Aux::ENEMY_BUILDINGS, unit_->pos, unit_->unit_type); //TODO: ENEMY UNITS WHEN get() is called WILL CHECK IF THEIR POSITION IS DIFFERENT FROM THEIR OLD POSITION AND IF SO, REWORK THE PATHING GRID
     }
 
     //!  Called when a neutral unit is created. For example, mineral fields observed for the first time
     //!< \param unit The observed unit.
     virtual void OnNeutralUnitCreated(const sc2::Unit* unit_) {
-        UnitManager::add(UnitManager::neutral_units, unit_);
+        UnitManager::add(UnitManager::neutral_units, unit_, this);
     }
 
     //! Called whenever one of the player's units has been destroyed.

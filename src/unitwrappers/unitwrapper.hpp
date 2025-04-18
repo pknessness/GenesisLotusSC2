@@ -42,31 +42,85 @@ public:
         recentType_cache(unit_->unit_type), radius_cache(unit_->radius), 
         health_cache(unit_->health), healthMax_cache(unit_->health_max),
         shields_cache(unit_->shield), shieldsMax_cache(unit_->shield_max),
-        energy_cache(unit_->energy), pos_cache(unit_->pos), dead(false) {
+        energy_cache(unit_->energy), energyMax_cache(unit_->energy_max), pos_cache(unit_->pos), dead(false),
+        attackUpgradeLevel_cache(0), armorUpgradeLevel_cache(0), shieldUpgradeLevel_cache(0) {
         //self = unit_->tag;
     }
     ~UnitWrapper() {
         abilities_cache.clear();
     }
 
-    virtual void atk(const Agent* const agent, Point2D point) {
+    inline const Unit* get(Agent* const agent) {
+        const Unit* unit = agent->Observation()->GetUnit(self);
+        if (unit != nullptr) {
+            recentType_cache = unit->unit_type;
+            radius_cache = unit->radius;
+
+            health_cache = unit->health;
+            healthMax_cache = unit->health_max;
+            shields_cache = unit->shield;
+            shieldsMax_cache = unit->shield_max;
+            energy_cache = unit->energy;
+            energyMax_cache = unit->energy_max;
+
+            attackUpgradeLevel_cache = unit->attack_upgrade_level;
+            armorUpgradeLevel_cache = unit->armor_upgrade_level;
+            shieldUpgradeLevel_cache = unit->shield_upgrade_level;
+
+            pos_cache = unit->pos;
+        }
+        return unit;
+    }
+
+    inline Point2D pos(Agent* const agent) {
+        get(agent);
+        return pos_cache;
+    }
+
+    inline Point2D posCache() {
+        if (team != Unit::Self) {
+            throw 7;
+        }
+        return pos_cache;
+    }
+
+    inline Point3D pos3D(Agent* const agent) {
+        get(agent);
+        return pos_cache;
+    }
+
+    virtual void atk(Agent* const agent, Point2D point) {
 
     }
 
-    virtual void atk(const Agent* const agent, UnitWrapper* target) {
+    virtual void atk(Agent* const agent, UnitWrapper* target) {
 
     }
 
-    virtual void mov(const Agent* const agent, Point2D point) {
+    virtual void mov(Agent* const agent, Point2D point) {
 
+    }
+
+    //virtual void execute(Agent* const agent) {
+
+    //}
+
+    virtual std::vector<Point2D> getPath(Agent* const agent, Point2D point) {
+        return std::vector<Point2D>();
+    }
+
+    UnitTypeID getStorageType() {
+        return storageType;
+    }
+
+    virtual float getPathLength(Agent* const agent, Point2D point) {
+        const Unit* unit = get(agent);
+        if (unit == nullptr) return -1;
+        return agent->Query()->PathingDistance(unit, point);
     }
 
     void setDead() {
         dead = true;
-    }
-
-    inline const Unit* get(Agent* const agent) {
-        return agent->Observation()->GetUnit(self);
     }
 
     float getHealth(Agent* const agent) {

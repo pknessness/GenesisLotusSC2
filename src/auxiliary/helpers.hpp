@@ -24,10 +24,36 @@ std::string strprintf(const char* format, Args... args) {
 
 #define AP3D(point) Point3D{point.x, point.y, agent->Observation()->TerrainHeight(point)}
 
+constexpr float M_PI = 3.14159274F;
+constexpr float timeSpeed = 1.4F;
+constexpr float fps = 16 * timeSpeed;
+
+constexpr float MINERALS_PER_PROBE_PER_SEC = 55.0F / 60;
+constexpr float VESPENE_PER_PROBE_PER_SEC = 61.0F / 60;
+
+constexpr float PYLON_RADIUS = 6.0F;
+constexpr float PYLON_RADIUS_SQUARED = PYLON_RADIUS*PYLON_RADIUS;
+
 namespace Aux {
 	GameInfo gameInfo_cache;
 	int mapWidth_cache;
 	int mapHeight_cache;
+
+	std::map<UnitTypeID, UnitTypeData> statsMap = std::map<UnitTypeID, UnitTypeData>();
+	bool init_data = false;
+	UnitTypes cached_data;
+
+	std::vector<Point2D> criticalPoints;
+
+	enum CrucialPoints {
+		PLACEHOLDER_POINT,
+		SELF_STARTLOC_POINT,
+		SELF_FIRSTPYLON_POINT,
+		SELF_RALLY_POINT,
+		SELF_PROXY_POINT,
+		ENEMY_STARTLOC_POINT,
+		ENEMY_RALLY_POINT
+	};
 
 	/*
 	* BITS 7 6 5 4 3 2 1 0
@@ -65,8 +91,8 @@ namespace Aux {
 		UNPATHABLE_ROCKS = 0x7,  // 0111: Unpathable Rocks
 		PATHABLE_ROCKS = 0x8,    // 1000: Pathable Rocks
 		VESPENE = 0x9,           // 1001: Vespene
+		BUILDING_RESERVE = 0xA,  // 1010: Building Reserve
 		// Reserved values
-		RESERVED_A = 0xA,        // 1010: Reserved
 		RESERVED_B = 0xB,        // 1011: Reserved
 		RESERVED_C = 0xC,        // 1100: Reserved
 		RESERVED_D = 0xD,        // 1101: Reserved
@@ -87,7 +113,8 @@ namespace Aux {
 			obstacle == CLIFF_PATHABLE ||
 			obstacle == MINERALS || 
 			obstacle == UNPATHABLE_ROCKS ||
-			obstacle == VESPENE);
+			obstacle == VESPENE ||
+			obstacle == BUILDING_RESERVE);
 	}
 
 	bool isPlacable(int i, int j) {
@@ -100,8 +127,16 @@ namespace Aux {
 			obstacle == MINERALS ||
 			obstacle == UNPATHABLE_ROCKS ||
 			obstacle == PATHABLE_ROCKS || 
-			obstacle == VESPENE);
+			obstacle == VESPENE ||
+			obstacle == BUILDING_RESERVE);
 	}
+
+	struct Cost {
+		unsigned int minerals = 0;
+		unsigned int vespene = 0;
+		unsigned int energy = 0;
+		int psi = 0;
+	};
 
 	struct PointArea {
 		enum PointAreaType {
@@ -161,10 +196,315 @@ namespace Aux {
 			return a.distance > b.distance;
 		}
 	};
-	
+
 	std::vector<Expansion> expansions;
 	std::set<ExpansionDistance, ExpansionDistanceCompare> selfRankedExpansions;
 	std::set<ExpansionDistance, ExpansionDistanceCompare> enemyRankedExpansions;
+
+	UnitTypes allData(Agent* agent) {
+		if (!init_data) {
+			cached_data = agent->Observation()->GetUnitTypeData();
+			init_data = true;
+		}
+		return cached_data;
+	}
+
+	UnitTypeData getStats(UnitTypeID type, Agent* agent) {
+		if (statsMap.find(type) == statsMap.end()) {
+			try {
+				statsMap[type] = allData(agent).at(static_cast<uint32_t>(type));
+			}
+			catch (...) {
+				printf("Errant Type: %s %ud %ul %d\n", UnitTypeToName(type), static_cast<uint32_t>(type), static_cast<uint32_t>(type), static_cast<uint32_t>(type));
+				throw 5;
+				//return UnitTypeData();//agent->Observation()->GetUnitTypeData().at(static_cast<uint32_t>(type));
+			}
+			//if (type == UNIT_TYPEID::PROTOSS_VOIDRAY) {
+			//	ComplexWeapon prismaticBeam(Weapon::TargetType::Any, 6, 1, 6, 0.36F);
+			//	prismaticBeam.addDamageBonus(Attribute::Armored, 4);
+			//	statsMap[UNIT_TYPEID::PROTOSS_VOIDRAY].weapons.push_back(prismaticBeam.w);
+			//}
+			//else if (type == UNIT_TYPEID::PROTOSS_SENTRY) {
+			//	ComplexWeapon disruptionBeam(Weapon::TargetType::Any, 6, 1, 5, 0.71F);
+			//	statsMap[UNIT_TYPEID::PROTOSS_SENTRY].weapons.push_back(disruptionBeam.w);
+			//}
+			//else if (type == UNIT_TYPEID::PROTOSS_DISRUPTOR) {
+			//	//https://www.reddit.com/r/starcraft/comments/40pl7l/how_far_can_a_disruptors_purification_nova_travel/?rdt=50754
+			//	ComplexWeapon novaAura(Weapon::TargetType::Any, 100, 1, 13, 21.4F);
+			//	statsMap[UNIT_TYPEID::PROTOSS_DISRUPTOR].weapons.push_back(novaAura.w);
+			//}
+			//else if (type == UNIT_TYPEID::PROTOSS_DISRUPTORPHASED) {
+			//	statsMap[UNIT_TYPEID::PROTOSS_DISRUPTOR].weapons.push_back(extraWeapons[ABILITY_ID::EFFECT_PURIFICATIONNOVA].w);
+			//}
+		}
+		return statsMap[type];
+	}
+
+	static UpgradeID researchAbilityToUpgrade(AbilityID build_ability) {
+		switch (uint32_t(build_ability)) {
+		case (uint32_t(ABILITY_ID::RESEARCH_ADEPTRESONATINGGLAIVES)):
+			return UPGRADE_ID::ADEPTKILLBOUNCE;
+		case(uint32_t(ABILITY_ID::RESEARCH_BLINK)):
+			return UPGRADE_ID::BLINKTECH;
+		case(uint32_t(ABILITY_ID::RESEARCH_CHARGE)):
+			return UPGRADE_ID::CHARGE;
+		case(uint32_t(ABILITY_ID::RESEARCH_EXTENDEDTHERMALLANCE)):
+			return UPGRADE_ID::EXTENDEDTHERMALLANCE;
+		case(uint32_t(ABILITY_ID::RESEARCH_GRAVITICBOOSTER)):
+			return UPGRADE_ID::OBSERVERGRAVITICBOOSTER;
+		case(uint32_t(ABILITY_ID::RESEARCH_GRAVITICDRIVE)):
+			return UPGRADE_ID::GRAVITICDRIVE;
+		case (uint32_t(ABILITY_ID::RESEARCH_PROTOSSAIRARMOR)):
+			return UPGRADE_ID::INVALID;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSAIRARMORLEVEL1)):
+			return UPGRADE_ID::PROTOSSAIRARMORSLEVEL1;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSAIRARMORLEVEL2)):
+			return UPGRADE_ID::PROTOSSAIRARMORSLEVEL2;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSAIRARMORLEVEL3)):
+			return UPGRADE_ID::PROTOSSAIRARMORSLEVEL3;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSAIRWEAPONS)):
+			return UPGRADE_ID::INVALID;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSAIRWEAPONSLEVEL1)):
+			return UPGRADE_ID::PROTOSSAIRWEAPONSLEVEL1;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSAIRWEAPONSLEVEL2)):
+			return UPGRADE_ID::PROTOSSAIRWEAPONSLEVEL2;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSAIRWEAPONSLEVEL3)):
+			return UPGRADE_ID::PROTOSSAIRWEAPONSLEVEL3;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSGROUNDARMOR)):
+			return UPGRADE_ID::INVALID;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSGROUNDARMORLEVEL1)):
+			return UPGRADE_ID::PROTOSSGROUNDARMORSLEVEL1;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSGROUNDARMORLEVEL2)):
+			return UPGRADE_ID::PROTOSSGROUNDARMORSLEVEL2;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSGROUNDARMORLEVEL3)):
+			return UPGRADE_ID::PROTOSSGROUNDARMORSLEVEL3;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSGROUNDWEAPONS)):
+			return UPGRADE_ID::INVALID;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSGROUNDWEAPONSLEVEL1)):
+			return UPGRADE_ID::PROTOSSGROUNDWEAPONSLEVEL1;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSGROUNDWEAPONSLEVEL2)):
+			return UPGRADE_ID::PROTOSSGROUNDWEAPONSLEVEL2;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSGROUNDWEAPONSLEVEL3)):
+			return UPGRADE_ID::PROTOSSGROUNDWEAPONSLEVEL3;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSSHIELDS)):
+			return UPGRADE_ID::INVALID;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSSHIELDSLEVEL1)):
+			return UPGRADE_ID::PROTOSSSHIELDSLEVEL1;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSSHIELDSLEVEL2)):
+			return UPGRADE_ID::PROTOSSSHIELDSLEVEL2;
+		case(uint32_t(ABILITY_ID::RESEARCH_PROTOSSSHIELDSLEVEL3)):
+			return UPGRADE_ID::PROTOSSSHIELDSLEVEL3;
+			// case(uint32_t(ABILITY_ID::RESEARCH_PSIONICAMPLIFIERS)):
+			//     return UPGRADE_ID::PSIONICAMPLIFIERS;
+		case(uint32_t(ABILITY_ID::RESEARCH_PSISTORM)):
+			return UPGRADE_ID::PSISTORMTECH;
+		case(uint32_t(ABILITY_ID::RESEARCH_SHADOWSTRIKE)):
+			return UPGRADE_ID::DARKTEMPLARBLINKUPGRADE;
+		case(uint32_t(ABILITY_ID::RESEARCH_TEMPESTRANGEUPGRADE)):
+			return UPGRADE_ID::TEMPESTRANGEUPGRADE;
+			// case(uint32_t(ABILITY_ID::RESEARCH_TEMPESTRESEARCHGROUNDATTACKUPGRADE)):
+			//     return UPGRADE_ID::TEMPESTGROUNDATTACKUPGRADE;  
+			// case(uint32_t(ABILITY_ID::RESEARCH_VOIDRAYSPEEDUPGRADE)):
+			//     return UPGRADE_ID::VOIDRAYSPEEDUPGRADE;
+		case(uint32_t(ABILITY_ID::RESEARCH_WARPGATE)):
+			return UPGRADE_ID::WARPGATERESEARCH;
+		}
+		return 0;
+	}
+
+	static UnitTypeID buildAbilityToUnit(AbilityID build_ability) {
+		switch (uint32_t(build_ability)) {
+		case (uint32_t(ABILITY_ID::BUILD_ASSIMILATOR)):
+			return UNIT_TYPEID::PROTOSS_ASSIMILATOR;
+		case (uint32_t(ABILITY_ID::BUILD_CYBERNETICSCORE)):
+			return UNIT_TYPEID::PROTOSS_CYBERNETICSCORE;
+		case (uint32_t(ABILITY_ID::BUILD_DARKSHRINE)):
+			return UNIT_TYPEID::PROTOSS_DARKSHRINE;
+		case (uint32_t(ABILITY_ID::BUILD_FLEETBEACON)):
+			return UNIT_TYPEID::PROTOSS_FLEETBEACON;
+		case (uint32_t(ABILITY_ID::BUILD_FORGE)):
+			return UNIT_TYPEID::PROTOSS_FORGE;
+		case (uint32_t(ABILITY_ID::BUILD_GATEWAY)):
+			return UNIT_TYPEID::PROTOSS_GATEWAY;
+		case (uint32_t(ABILITY_ID::BUILD_NEXUS)):
+			return UNIT_TYPEID::PROTOSS_NEXUS;
+		case (uint32_t(ABILITY_ID::BUILD_PHOTONCANNON)):
+			return UNIT_TYPEID::PROTOSS_PHOTONCANNON;
+		case (uint32_t(ABILITY_ID::BUILD_PYLON)):
+			return UNIT_TYPEID::PROTOSS_PYLON;
+		case (uint32_t(ABILITY_ID::BUILD_ROBOTICSBAY)):
+			return UNIT_TYPEID::PROTOSS_ROBOTICSBAY;
+		case (uint32_t(ABILITY_ID::BUILD_ROBOTICSFACILITY)):
+			return UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY;
+		case (uint32_t(ABILITY_ID::BUILD_SHIELDBATTERY)):
+			return UNIT_TYPEID::PROTOSS_SHIELDBATTERY;
+		case (uint32_t(ABILITY_ID::BUILD_STARGATE)):
+			return UNIT_TYPEID::PROTOSS_STARGATE;
+		case (uint32_t(ABILITY_ID::BUILD_TEMPLARARCHIVE)):
+			return UNIT_TYPEID::PROTOSS_TEMPLARARCHIVE;
+		case (uint32_t(ABILITY_ID::BUILD_TWILIGHTCOUNCIL)):
+			return UNIT_TYPEID::PROTOSS_TWILIGHTCOUNCIL;
+		case (uint32_t(ABILITY_ID::TRAIN_ADEPT)):
+			return UNIT_TYPEID::PROTOSS_ADEPT;
+		case (uint32_t(ABILITY_ID::TRAIN_ARCHON)):
+			return UNIT_TYPEID::PROTOSS_ARCHON;
+		case (uint32_t(ABILITY_ID::TRAIN_CARRIER)):
+			return UNIT_TYPEID::PROTOSS_CARRIER;
+		case (uint32_t(ABILITY_ID::TRAIN_COLOSSUS)):
+			return UNIT_TYPEID::PROTOSS_COLOSSUS;
+		case (uint32_t(ABILITY_ID::TRAIN_DARKTEMPLAR)):
+			return UNIT_TYPEID::PROTOSS_DARKTEMPLAR;
+		case (uint32_t(ABILITY_ID::TRAIN_DISRUPTOR)):
+			return UNIT_TYPEID::PROTOSS_DISRUPTOR;
+		case (uint32_t(ABILITY_ID::TRAIN_HIGHTEMPLAR)):
+			return UNIT_TYPEID::PROTOSS_HIGHTEMPLAR;
+		case (uint32_t(ABILITY_ID::TRAIN_IMMORTAL)):
+			return UNIT_TYPEID::PROTOSS_IMMORTAL;
+		case (uint32_t(ABILITY_ID::TRAIN_MOTHERSHIP)):
+			return UNIT_TYPEID::PROTOSS_MOTHERSHIP;
+		case (uint32_t(ABILITY_ID::TRAIN_MOTHERSHIPCORE)):
+			return UNIT_TYPEID::PROTOSS_MOTHERSHIPCORE;
+		case (uint32_t(ABILITY_ID::TRAIN_OBSERVER)):
+			return UNIT_TYPEID::PROTOSS_OBSERVER;
+		case (uint32_t(ABILITY_ID::TRAIN_ORACLE)):
+			return UNIT_TYPEID::PROTOSS_ORACLE;
+		case (uint32_t(ABILITY_ID::TRAIN_PHOENIX)):
+			return UNIT_TYPEID::PROTOSS_PHOENIX;
+		case (uint32_t(ABILITY_ID::TRAIN_PROBE)):
+			return UNIT_TYPEID::PROTOSS_PROBE;
+		case (uint32_t(ABILITY_ID::TRAIN_SENTRY)):
+			return UNIT_TYPEID::PROTOSS_SENTRY;
+		case (uint32_t(ABILITY_ID::TRAIN_STALKER)):
+			return UNIT_TYPEID::PROTOSS_STALKER;
+		case (uint32_t(ABILITY_ID::TRAIN_TEMPEST)):
+			return UNIT_TYPEID::PROTOSS_TEMPEST;
+		case (uint32_t(ABILITY_ID::TRAIN_VOIDRAY)):
+			return UNIT_TYPEID::PROTOSS_VOIDRAY;
+		case (uint32_t(ABILITY_ID::TRAIN_WARPPRISM)):
+			return UNIT_TYPEID::PROTOSS_WARPPRISM;
+		case (uint32_t(ABILITY_ID::TRAIN_ZEALOT)):
+			return UNIT_TYPEID::PROTOSS_ZEALOT;
+		case (uint32_t(ABILITY_ID::TRAINWARP_ZEALOT)):
+			return UNIT_TYPEID::PROTOSS_ZEALOT;
+		case (uint32_t(ABILITY_ID::TRAINWARP_SENTRY)):
+			return UNIT_TYPEID::PROTOSS_SENTRY;
+		case (uint32_t(ABILITY_ID::TRAINWARP_STALKER)):
+			return UNIT_TYPEID::PROTOSS_STALKER;
+		case (uint32_t(ABILITY_ID::TRAINWARP_ADEPT)):
+			return UNIT_TYPEID::PROTOSS_ADEPT;
+		case (uint32_t(ABILITY_ID::TRAINWARP_DARKTEMPLAR)):
+			return UNIT_TYPEID::PROTOSS_DARKTEMPLAR;
+		case (uint32_t(ABILITY_ID::TRAINWARP_HIGHTEMPLAR)):
+			return UNIT_TYPEID::PROTOSS_HIGHTEMPLAR;
+
+		default:
+			return 0;
+		}
+	}
+
+	static Cost buildAbilityToCost(AbilityID build_ability, Agent* agent) {
+		//sc2::UnitTypeData unit_stats =
+		//    agent->Observation()->GetUnitTypeData().at(static_cast<uint32_t>(buildAbilityToUnit(build_ability)));
+		return { getStats(buildAbilityToUnit(build_ability), agent).mineral_cost, getStats(buildAbilityToUnit(build_ability), agent).vespene_cost, 0, int(getStats(buildAbilityToUnit(build_ability), agent).food_required) };
+	}
+
+	static Cost unitAbilityToCost(AbilityID build_ability, Agent* agent) {
+		if (build_ability == ABILITY_ID::EFFECT_CHRONOBOOSTENERGYCOST) {
+			return { 0, 0, 50, 0 };
+		}
+		else if (build_ability == ABILITY_ID::EFFECT_MASSRECALL_NEXUS) {
+			return { 0, 0, 50, 0 };
+			//} else if (build_ability == ABILITY_ID::BATTERYOVERCHARGE) { //TODO: REPLACE WITH ENERGY OVERCHARGE
+			//    return { 0, 0, 50, 0 };
+		}
+		else if (build_ability == ABILITY_ID::EFFECT_FORCEFIELD) {
+			return { 0, 0, 50, 0 };
+		}
+		else if (build_ability == ABILITY_ID::EFFECT_GUARDIANSHIELD) {
+			return { 0, 0, 75, 0 };
+		}
+		else if (build_ability == ABILITY_ID::HALLUCINATION_ADEPT) {
+			return { 0, 0, 75, 0 };
+		}
+		else if (build_ability == ABILITY_ID::HALLUCINATION_ARCHON) {
+			return { 0, 0, 75, 0 };
+		}
+		else if (build_ability == ABILITY_ID::HALLUCINATION_COLOSSUS) {
+			return { 0, 0, 75, 0 };
+		}
+		else if (build_ability == ABILITY_ID::HALLUCINATION_DISRUPTOR) {
+			return { 0, 0, 75, 0 };
+		}
+		else if (build_ability == ABILITY_ID::HALLUCINATION_HIGHTEMPLAR) {
+			return { 0, 0, 75, 0 };
+		}
+		else if (build_ability == ABILITY_ID::HALLUCINATION_IMMORTAL) {
+			return { 0, 0, 75, 0 };
+		}
+		else if (build_ability == ABILITY_ID::HALLUCINATION_ORACLE) {
+			return { 0, 0, 75, 0 };
+		}
+		else if (build_ability == ABILITY_ID::HALLUCINATION_PHOENIX) {
+			return { 0, 0, 75, 0 };
+		}
+		else if (build_ability == ABILITY_ID::HALLUCINATION_PROBE) {
+			return { 0, 0, 75, 0 };
+		}
+		else if (build_ability == ABILITY_ID::HALLUCINATION_STALKER) {
+			return { 0, 0, 75, 0 };
+		}
+		else if (build_ability == ABILITY_ID::HALLUCINATION_VOIDRAY) {
+			return { 0, 0, 75, 0 };
+		}
+		else if (build_ability == ABILITY_ID::HALLUCINATION_WARPPRISM) {
+			return { 0, 0, 75, 0 };
+		}
+		else if (build_ability == ABILITY_ID::HALLUCINATION_ZEALOT) {
+			return { 0, 0, 75, 0 };
+		}
+		else if (build_ability == ABILITY_ID::EFFECT_GRAVITONBEAM) {
+			return { 0, 0, 50, 0 };
+		}
+		else if (build_ability == ABILITY_ID::EFFECT_ORACLEREVELATION) {
+			return { 0, 0, 25, 0 };
+		}
+		else if (build_ability == ABILITY_ID::BUILD_STASISTRAP) {
+			return { 0, 0, 50, 0 };
+		}
+		else if (build_ability == ABILITY_ID::EFFECT_FEEDBACK) {
+			return { 0, 0, 50, 0 };
+		}
+		else if (build_ability == ABILITY_ID::EFFECT_PSISTORM) {
+			return { 0, 0, 75, 0 };
+		}
+		else if (build_ability == ABILITY_ID::GENERAL_MOVE) {
+			return { 0, 0, 0, 0 };
+		}
+		else if (build_ability == ABILITY_ID::RESEARCH_PROTOSSGROUNDWEAPONS) {
+			return { 0, 0, 0, 0 };
+		}
+		printf("Unknown Unit Ability %s\n", AbilityTypeToName(build_ability));
+		return { 0, 0, 0, 0 };
+	}
+
+	static Cost UpgradeToCost(AbilityID research_ability, Agent* agent) {
+		UpgradeData upgrade_stats =
+			agent->Observation()->GetUpgradeData().at(static_cast<uint32_t>(researchAbilityToUpgrade(research_ability)));
+		return { upgrade_stats.mineral_cost, upgrade_stats.vespene_cost, 0 };
+	}
+
+	static Cost abilityToCost(AbilityID ability, Agent* agent) {
+		if (buildAbilityToUnit(ability) != 0) {
+			return buildAbilityToCost(ability, agent);
+		}
+		else if (researchAbilityToUpgrade(ability)) {
+			return UpgradeToCost(ability, agent);
+		}
+		else {
+			return unitAbilityToCost(ability, agent);
+		}
+		return { 0, 0, 0, 0 };
+	}
 
 	void setupExpansions(Agent* const agent) {
 		Point3D start = agent->Observation()->GetStartLocation();
@@ -197,6 +537,25 @@ namespace Aux {
 			selfRankedExpansions.insert(ExpansionDistance{ selfDistances[i], i });
 			enemyRankedExpansions.insert(ExpansionDistance{ enemyDistances[i], i });
 		}
+
+		//SETUP CRITICAL POINTS
+		criticalPoints = std::vector(10, Point2D{ 0,0 });
+		criticalPoints[CrucialPoints::PLACEHOLDER_POINT] = Point2D{ 500,500 };
+		criticalPoints[CrucialPoints::SELF_STARTLOC_POINT] = agent->Observation()->GetStartLocation();
+		criticalPoints[CrucialPoints::ENEMY_STARTLOC_POINT] = gameInfo_cache.enemy_start_locations[0];;
+
+		Point2D py;
+		py.x = (criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].x > mapWidth_cache / 2) ? criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].x - 6 : criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].x + 6;
+		py.y = (criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].y > mapHeight_cache / 2) ? criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].y - 6 : criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].y + 6;
+
+		//Point2D py2;
+		//py2.x = (criticalPoints[CrucialPoints::ENEMY_STARTLOC_POINT].x > mapWidth_cache / 2) ? criticalPoints[CrucialPoints::ENEMY_STARTLOC_POINT].x - 6 : criticalPoints[CrucialPoints::ENEMY_STARTLOC_POINT].x + 6;
+		//py2.y = (criticalPoints[CrucialPoints::ENEMY_STARTLOC_POINT].y > mapHeight_cache / 2) ? criticalPoints[CrucialPoints::ENEMY_STARTLOC_POINT].y - 6 : criticalPoints[CrucialPoints::ENEMY_STARTLOC_POINT].y + 6;
+
+		criticalPoints[CrucialPoints::SELF_FIRSTPYLON_POINT] = py;
+		//criticalPoints[CrucialPoints::ENEMY_STARTLOC_POINT] = py2;
+
+
 	}
 
 	void displayExpansions(Agent* const agent) {
@@ -231,6 +590,12 @@ namespace Aux {
 		return (type == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER || type == UNIT_TYPEID::NEUTRAL_PROTOSSVESPENEGEYSER ||
 			type == UNIT_TYPEID::NEUTRAL_PURIFIERVESPENEGEYSER || type == UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER ||
 			type == UNIT_TYPEID::NEUTRAL_SHAKURASVESPENEGEYSER || type == UNIT_TYPEID::NEUTRAL_SPACEPLATFORMGEYSER);
+	}
+
+	Point2D getRandomPointRadius(Point2D point, float radius_max) {
+		float theta = (2.0F * M_PI * rand()) / RAND_MAX;
+		float radius = (radius_max * rand()) / RAND_MAX;
+		return point + Point2D{ radius * cos(theta), radius * sin(theta) };
 	}
 
 	Point2D cliffCheckDisplace[8] = {
@@ -363,7 +728,7 @@ namespace Aux {
 		int y = (int)(pos.y - (sizeY / 2) + ((sizeY % 2 == 0) ? 0.5F : 0.0F));
 		for (int i = 0; i < sizeX; i++) {
 			for (int j = 0; j < sizeY; j++) {
-				if ((sizeX > 5 && sizeY > 5) && (i == 0 || i == sizeX - 1) && (j == 0 || j == sizeY - 1)) {
+				if ((sizeX > 6 && sizeY > 6) && (i == 0 || i == sizeX - 1) && (j == 0 || j == sizeY - 1)) {
 					continue;
 				}
 				if (pattern == nullptr || (*pattern)[i][j] == 1) {
@@ -444,6 +809,22 @@ namespace Aux {
 			printf("NOT FOUND STRUCTURE ID %s\n", UnitTypeToName(unit_type));
 		}
 	}
+
+	static bool checkStructurePlacement(Point2D pos, int size) {
+		int x = (int)(pos.x - (size / 2) + ((size % 2 == 0) ? 0.5F : 0.0F));
+		int y = (int)(pos.y - (size / 2) + ((size % 2 == 0) ? 0.5F : 0.0F));
+		for (int i = 0; i < size; i++) {
+			for (int j = 0; j < size; j++) {
+				if (!isPlacable(i + x, j + y)) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	static Point2D possibleNextPylons[6] = {Point2D{8, -2}, Point2D{-8, 2}, Point2D{4, 5} , Point2D{-4, -5} , Point2D{4, -7} , Point2D{-4, 7} };
+	static Point2D possibleNextBuildings[2] = { Point2D{-2.5, -0.5}, Point2D{0.5, -2.5} };
 
 	void reloadMasterMap(Agent* const agent, Point2D pos, int sizeX, int sizeY) {
 		int x = (int)(pos.x - (sizeX / 2) + ((sizeX % 2 == 0) ? 0.5F : 0.0F));

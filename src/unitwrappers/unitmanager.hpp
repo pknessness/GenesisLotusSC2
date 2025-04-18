@@ -1,3 +1,4 @@
+#pragma once
 #include "unitwrapper.hpp"
 #include <iostream>
 
@@ -66,6 +67,17 @@ namespace UnitManager {
         {UNIT_TYPEID::ZERG_ZERGLINGBURROWED, UNIT_TYPEID::ZERG_ZERGLING},
         {UNIT_TYPEID::ZERG_LAIR, UNIT_TYPEID::ZERG_HATCHERY},
         {UNIT_TYPEID::ZERG_HIVE, UNIT_TYPEID::ZERG_HATCHERY},
+
+        {UNIT_TYPEID::NEUTRAL_LABMINERALFIELD, UNIT_TYPEID::NEUTRAL_MINERALFIELD},
+        {UNIT_TYPEID::NEUTRAL_MINERALFIELD750, UNIT_TYPEID::NEUTRAL_MINERALFIELD},
+        {UNIT_TYPEID::NEUTRAL_LABMINERALFIELD750, UNIT_TYPEID::NEUTRAL_MINERALFIELD},
+        {UNIT_TYPEID::NEUTRAL_MINERALFIELD450, UNIT_TYPEID::NEUTRAL_MINERALFIELD},
+
+        {UNIT_TYPEID::NEUTRAL_PROTOSSVESPENEGEYSER, UNIT_TYPEID::NEUTRAL_VESPENEGEYSER},
+        {UNIT_TYPEID::NEUTRAL_PURIFIERVESPENEGEYSER, UNIT_TYPEID::NEUTRAL_VESPENEGEYSER},
+        {UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER, UNIT_TYPEID::NEUTRAL_VESPENEGEYSER},
+        {UNIT_TYPEID::NEUTRAL_SHAKURASVESPENEGEYSER, UNIT_TYPEID::NEUTRAL_VESPENEGEYSER},
+        {UNIT_TYPEID::NEUTRAL_SPACEPLATFORMGEYSER, UNIT_TYPEID::NEUTRAL_VESPENEGEYSER},
     };
 
     UnitTypeID getSuperType(UnitTypeID in) {
@@ -77,64 +89,54 @@ namespace UnitManager {
         }
     }
 
-    void add(UnitWrapperMap& units, const Unit* unit_) {
-        UnitTypeID stype = getSuperType(unit_->unit_type);
-        units[stype].insert(std::make_shared<UnitWrapper>(unit_, stype));
-    }
-
-    void remove(const Unit* unit_) {
-        UnitTypeID stype = getSuperType(unit_->unit_type);
-        UnitWrapperMap* units;
-        if (unit_->alliance == Unit::Alliance::Self) {
-            units = &self_units;
-        }else if(unit_->alliance == Unit::Alliance::Neutral) {
-            units = &neutral_units;
-        }else if (unit_->alliance == Unit::Alliance::Enemy) {
-            units = &enemy_units;
-        }
-        else{
-            printf("NO TEAM, YOU FUCKED UP\n");
-            throw 5;
-        }
-        bool removed = false;
-        for (auto it = (*units)[stype].begin(); it != (*units)[stype].end(); it++) {
-            if ((*it)->self == unit_->tag) {
-                (*it)->setDead();
-                (*units)[stype].erase(it);
-                removed = true;
-                break;
-            }
-        }
-        if (!removed) {
-            printf("NOT REMOVED, YOU FUCKED UP\n");
-            throw 5;
-        }
-    }
-
-    UnitWrappers getSelf(UnitTypeID type) {
+    UnitWrappers get(UnitWrapperMap* wrapperMap, UnitTypeID type) {
         UnitTypeID super = getSuperType(type);
-        if (self_units.find(super) == self_units.end()) {
+        if (wrapperMap->find(super) == wrapperMap->end()) {
             UnitWrappers empty;
             return empty;
         }
-        return self_units[super];
+        return (*wrapperMap)[super];
+    }
+
+    UnitWrappers getMulti(UnitWrapperMap* wrapperMap, std::vector<UnitTypeID> types) {
+        UnitWrappers wraps;
+        for (UnitTypeID type : types) {
+            for(UnitWrapperPtr wrap : (*wrapperMap)[type]) {
+                wraps.insert(wrap);
+            }
+        }
+        return wraps;
+    }
+
+    //TODO: REPLACE getSelf WITH A MACRO
+    UnitWrappers getSelf(UnitTypeID type) {
+        return get(&self_units, type);
+    }
+
+    UnitWrapperPtr getRandomSelf(UnitTypeID type) {
+        UnitWrappers all = getSelf(type);
+        if (all.size() == 0) {
+            return nullptr;
+        }
+        int r = rand() % all.size();
+        auto it = all.begin();
+        std::advance(it, r);
+        return *it;
     }
 
     UnitWrappers getNeutral(UnitTypeID type) {
-        UnitTypeID super = getSuperType(type);
-        if (neutral_units.find(super) == neutral_units.end()) {
-            UnitWrappers empty;
-            return empty;
-        }
-        return neutral_units[super];
+        return get(&neutral_units, type);
+    }
+
+    UnitWrappers getMinerals() {
+        return getNeutral(UNIT_TYPEID::NEUTRAL_MINERALFIELD);
+    }
+
+    UnitWrappers getVespene() {
+        return getNeutral(UNIT_TYPEID::NEUTRAL_VESPENEGEYSER);
     }
 
     UnitWrappers getEnemy(UnitTypeID type) {
-        UnitTypeID super = getSuperType(type);
-        if (enemy_units.find(super) == enemy_units.end()) {
-            UnitWrappers empty;
-            return empty;
-        }
-        return enemy_units[super];
+        return get(&enemy_units, type);
     }
 }
