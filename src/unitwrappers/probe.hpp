@@ -5,6 +5,7 @@
 #include "../auxiliary/helpers.hpp"
 #include "unitmanager.hpp"
 #include "../auxiliary/debugging.hpp"
+#include "vespene.hpp"
 
 struct Building {
     AbilityID build;
@@ -31,23 +32,37 @@ public:
     Probe(const Unit* unit) : UnitWrapper(unit, UNIT_TYPEID::PROTOSS_PROBE), ignoreFrames(0), target(nullptr) {
     }
 
+    ~Probe() {
+        setTarget(nullptr);
+    }
+
+    void setTarget(UnitWrapperPtr newTarget) {
+        if (target != nullptr) {
+            probeTargetting[target->self] -= 1;
+        }
+        if (newTarget != nullptr) {
+            probeTargetting[newTarget->self] += 1;
+        }
+        target = newTarget;
+    }
+
     UnitWrapperPtr getTargetTag(Agent* agent) { //TODO: IF ASSIMILATOR EMPTY RETARGET
         if (target != nullptr && (target->get(agent) == nullptr || (target->getStorageType() == UNIT_TYPEID::PROTOSS_ASSIMILATOR && target->get(agent)->vespene_contents == 0))) {
-            target = nullptr;
+            setTarget(nullptr);
         }
         if (target == nullptr) {
-            probeTargetting.clear();
-            for (UnitWrapperPtr probesWr : UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PROBE)) {
-                std::shared_ptr<Probe> probe = std::static_pointer_cast<Probe>(probesWr);
-                if (probe->target == nullptr) {
-                    continue;
-                }
+            //probeTargetting.clear();
+            //for (UnitWrapperPtr probesWr : UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PROBE)) {
+            //    std::shared_ptr<Probe> probe = std::static_pointer_cast<Probe>(probesWr);
+            //    if (probe->target == nullptr) {
+            //        continue;
+            //    }
 
-                if (probe->target != nullptr && probeTargetting.find(probe->target->self) == probeTargetting.end()) {
-                    probeTargetting[probe->target->self] = 0;
-                }
-                probeTargetting[probe->target->self] += 1;
-            }
+            //    if (probe->target != nullptr && probeTargetting.find(probe->target->self) == probeTargetting.end()) {
+            //        probeTargetting[probe->target->self] = 0;
+            //    }
+            //    probeTargetting[probe->target->self] += 1;
+            //}
 
             //TODO: CHOOSE NEW TARGET
             UnitWrappers mineralWraps = UnitManager::getMinerals();
@@ -101,9 +116,10 @@ public:
                     minDist = dist;
                     nextTarget = targetWrap;
                     capacity = probeTargetting[targetWrap->self];
+                    /*probeTargetting[targetWrap->self] += 1;*/
                 }
             }
-            target = nextTarget;
+            setTarget(nextTarget);
         }
         return target;
     }
@@ -117,7 +133,7 @@ public:
         if (unit == nullptr) {
             return;
         }
-        if (buildings.size() != 0) {
+        if (buildings.size() != 0 && (unit->orders.size() == 0 || unit->orders[0].ability_id == ABILITY_ID::HARVEST_GATHER || unit->orders[0].ability_id == ABILITY_ID::HARVEST_RETURN)) {
             Building top = buildings[0];
             if (top.build == ABILITY_ID::GENERAL_MOVE) {
                 agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, top.pos);
@@ -137,9 +153,14 @@ public:
                     bool built = false;
 
                     for (auto it = prereqs.begin(); it != prereqs.end(); it++) {
-                        if ((*it)->get(agent) != nullptr && (*it)->get(agent)->build_progress == 1.0F) {
+                        const Unit* prereq = (*it)->get(agent);
+                        if (prereq != nullptr && prereq->build_progress == 1.0F) {
                             built = true;
                         }
+                        //if ((*it)->construction_finished) {
+                        //    built = true;
+                        //    break;
+                        //}
                     }
                     if (!built) {
                         return;
@@ -149,18 +170,15 @@ public:
                 if (top.build == ABILITY_ID::BUILD_ASSIMILATOR) {
                     UnitWrappers vespenes = UnitManager::getVespene();
                     for (auto it = vespenes.begin(); it != vespenes.end(); it++) {
-                        //if (agent->Observation()->GetUnit(vespene[i]->self) == nullptr) {
-                        //    continue;
-                        //}
                         printf("TRY: %.1f,%.1f %.1f,%.1f\n", (*it)->pos(agent).x, (*it)->pos(agent).y,
                             pos(agent).x, pos(agent).y);
                         if (DistanceSquared2D((*it)->pos(agent), pos(agent)) < 4) {
                             printf("%Ix %s %Ix\n", self, AbilityTypeToName(top.build), (*it)->self);
                             agent->Actions()->UnitCommand(self, top.build, (*it)->self);
+                            std::static_pointer_cast<Vespene>((*it))->taken = true;
                             break;
                         }
                     }
-                    //agent->Actions()->UnitCommand(self, ABILITY_ID::HARVEST_RETURN);
                 }
                 else {
                     if (agent->Query()->Placement(top.build, top.pos)) {
@@ -183,8 +201,8 @@ public:
         }
         else {
             UnitWrapperPtr targ = getTargetTag(agent);
-            if (unit->orders.size() == 0 || (unit->orders[0].ability_id == ABILITY_ID::HARVEST_GATHER &&
-                unit->orders[0].target_unit_tag != targ->self)) {
+            if (targ != nullptr && (unit->orders.size() == 0 || (unit->orders[0].ability_id == ABILITY_ID::HARVEST_GATHER &&
+                unit->orders[0].target_unit_tag != targ->self))) {
                 /*printf("REASING\n");*/
                 agent->Actions()->UnitCommand(self, ABILITY_ID::HARVEST_GATHER, targ->self);
             }

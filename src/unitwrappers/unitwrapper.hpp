@@ -35,15 +35,21 @@ private:
 
     bool dead;
 
+    int finished_frames;
+    
+
 public:
     Tag self;
+    bool construction_finished;
+
     UnitWrapper(const Unit* unit_, UnitTypeID sType) :
         storageType(sType), team(unit_->alliance), self(unit_->tag),
         recentType_cache(unit_->unit_type), radius_cache(unit_->radius), 
         health_cache(unit_->health), healthMax_cache(unit_->health_max),
         shields_cache(unit_->shield), shieldsMax_cache(unit_->shield_max),
         energy_cache(unit_->energy), energyMax_cache(unit_->energy_max), pos_cache(unit_->pos), dead(false),
-        attackUpgradeLevel_cache(0), armorUpgradeLevel_cache(0), shieldUpgradeLevel_cache(0) {
+        attackUpgradeLevel_cache(0), armorUpgradeLevel_cache(0), shieldUpgradeLevel_cache(0),
+        finished_frames(0), construction_finished(!unit_->is_building){
         //self = unit_->tag;
     }
     ~UnitWrapper() {
@@ -104,6 +110,18 @@ public:
     //virtual void execute(Agent* const agent) {
 
     //}
+
+    void setConstructed(Agent* const agent) {
+        if (!construction_finished && finished_frames >= 5) {
+            construction_finished = true;
+        }
+        else if(!construction_finished){
+            const Unit* unit = get(agent);
+            if (unit != nullptr && unit->build_progress == 1.0) {
+                finished_frames += 1;
+            }
+        }
+    }
 
     virtual std::vector<Point2D> getPath(Agent* const agent, Point2D point) {
         return std::vector<Point2D>();

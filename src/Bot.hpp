@@ -31,11 +31,33 @@ namespace UnitManager {
                 nexus->init(agent);
                 units[stype].insert(nexus);
                 return;
+            }else if (stype == UNIT_TYPEID::PROTOSS_ASSIMILATOR) {
+                UnitWrapperPtr assimilator = std::make_shared<UnitWrapper>(unit_, stype);
+                UnitWrappers nexuses = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_NEXUS);
+                for (UnitWrapperPtr nexus : nexuses) {
+                    if (DistanceSquared2D(assimilator->pos(agent), nexus->pos(agent)) < 100) {
+                        std::static_pointer_cast<Nexus>(nexus)->addAssimilator(assimilator);
+                        break;
+                    }
+                }
+                units[stype].insert(assimilator);
             }
         }
         else if (unit_->alliance == Unit::Neutral) {
             if (stype == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER) {
                 units[stype].insert(std::make_shared<Vespene>(unit_, stype));
+                return;
+            }
+            else if (stype == UNIT_TYPEID::NEUTRAL_MINERALFIELD) {
+                UnitWrapperPtr mineral = std::make_shared<UnitWrapper>(unit_, stype);
+                UnitWrappers nexuses = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_NEXUS);
+                for (UnitWrapperPtr nexus : nexuses) {
+                    if (DistanceSquared2D(mineral->pos(agent), nexus->pos(agent)) < 100) {
+                        std::static_pointer_cast<Nexus>(nexus)->addMineral(mineral);
+                        break;
+                    }
+                }
+                units[stype].insert(mineral);
                 return;
             }
         }
@@ -68,7 +90,7 @@ namespace UnitManager {
             }
         }
         if (!removed) {
-            printf("NOT REMOVED, YOU FUCKED UP\n");
+            printf("NOT REMOVED, YOU FUCKED UP super(%s) = %s\n", UnitTypeToName(unit_->unit_type), UnitTypeToName(stype));
             throw 5;
         }
     }
@@ -95,55 +117,60 @@ struct Bot: sc2::Agent
         Aux::allData(this);
 
         std::cout << "New game started!" << std::endl;
-        MacroManager::addAction(MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::criticalPoints[Aux::SELF_FIRSTPYLON_POINT]));
-        MacroManager::addAction(MacroBuilding(ABILITY_ID::BUILD_GATEWAY, Aux::PointDefault()));
-        MacroManager::addAction(MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR, Aux::PointDefault()));
-        MacroManager::addAction(MacroBuilding(ABILITY_ID::BUILD_CYBERNETICSCORE, Aux::PointDefault()));
-        MacroManager::addAction(MacroGateway(ABILITY_ID::TRAIN_ADEPT));
-        //std::vector<MacroAction> build_order = {
-        //    MacroBuilding(ABILITY_ID::BUILD_PYLON, P2D(Aux::staging_location)),
-        //    MacroBuilding(ABILITY_ID::BUILD_GATEWAY, {-1,-1}),
-        //    MacroBuilding(ABILITY_ID::GENERAL_MOVE, Aux::enemyLoc),
-        //    MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR, {-1,-1}),
-        //    MacroBuilding(ABILITY_ID::BUILD_CYBERNETICSCORE, {-1, -1}),
-        //    MacroBuilding(ABILITY_ID::BUILD_NEXUS, P2D(Aux::rankedExpansions[0])),
-        //    MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER, nullptr),
-        //    MacroAction(UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, ABILITY_ID::RESEARCH_WARPGATE, nullptr),
-        //    MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR, { -1,-1 }),
-        //    MacroBuilding(ABILITY_ID::BUILD_PYLON, {-1, -1}),
-        //    MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER, nullptr),
-        //    MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER, nullptr),
-        //    MacroBuilding(ABILITY_ID::BUILD_ROBOTICSFACILITY, {-1, -1}),
-        //    MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_OBSERVER, nullptr),
-        //    MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_IMMORTAL, nullptr),
-        //    MacroBuilding(ABILITY_ID::BUILD_GATEWAY, {-1, -1}),
-        //    MacroBuilding(ABILITY_ID::BUILD_GATEWAY, {-1, -1}),
-        //    MacroBuilding(ABILITY_ID::BUILD_ROBOTICSBAY, {-1, -1}),
-        //    MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER, nullptr),
-        //    MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER, nullptr),
-        //    MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER, nullptr),
-        //    MacroAction(UNIT_TYPEID::PROTOSS_TWILIGHTCOUNCIL, ABILITY_ID::RESEARCH_BLINK, nullptr),
-        //    MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR, { -1,-1 }),
-        //    MacroBuilding(ABILITY_ID::BUILD_TWILIGHTCOUNCIL, {-1, -1}),
-        //    MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR, { -1,-1 }),
-        //    MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_COLOSSUS, nullptr),
-        //    MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSBAY, ABILITY_ID::RESEARCH_EXTENDEDTHERMALLANCE, nullptr),
-        //    MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_COLOSSUS, nullptr),
-        //    MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_IMMORTAL, nullptr),
-        //    MacroBuilding(ABILITY_ID::BUILD_GATEWAY, { -1,-1 }),
-        //    MacroBuilding(ABILITY_ID::BUILD_GATEWAY, { -1,-1 }),
-        //    MacroBuilding(ABILITY_ID::BUILD_GATEWAY, { -1,-1 }),
-        //    MacroBuilding(ABILITY_ID::BUILD_GATEWAY, { -1,-1 }),
-        //    MacroBuilding(ABILITY_ID::BUILD_GATEWAY, { -1,-1 }),
-        //    MacroBuilding(ABILITY_ID::BUILD_GATEWAY, { -1,-1 }),
-        //    MacroBuilding(ABILITY_ID::BUILD_PYLON, {-1, -1}),
-        //    MacroBuilding(ABILITY_ID::BUILD_PYLON, {-1, -1}),
-        //    MacroBuilding(ABILITY_ID::BUILD_PYLON, {-1, -1}),
-        //    MacroBuilding(ABILITY_ID::BUILD_PYLON, {-1, -1}),
-        //    MacroBuilding(ABILITY_ID::BUILD_PYLON, {-1, -1}),
-        //    MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_WARPPRISM, nullptr),
-        //    MacroBuilding(ABILITY_ID::BUILD_NEXUS, P2D(Aux::rankedExpansions[1])),
-        //};
+        //MacroManager::addAction(MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::criticalPoints[Aux::SELF_FIRSTPYLON_POINT]));
+        //MacroManager::addAction(MacroBuilding(ABILITY_ID::BUILD_GATEWAY, Aux::PointDefault()));
+        //MacroManager::addAction(MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR, Aux::PointDefault()));
+        //MacroManager::addAction(MacroBuilding(ABILITY_ID::BUILD_CYBERNETICSCORE, Aux::PointDefault()));
+        //MacroManager::addAction(MacroGateway(ABILITY_ID::TRAIN_ADEPT));
+        std::vector<MacroAction> build_order = {
+            MacroAction(UNIT_TYPEID::PROTOSS_NEXUS, ABILITY_ID::TRAIN_PROBE, true),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::criticalPoints[Aux::SELF_FIRSTPYLON_POINT]),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::GENERAL_MOVE, Aux::criticalPoints[Aux::ENEMY_STARTLOC_POINT]),
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
+            MacroBuilding(ABILITY_ID::BUILD_CYBERNETICSCORE),
+            MacroBuilding(ABILITY_ID::BUILD_NEXUS),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
+            MacroAction(UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, ABILITY_ID::RESEARCH_WARPGATE),
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
+            MacroBuilding(ABILITY_ID::BUILD_ROBOTICSFACILITY),
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_OBSERVER),
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_IMMORTAL),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_ROBOTICSBAY),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
+            MacroAction(UNIT_TYPEID::PROTOSS_TWILIGHTCOUNCIL, ABILITY_ID::RESEARCH_BLINK),
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
+            MacroBuilding(ABILITY_ID::BUILD_TWILIGHTCOUNCIL),
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_COLOSSUS),
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSBAY, ABILITY_ID::RESEARCH_EXTENDEDTHERMALLANCE),
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_COLOSSUS),
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_IMMORTAL),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_WARPPRISM),
+            MacroBuilding(ABILITY_ID::BUILD_NEXUS),
+        };
+
+        for (int i = 0; i < build_order.size(); i++) {
+            MacroManager::addAction(build_order[i]);
+        }
     }
 
     //! Called when a game has ended.
@@ -177,59 +204,53 @@ struct Bot: sc2::Agent
 
         int numProbes = 0;
         int numProbesMax = 0;
-        //onStepProfiler.midLog("ProbeCreation1");
         for (UnitWrapperPtr nexusWrap : UnitManager::getSelf(UNIT_TYPEID::PROTOSS_NEXUS)) {
+            NexusPtr nexus = std::static_pointer_cast<Nexus>(nexusWrap);
+
             int numProbesN = 0;
             int numProbesMaxN = 0;
             float percentUntilViable = 1.0F - (Aux::getStats(UNIT_TYPEID::PROTOSS_PROBE, this).build_time / Aux::getStats(UNIT_TYPEID::PROTOSS_NEXUS, this).build_time);
-            //onStepProfiler.midLog("ProbeCreation2");
-            if (nexusWrap->get(this)->build_progress < percentUntilViable) {
+            if (nexus->get(this)->build_progress < percentUntilViable) {
                 continue;
             }
-            if (((Nexus*)nexusWrap)->assimilator1 != NullTag) {
-                //if (Observation()->GetUnit(((Nexus*)nexusWrap)->assimilator1) == nullptr) {
-                //    ((Nexus*)nexusWrap)->assimilator1 = NullTag;
-                //} else {
-                //    numProbesMaxN += 3;
-                //    numProbesN += probeTargetting[((Nexus*)nexusWrap)->assimilator1];
-                //}
+            if (nexus->assimilator1 != NullTag) {
                 numProbesMaxN += 3;
-                numProbesN += probeTargetting[((Nexus*)nexusWrap)->assimilator1];
+                numProbesN += probeTargetting[nexus->assimilator1->self];
             }
-            //onStepProfiler.midLog("ProbeCreation3");
-            if (((Nexus*)nexusWrap)->assimilator2 != NullTag) {
-                //if (Observation()->GetUnit(((Nexus*)nexusWrap)->assimilator2) == nullptr) {
-                //    ((Nexus*)nexusWrap)->assimilator2 = NullTag;
-                //}
-                //else {
-                //    numProbesMaxN += 3;
-                //    numProbesN += probeTargetting[((Nexus*)nexusWrap)->assimilator2];
-                //}
+            if (nexus->assimilator2 != NullTag) {
                 numProbesMaxN += 3;
-                numProbesN += probeTargetting[((Nexus*)nexusWrap)->assimilator2];
+                numProbesN += probeTargetting[nexus->assimilator2->self];
             }
-            //onStepProfiler.midLog("ProbeCreation4");
             for (int i = 0; i < 8; i++) {
-                if (((Nexus*)nexusWrap)->minerals[i] != nullptr) {
+                if (nexus->minerals[i] != nullptr) {
                     numProbesMaxN += 2;
-                    numProbesN += probeTargetting[((Nexus*)nexusWrap)->minerals[i]->self];
-                    if (((Nexus*)nexusWrap)->minerals[i]->get(this) != nullptr) {
-                        Point3D po = ((Nexus*)nexusWrap)->minerals[i]->pos3D(this);
-                        DebugBox(this, po + Point3D{ -0.125, -0.125, 3 }, po + Point3D{ 0.125, 0.125, 3.25 }, Colors::Red);
+                    numProbesN += probeTargetting[nexus->minerals[i]->self];
+                    if (nexus->minerals[i]->get(this) != nullptr) {
+                        Point3D po = nexus->minerals[i]->pos3D(this);
+                        //Color mineralCapacity
+                        DebugBox(this, po + Point3D{ -0.125, -0.125, 3 }, po + Point3D{ 0.125, 0.125, 3.125 }, Colors::Blue);
+                        if (probeTargetting[nexus->minerals[i]->self] > 0) {
+                            DebugBox(this, po + Point3D{ -0.125, -0.125, 3.125 }, po + Point3D{ 0.125, 0.125, 3.375 }, Colors::Teal);
+                        }
+                        if (probeTargetting[nexus->minerals[i]->self] > 1) {
+                            DebugBox(this, po + Point3D{ -0.125, -0.125, 3.375 }, po + Point3D{ 0.125, 0.125, 3.5 }, Colors::Yellow);
+                        }
+                        if (probeTargetting[nexus->minerals[i]->self] > 2) {
+                            DebugBox(this, po + Point3D{ -0.13, -0.13, 3 }, po + Point3D{ 0.13, 0.13, 3.5 }, Colors::Red);
+                        }
                     }
                 }
             }
-            //onStepProfiler.midLog("ProbeCreation5");
             DebugText(this, strprintf("%d/%d", numProbesN, numProbesMaxN), nexusWrap->pos3D(this) + Point3D{ 0,0, 5.5 });
             numProbes += numProbesN;
             numProbesMax += numProbesMaxN;
         }
 
-        if ((numProbes + 1) < numProbesMax && Macro::actions[UNIT_TYPEID::PROTOSS_NEXUS].size() == 0) {
-            Macro::addProbe();
+        if ((numProbes) < numProbesMax && MacroManager::allActions[UNIT_TYPEID::PROTOSS_NEXUS].size() == 0) {
+            MacroManager::addAction(MacroAction(UNIT_TYPEID::PROTOSS_NEXUS, ABILITY_ID::TRAIN_PROBE, false, MacroActionData(), -1, 0));
         }
 
-        onStepProfiler.midLog("ProbeCreation");
+        onStepProfiler.midLog("oS-probe");
 
         MacroManager::execute(this);
 
@@ -304,9 +325,19 @@ struct Bot: sc2::Agent
 
         onStepProfiler.midLog("oS-CLI");
         
+        for (auto typeIt = UnitManager::self_units.begin(); typeIt != UnitManager::self_units.end(); typeIt++) {
+            for (auto it = typeIt->second.begin(); it != typeIt->second.end(); it++) {
+                (*it)->setConstructed(this);
+            }
+        }
+
+        onStepProfiler.midLog("oS-Build");
+
         DebugText(this, strprintf("%.3fms", lastDT / 1000.0));
 
         Aux::displayExpansions(this);
+
+        MacroManager::displayMacroActions(this);
 
         onStepProfiler.midLog("oS-Debug");
 
@@ -351,7 +382,7 @@ struct Bot: sc2::Agent
         }
         DebugText(this, profilestr, Point2D(0.61F, 0.41F), Color(1, 212, 41), 8);
 
-        onStepProfiler.midLog("oS-ProfilerLog");
+        onStepProfiler.midLog("oS-logging");
 
         SendDebug(this);
 
@@ -386,6 +417,9 @@ struct Bot: sc2::Agent
     //!  Called when a neutral unit is created. For example, mineral fields observed for the first time
     //!< \param unit The observed unit.
     virtual void OnNeutralUnitCreated(const sc2::Unit* unit_) {
+        std::cout << sc2::UnitTypeToName(unit_->unit_type) <<
+            "(" << unit_->tag << ") was created N" << std::endl;
+
         UnitManager::add(UnitManager::neutral_units, unit_, this);
     }
 

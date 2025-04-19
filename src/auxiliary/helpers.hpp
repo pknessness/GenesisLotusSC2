@@ -193,7 +193,7 @@ namespace Aux {
 	public:
 		bool operator()(const ExpansionDistance a, const ExpansionDistance b) const
 		{
-			return a.distance > b.distance;
+			return a.distance < b.distance;
 		}
 	};
 
@@ -510,7 +510,13 @@ namespace Aux {
 		Point3D start = agent->Observation()->GetStartLocation();
 		Point3D enemy = AP3D( gameInfo_cache.enemy_start_locations[0] );
 
-		std::vector<Point3D> expands = sc2::search::CalculateExpansionLocations(agent->Observation(), agent->Query());
+		std::vector<Point3D> rawExpands = sc2::search::CalculateExpansionLocations(agent->Observation(), agent->Query());
+		std::vector<Point3D> expands;
+		for (int i = 0; i < rawExpands.size(); i++) {
+			if (rawExpands[i].x != 0 && rawExpands[i].y != 0) {
+				expands.push_back(rawExpands[i]);
+			}
+		}
 		expands.push_back(start);
 
 		std::vector<QueryInterface::PathingQuery> selfQueries;
@@ -824,7 +830,7 @@ namespace Aux {
 	}
 
 	static Point2D possibleNextPylons[6] = {Point2D{8, -2}, Point2D{-8, 2}, Point2D{4, 5} , Point2D{-4, -5} , Point2D{4, -7} , Point2D{-4, 7} };
-	static Point2D possibleNextBuildings[2] = { Point2D{-2.5, -0.5}, Point2D{0.5, -2.5} };
+	static Point2D possibleNextBuildings[6] = { Point2D{-2.5, -0.5}, Point2D{0.5, -2.5}, Point2D{5.5, -2.5}, Point2D{4.5, 2.5}, Point2D{1.5, 4.5}, Point2D{-3.5, 4.5} };
 
 	void reloadMasterMap(Agent* const agent, Point2D pos, int sizeX, int sizeY) {
 		int x = (int)(pos.x - (sizeX / 2) + ((sizeX % 2 == 0) ? 0.5F : 0.0F));

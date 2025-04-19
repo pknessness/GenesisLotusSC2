@@ -10,6 +10,7 @@
 #include "profiler.hpp"
 #include "../unitwrappers/probe.hpp"
 #include "../unitwrappers/vespene.hpp"
+#include "debugging.hpp"
 
 using namespace sc2;
 
@@ -90,7 +91,7 @@ struct MacroAction {
 };
 
 struct MacroBuilding : MacroAction {
-	MacroBuilding(AbilityID ability_, Aux::PointArea pos_ = Aux::PointArea(), MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1) : MacroAction(UNIT_TYPEID::PROTOSS_PROBE, ability_, pos_, false, extraData_, dependency_, index_){
+	MacroBuilding(AbilityID ability_, Aux::PointArea pos_ = Aux::PointDefault(), MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1) : MacroAction(UNIT_TYPEID::PROTOSS_PROBE, ability_, pos_, false, extraData_, dependency_, index_){
 		
 	}
 };
@@ -121,8 +122,8 @@ namespace MacroManager {
 		if (pos == Point2D{ 0, 0 }) {
 			UnitWrappers pylons = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PYLON);
 			for (auto it = pylons.begin(); it != pylons.end(); it++) {
-				for (int i = 0; i < 6; i++) {
-					Point2D loc = (*it)->posCache() + Aux::possibleNextBuildings[i];
+				for (Point2D displaceMent : Aux::possibleNextPylons) {
+					Point2D loc = (*it)->posCache() + displaceMent;
 					if (Aux::checkStructurePlacement(loc, 2)) {
 						return loc;
 					}
@@ -141,12 +142,12 @@ namespace MacroManager {
 		return Point2D{ -1, -1 };
 	}
 
-	Point2D getBuildingLocation(Point2D pos = { 0,0 }, float radius = 0) {
+	Point2D getBuildingLocation(Point2D pos = { 0,0 }, float radius = 0) { //TODO: ACCOUNT FOR HEIGHT, PYLONS CAN ONLY POWER DOWNWARDS NOT UPWARDS
 		if (pos == Point2D{ 0, 0 }) {
 			UnitWrappers pylons = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PYLON);
 			for (auto it = pylons.begin(); it != pylons.end(); it++) {
-				for (int i = 0; i < 2; i++) {
-					Point2D loc = (*it)->posCache() + Aux::possibleNextBuildings[i];
+				for (Point2D displaceMent : Aux::possibleNextBuildings) {
+					Point2D loc = (*it)->posCache() + displaceMent;
 					if (Aux::checkStructurePlacement(loc, 3)) {
 						return loc;
 					}
@@ -167,9 +168,9 @@ namespace MacroManager {
 
 	class MacroActionCompare {
 	public:
-		bool operator()(const MacroAction a, const MacroAction b)
+		bool operator()(const MacroAction a, const MacroAction b) const
 		{
-			return a.index > b.index;
+			return a.index < b.index;
 		}
 	};
 	class MacroActionPtrCompare {
@@ -180,7 +181,8 @@ namespace MacroManager {
 		}
 	};
 
-	std::map<UnitTypeID, std::priority_queue<MacroAction, std::vector<MacroAction>, MacroActionCompare>> allActions;
+	//std::map<UnitTypeID, std::priority_queue<MacroAction, std::vector<MacroAction>, MacroActionCompare>> allActions;
+	std::map<UnitTypeID, std::multiset<MacroAction, MacroActionCompare>> allActions;
 	
 	int lastPylonTriggered_frames = 0;
 	int macroExecuteCooldown_frames = 0;
@@ -193,7 +195,7 @@ namespace MacroManager {
 	}
 
 	void addAction(MacroAction action) {
-		allActions[action.executor].push(action);
+		allActions[action.executor].insert(action);
 	}
 
 	void execute(Agent* const agent) {
@@ -212,7 +214,7 @@ namespace MacroManager {
 			if (it->second.size() == 0) {
 				continue;
 			}
-			topActions.insert(&(it->second.top()));
+			topActions.insert(&(*(it->second.begin())));
 		}
 
 		std::string diagnostics = "";
@@ -238,7 +240,8 @@ namespace MacroManager {
 			//Filter units
 			UnitWrappers possibleUnits;
 			for (auto it = allPossibleUnits.begin(); it != allPossibleUnits.end(); it++) {
-				if ((*it)->get(agent) != nullptr && ((*it)->get(agent)->orders.size() == 0 || currentAction->executor == UNIT_TYPEID::PROTOSS_PROBE)) {
+				const Unit* unwrapUnit = (*it)->get(agent);
+				if (unwrapUnit != nullptr && (unwrapUnit->orders.size() == 0 || currentAction->executor == UNIT_TYPEID::PROTOSS_PROBE) && unwrapUnit->build_progress == 1.0F) {
 					possibleUnits.insert(*it);
 				}
 			}
@@ -254,7 +257,7 @@ namespace MacroManager {
 				if (currentAction->ability == ABILITY_ID::BUILD_PYLON) {
 					p = getPylonLocation();
 
-				}else if (currentAction->ability == ABILITY_ID::BUILD_ASSIMILATOR) {
+				} else if (currentAction->ability == ABILITY_ID::BUILD_ASSIMILATOR) {
 					UnitWrappers vespenes = UnitManager::getVespene();
 
 					bool hasNexus = false;
@@ -264,7 +267,7 @@ namespace MacroManager {
 					for (UnitWrapperPtr vespeneW : vespenes) {
 						VespenePtr vespene = std::static_pointer_cast<Vespene>(vespeneW);
 
-						if (hasNexus && !vespene->nearNexus) {
+						if (vespene->taken || (hasNexus && !vespene->nearNexus)) {
 							continue;
 						}
 
@@ -280,7 +283,16 @@ namespace MacroManager {
 					}
 					p = nextTarget->pos(agent);
 
-				}else{
+				} else if (currentAction->ability == ABILITY_ID::BUILD_NEXUS) {
+					for (Aux::ExpansionDistance expansionDist : Aux::selfRankedExpansions) {
+						Point2D loc = Aux::expansions[expansionDist.expansionIndex].pos;
+						if (Aux::checkStructurePlacement(loc, 5)) {
+							p = loc;
+							break;
+						}
+					}
+				
+				} else{
 					p = getBuildingLocation();
 				}
 				if (p != Point2D{ -1, -1 }) {
@@ -424,7 +436,27 @@ namespace MacroManager {
 				theoryVesp += (int)(dt * VESPENE_PER_PROBE_PER_SEC * numVespeneMiners);
 			}
 			else {
-				//TODO: NON BUILDING ACTIONS
+				if (prerequisite != UNIT_TYPEID::INVALID) {
+					if (UnitManager::getSelf(prerequisite).size() == 0) {
+						diagnostics += strprintf("PREREQUISITE REQUIRED: %s\n\n", UnitTypeToName(prerequisite));
+						continue;
+					}	
+
+					UnitWrappers allPrereqs = UnitManager::getSelf(prerequisite);
+
+					bool foundPrereq = false;
+					for (auto it = allPrereqs.begin(); it != allPrereqs.end(); it++) {
+						const Unit* prereq = (*it)->get(agent);
+						if (prereq != nullptr && prereq->build_progress == 1.0) {
+							foundPrereq = true;
+							break;
+						}
+					}
+					if (!foundPrereq) {
+						diagnostics += strprintf("INCOMPLETE PREREQUISITE: %s\n\n", UnitTypeToName(prerequisite));
+						continue;
+					}
+				}
 				currentAction->executorPtr = *possibleUnits.begin();
 			}
 
@@ -434,6 +466,21 @@ namespace MacroManager {
 			}
 
 			if (theoryMin >= int(abilityCost.minerals) && theoryVesp >= int(abilityCost.vespene)) {
+				const Unit* unit = currentAction->executorPtr->get(agent);
+				AvailableAbilities unitAbilities = agent->Query()->GetAbilitiesForUnit(unit);
+				bool hasAbility = false;
+				for (int a = 0; a < unitAbilities.abilities.size(); a++) {
+					if (unitAbilities.abilities[a].ability_id == currentAction->ability) {
+						hasAbility = true;
+						break;
+					}
+				}
+
+				if (!hasAbility) {
+					diagnostics += "UNIT DOES NOT HAVE REQUIRED ABILITY\n\n";
+					continue;
+				}
+
 				if (currentAction->position.pos != Point2D{ 0, 0 }) {
 					if (currentAction->position.pos == Point2D{ -1, -1 }) {
 						diagnostics += "POS NOT DEFINED EARLIER\n\n";
@@ -461,7 +508,7 @@ namespace MacroManager {
 				//else {
 				//	actions[topAct.unit_type].erase(actions[topAct.unit_type].begin());
 				//}
-				allActions[currentAction->executor].pop();
+				allActions[currentAction->executor].erase(allActions[currentAction->executor].begin());
 				diagnostics += "SUCCESS\n\n";
 				break;
 			}
@@ -474,5 +521,22 @@ namespace MacroManager {
 		}
 		
 		DebugText(agent, diagnostics, Point2D{ 0.01,0.1 }, {150, 100, 200});
+	}
+
+	void displayMacroActions(Agent* const agent) {
+		std::string tot = "MACRO:\n";
+		for (auto it = allActions.begin(); it != allActions.end(); it++) {
+			auto all = it->second;
+			std::string type = UnitTypeToName(it->first);
+			tot += ("\n" + type + ":\n");
+			for (auto it2 = all.begin(); it2 != all.end(); it2++) {
+				tot += strprintf("%s %d %.1f,%.1f", AbilityTypeToName(it2->ability), it2->index, it2->position.pos.x, it2->position.pos.y);
+				if (it2->chronoBoost) {
+					tot += " CHRONO";
+				}
+				tot += "\n";
+			}
+		}
+		DebugText(agent, tot, Point2D(0.81F, 0.11F), Color(250, 50, 15), 8);
 	}
 };
