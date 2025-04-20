@@ -225,7 +225,7 @@ namespace MacroManager {
 
 		for (auto it = topActions.begin(); it != topActions.end(); it++) {
 			const MacroAction* currentAction = *it;
-			//int readyInXFrames = 0;
+			currentAction->readyInFrames = 0;
 
 			int foodCap = agent->Observation()->GetFoodCap();
 			int foodUsed = agent->Observation()->GetFoodUsed();
