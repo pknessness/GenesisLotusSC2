@@ -197,6 +197,9 @@ struct Bot: sc2::Agent
             if (target != nullptr) {
                 DebugLine(this, target->pos3D(this) + Point3D{ 0,0,1 }, probe->pos3D(this) + Point3D{ 0,0,1 });
             }
+            if (probe->buildings.size() != 0) {
+                DebugText(this, strprintf("%s", AbilityTypeToName(probe->buildings[0].build)), probe->pos3D(this) + Point3D{ 0,0,1 });
+            }
 #endif
         }
 

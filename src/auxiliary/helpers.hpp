@@ -540,7 +540,9 @@ namespace Aux {
 		std::vector<float> enemyDistances = agent->Query()->PathingDistance(enemyQueries);
 		for (int i = 0; i < expands.size(); i++) {
 			expansions.push_back(Expansion{ expands[i] });
-			selfRankedExpansions.insert(ExpansionDistance{ selfDistances[i], i });
+			if (selfDistances[i] != 0.0) {
+				selfRankedExpansions.insert(ExpansionDistance{ selfDistances[i], i });
+			}
 			enemyRankedExpansions.insert(ExpansionDistance{ enemyDistances[i], i });
 		}
 

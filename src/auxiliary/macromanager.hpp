@@ -48,10 +48,12 @@ struct MacroAction {
 
 	mutable MacroActionData extraData;
 
+	mutable int readyInFrames;
+
 	MacroAction(UnitTypeID unit_type_, AbilityID ability_, Aux::PointArea pos_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1)
 		: executor( unit_type_), ability(ability_), position(pos_), 
 		chronoBoost(chronoBoost_), target(nullptr), index(globalIndex),
-		dependency(dependency_), executorPtr(nullptr) {
+		dependency(dependency_), executorPtr(nullptr), readyInFrames(-1) {
 		if (index_ == -1) {
 			globalIndex++;
 		}
@@ -63,7 +65,7 @@ struct MacroAction {
 	MacroAction(UnitTypeID unit_type_, AbilityID ability_, UnitWrapperPtr target_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1)
 		: executor(unit_type_), ability(ability_), position(),
 		chronoBoost(chronoBoost_), target(target_), index(globalIndex),
-		dependency(dependency_), executorPtr(nullptr) {
+		dependency(dependency_), executorPtr(nullptr), readyInFrames(-1) {
 		if (index_ == -1) {
 			globalIndex++;
 		}
@@ -75,7 +77,7 @@ struct MacroAction {
 	MacroAction(UnitTypeID unit_type_, AbilityID ability_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1)
 		: executor(unit_type_), ability(ability_), position(),
 		chronoBoost(chronoBoost_), target(nullptr), index(globalIndex),
-		dependency(dependency_), executorPtr(nullptr) {
+		dependency(dependency_), executorPtr(nullptr), readyInFrames(-1) {
 		if (index_ == -1) {
 			index = globalIndex;
 			globalIndex++;
@@ -217,11 +219,13 @@ namespace MacroManager {
 			topActions.insert(&(*(it->second.begin())));
 		}
 
+		UnitTypeData pylon_stats = Aux::getStats(UNIT_TYPEID::PROTOSS_PYLON, agent);
+
 		std::string diagnostics = "";
 
 		for (auto it = topActions.begin(); it != topActions.end(); it++) {
 			const MacroAction* currentAction = *it;
-			int readyInXFrames = 0;
+			//int readyInXFrames = 0;
 
 			int foodCap = agent->Observation()->GetFoodCap();
 			int foodUsed = agent->Observation()->GetFoodUsed();
@@ -237,18 +241,42 @@ namespace MacroManager {
 				continue;
 			}
 
+			UnitTypeID unitToCreate = Aux::buildAbilityToUnit(currentAction->ability);
+			UnitTypeData ability_stats = Aux::getStats(unitToCreate, agent);
+
 			//Filter units
 			UnitWrappers possibleUnits;
+			float ticksToExecutorReady = -1;
 			for (auto it = allPossibleUnits.begin(); it != allPossibleUnits.end(); it++) {
 				const Unit* unwrapUnit = (*it)->get(agent);
 				if (unwrapUnit != nullptr && (unwrapUnit->orders.size() == 0 || currentAction->executor == UNIT_TYPEID::PROTOSS_PROBE) && unwrapUnit->build_progress == 1.0F) {
 					possibleUnits.insert(*it);
+					ticksToExecutorReady = 0;
 				}
+				else if (unwrapUnit != nullptr && unwrapUnit->orders.size() != 0) {
+					float ready = (1.0F - unwrapUnit->orders[0].progress) * ability_stats.build_time;
+					if (ticksToExecutorReady == -1 || ticksToExecutorReady > ready) {
+						ticksToExecutorReady = ready;
+					}
+				}
+				else if (unwrapUnit != nullptr && unwrapUnit->build_progress != 1.0F) {
+					UnitTypeData executor_stats = Aux::getStats(unwrapUnit->unit_type, agent);
+					float ready = (1.0F - unwrapUnit->build_progress) * executor_stats.build_time;
+					if (ticksToExecutorReady == -1 || ticksToExecutorReady > ready) {
+						ticksToExecutorReady = ready;
+					}
+				}
+				else {
+					printf("what is this state\n");
+				}
+			}
+			if (ticksToExecutorReady != -1 && currentAction->readyInFrames < ticksToExecutorReady) {
+				currentAction->readyInFrames = ticksToExecutorReady;
 			}
 
 			//Check if there are any units post-filtering
 			if (possibleUnits.size() == 0) {
-				diagnostics += "NO FREE EXECUTOR\n\n";
+				diagnostics += strprintf("NO READY EXECUTOR [%d]\n\n", currentAction->readyInFrames);
 				continue;
 			}
 
@@ -308,15 +336,11 @@ namespace MacroManager {
 				diagnostics += "DEFAULT_FINDOUT LOCATION\n\n";
 				continue;
 			}
-			UnitTypeID unitToCreate = Aux::buildAbilityToUnit(currentAction->ability);
-			UnitTypeData ability_stats = Aux::getStats(unitToCreate, agent);
+
 			UnitTypeID prerequisite = ability_stats.tech_requirement;
 
-			if (unitToCreate != UNIT_TYPEID::INVALID) {
-				//TODO: PYLON CREATION WHEN SUPPLY TOO LOW
-			}
-
 			Aux::Cost abilityCost = Aux::abilityToCost(currentAction->ability, agent);
+
 			int theoryMin = agent->Observation()->GetMinerals();
 			int theoryVesp = agent->Observation()->GetVespene();
 
@@ -380,8 +404,8 @@ namespace MacroManager {
 							}
 						}
 					}
-					if (ticksToPrereq != -1 && readyInXFrames < ticksToPrereq) {
-						readyInXFrames = ticksToPrereq;
+					if (ticksToPrereq != -1 && currentAction->readyInFrames < ticksToPrereq) {
+						currentAction->readyInFrames = ticksToPrereq;
 					}
 				}
 
@@ -407,8 +431,8 @@ namespace MacroManager {
 							}
 						}
 					}
-					if (ticksToPrereq != -1 && readyInXFrames < ticksToPrereq) {
-						readyInXFrames = ticksToPrereq;
+					if (ticksToPrereq != -1 && currentAction->readyInFrames < ticksToPrereq) {
+						currentAction->readyInFrames = ticksToPrereq;
 					}
 				}
 
@@ -425,9 +449,9 @@ namespace MacroManager {
 					}
 				}
 
-				float dtPrerequisites = readyInXFrames / fps;
+				float dtPrerequisites = currentAction->readyInFrames / fps;
 				if (dtPrerequisites > dtTravel) {
-					diagnostics += "WAITING ON PREREQUISITES TO BE READY\n\n";
+					diagnostics += strprintf("WAITING ON PREREQUISITES TO BE READY [%d]\n\n", currentAction->readyInFrames);
 					break;
 				}
 				float dt = dtTravel;
@@ -465,22 +489,33 @@ namespace MacroManager {
 				continue;
 			}
 
+			int psi = agent->Observation()->GetFoodUsed();
+			int psiCap = agent->Observation()->GetFoodCap();
+
+			//if (abilityCost.psi + psi > psiCap && currentAction->readyInFrames()) {
+			//	//TODO: PYLON CREATION WHEN SUPPLY TOO LOW
+			//}
+
 			if (theoryMin >= int(abilityCost.minerals) && theoryVesp >= int(abilityCost.vespene)) {
-				const Unit* unit = currentAction->executorPtr->get(agent);
-				AvailableAbilities unitAbilities = agent->Query()->GetAbilitiesForUnit(unit);
-				bool hasAbility = false;
-				for (int a = 0; a < unitAbilities.abilities.size(); a++) {
-					if (unitAbilities.abilities[a].ability_id == currentAction->ability) {
-						hasAbility = true;
-						break;
+				if (currentAction->executor != UNIT_TYPEID::PROTOSS_PROBE) {
+					const Unit* unit = currentAction->executorPtr->get(agent);
+					AvailableAbilities unitAbilities = agent->Query()->GetAbilitiesForUnit(unit);
+					bool hasAbility = false;
+					for (int a = 0; a < unitAbilities.abilities.size(); a++) {
+						if (unitAbilities.abilities[a].ability_id == currentAction->ability) {
+							hasAbility = true;
+							break;
+						}
+					}
+
+					if (!hasAbility) {
+						diagnostics += "UNIT DOES NOT HAVE REQUIRED ABILITY\n\n";
+						continue;
 					}
 				}
-
-				if (!hasAbility) {
-					diagnostics += "UNIT DOES NOT HAVE REQUIRED ABILITY\n\n";
-					continue;
+				if (currentAction->ability == 880) {
+					printf("ebxus\n");
 				}
-
 				if (currentAction->position.pos != Point2D{ 0, 0 }) {
 					if (currentAction->position.pos == Point2D{ -1, -1 }) {
 						diagnostics += "POS NOT DEFINED EARLIER\n\n";
@@ -514,7 +549,7 @@ namespace MacroManager {
 			}
 			else {
 				diagnostics += "NOT ENOUGH RESOURCES\n\n";
-				continue;
+				break;
 			}
 
 			diagnostics += "SEMI SUCCESS\n\n";
