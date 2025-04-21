@@ -42,6 +42,16 @@ namespace UnitManager {
                 }
                 units[stype].insert(assimilator);
             }
+            UnitWrapperPtr selfUnit = std::make_shared<UnitWrapper>(unit_, stype);
+            if (unit_->orders.size() != 0 && unit_->orders[0].target_pos != Point2D()) {
+                Aux::encoding2D point(unit_->orders[0].target_pos);
+                if (MacroManager::dataEncoding.find(point) != MacroManager::dataEncoding.end()) {
+                    selfUnit->creationData = MacroManager::dataEncoding.at(point);
+                    MacroManager::dataEncoding.erase(point);
+                }
+            }
+            units[stype].insert(selfUnit);
+            return;
         }
         else if (unit_->alliance == Unit::Neutral) {
             if (stype == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER) {
@@ -91,7 +101,7 @@ namespace UnitManager {
         }
         if (!removed) {
             printf("NOT REMOVED, YOU FUCKED UP super(%s) = %s\n", UnitTypeToName(unit_->unit_type), UnitTypeToName(stype));
-            throw 5;
+            //throw 5;
         }
     }
 }
@@ -130,7 +140,7 @@ struct Bot: sc2::Agent
             MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
             MacroBuilding(ABILITY_ID::BUILD_CYBERNETICSCORE),
             MacroBuilding(ABILITY_ID::BUILD_NEXUS),
-            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER, true, MacroActionData(8, "Paul")),
             MacroAction(UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, ABILITY_ID::RESEARCH_WARPGATE),
             MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
             MacroBuilding(ABILITY_ID::BUILD_PYLON),
@@ -226,9 +236,9 @@ struct Bot: sc2::Agent
             }
             for (int i = 0; i < 8; i++) {
                 if (nexus->minerals[i] != nullptr) {
-                    numProbesMaxN += 2;
-                    numProbesN += probeTargetting[nexus->minerals[i]->self];
                     if (nexus->minerals[i]->get(this) != nullptr) {
+                        numProbesMaxN += 2;
+                        numProbesN += probeTargetting[nexus->minerals[i]->self];
                         Point3D po = nexus->minerals[i]->pos3D(this);
                         //Color mineralCapacity
                         DebugBox(this, po + Point3D{ -0.125, -0.125, 3 }, po + Point3D{ 0.125, 0.125, 3.125 }, Colors::Blue);
@@ -330,7 +340,7 @@ struct Bot: sc2::Agent
         
         for (auto typeIt = UnitManager::self_units.begin(); typeIt != UnitManager::self_units.end(); typeIt++) {
             for (auto it = typeIt->second.begin(); it != typeIt->second.end(); it++) {
-                (*it)->setConstructed(this);
+                DebugText(this, strprintf("%s", (*it)->creationData.name.c_str()), (*it)->pos3D(this) + Point3D{ 0,0,1 }, Colors::Purple);
             }
         }
 
@@ -397,14 +407,18 @@ struct Bot: sc2::Agent
     //! Called when a Unit has been created by the player.
     //!< \param unit The created unit.
     void OnUnitCreated(const sc2::Unit* unit_){
-        std::cout << sc2::UnitTypeToName(unit_->unit_type) <<
-            "(" << unit_->tag << ") was created" << std::endl;
+        printf("%s (%Ix) was created ", UnitTypeToName(unit_->unit_type), unit_->tag);
         //UnitWrapper u(unit_);
         //UnitManager::self_units.insert(std::make_shared<UnitWrapper>(unit_));
         if (unit_->tag != 0) {
             UnitManager::add(UnitManager::self_units, unit_, this);
             Aux::loadUnitPlacement(Aux::SELF_BUILDINGS, unit_->pos, unit_->unit_type);
         }
+
+        for(int i = 0; i < unit_->orders.size(); i ++) {
+            printf("[%s %.1f,%.1f, %Ix]", AbilityTypeToName(unit_->orders[i].ability_id), unit_->orders[i].target_pos.x, unit_->orders[i].target_pos.y, unit_->orders[i].target_unit_tag);
+        }
+        printf("\n");
     }
 
     //! Called when an enemy unit enters vision from out of fog of war.

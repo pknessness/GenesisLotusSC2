@@ -9,6 +9,22 @@
 
 using namespace sc2;
 
+struct MacroActionData {
+    int index;
+
+    std::string name;
+    int32_t data1;
+    int32_t data2;
+
+    MacroActionData() : index(0), name(""), data1(0), data2(0) {
+
+    }
+
+    MacroActionData(int index_, std::string name_ = "", int32_t data1_ = 0, int32_t data2_ = 0) : index(index_), name(name_), data1(data1_), data2(data2_) {
+
+    }
+};
+
 class UnitWrapper {
 private:
     UnitTypeID storageType;
@@ -37,10 +53,10 @@ private:
 
     int finished_frames;
     
-
 public:
     Tag self;
     bool construction_finished;
+    MacroActionData creationData;
 
     UnitWrapper(const Unit* unit_, UnitTypeID sType) :
         storageType(sType), team(unit_->alliance), self(unit_->tag),
@@ -49,7 +65,7 @@ public:
         shields_cache(unit_->shield), shieldsMax_cache(unit_->shield_max),
         energy_cache(unit_->energy), energyMax_cache(unit_->energy_max), pos_cache(unit_->pos), dead(false),
         attackUpgradeLevel_cache(0), armorUpgradeLevel_cache(0), shieldUpgradeLevel_cache(0),
-        finished_frames(0), construction_finished(!unit_->is_building){
+        finished_frames(0), construction_finished(!unit_->is_building), creationData(){
         //self = unit_->tag;
     }
     ~UnitWrapper() {

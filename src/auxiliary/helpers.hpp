@@ -173,6 +173,32 @@ namespace Aux {
 		}
 	};
 
+	struct encoding2D : Point2D {
+		encoding2D() : Point2D(){
+		}
+
+		encoding2D(const Point2D& p) : Point2D(p){
+		}
+	};
+
+	bool operator<(const encoding2D& l, const encoding2D& r) {
+		return (l.x < r.x || (l.x == r.x && l.y < r.y));
+	}
+
+	bool operator==(const encoding2D& l, const encoding2D& r) {
+		return (l.x == r.x && l.y == r.y);
+	}
+
+	struct encoding2DHash
+	{
+		std::size_t operator()(const encoding2D& k) const
+		{
+			return k.x * 120 + k.y * 214012;
+		}
+	};
+
+
+
 	struct Expansion {
 		Point3D pos;
 		bool taken;
@@ -604,6 +630,12 @@ namespace Aux {
 		float theta = (2.0F * M_PI * rand()) / RAND_MAX;
 		float radius = (radius_max * rand()) / RAND_MAX;
 		return point + Point2D{ radius * cos(theta), radius * sin(theta) };
+	}
+
+	encoding2D getRandomEncodingPoint() {
+		float x = (50 * rand()) / RAND_MAX + 50;
+		float y = (50 * rand()) / RAND_MAX + 50;
+		return encoding2D(Point2D{ x, y });
 	}
 
 	Point2D cliffCheckDisplace[8] = {

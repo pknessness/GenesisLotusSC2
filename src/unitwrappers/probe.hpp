@@ -48,7 +48,11 @@ public:
 
     UnitWrapperPtr getTargetTag(Agent* agent) { //TODO: IF ASSIMILATOR EMPTY RETARGET
         if (target != nullptr && (target->get(agent) == nullptr || (target->getStorageType() == UNIT_TYPEID::PROTOSS_ASSIMILATOR && target->get(agent)->vespene_contents == 0))) {
+            UnitWrapperPtr oldTarget = target;
             setTarget(nullptr);
+            if (oldTarget->get(agent) == nullptr) {
+                probeTargetting.erase(oldTarget->self);
+            }
         }
         if (target == nullptr) {
             //probeTargetting.clear();

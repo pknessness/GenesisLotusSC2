@@ -18,16 +18,6 @@ using namespace sc2;
 #define PROBE_CHECK_DT 30
 #define PROBE_CHECK_DACTION 3
 
-struct MacroActionData {
-	int x;
-	int y;
-	int z;
-
-	MacroActionData() {
-
-	}
-};
-
 struct MacroAction {
 	static int globalIndex;
 	
@@ -53,7 +43,7 @@ struct MacroAction {
 	MacroAction(UnitTypeID unit_type_, AbilityID ability_, Aux::PointArea pos_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1)
 		: executor( unit_type_), ability(ability_), position(pos_), 
 		chronoBoost(chronoBoost_), target(nullptr), index(globalIndex),
-		dependency(dependency_), executorPtr(nullptr), readyInFrames(-1) {
+		dependency(dependency_), executorPtr(nullptr), readyInFrames(-1), extraData(extraData_) {
 		if (index_ == -1) {
 			globalIndex++;
 		}
@@ -65,7 +55,7 @@ struct MacroAction {
 	MacroAction(UnitTypeID unit_type_, AbilityID ability_, UnitWrapperPtr target_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1)
 		: executor(unit_type_), ability(ability_), position(),
 		chronoBoost(chronoBoost_), target(target_), index(globalIndex),
-		dependency(dependency_), executorPtr(nullptr), readyInFrames(-1) {
+		dependency(dependency_), executorPtr(nullptr), readyInFrames(-1), extraData(extraData_) {
 		if (index_ == -1) {
 			globalIndex++;
 		}
@@ -77,7 +67,7 @@ struct MacroAction {
 	MacroAction(UnitTypeID unit_type_, AbilityID ability_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1)
 		: executor(unit_type_), ability(ability_), position(),
 		chronoBoost(chronoBoost_), target(nullptr), index(globalIndex),
-		dependency(dependency_), executorPtr(nullptr), readyInFrames(-1) {
+		dependency(dependency_), executorPtr(nullptr), readyInFrames(-1), extraData(extraData_) {
 		if (index_ == -1) {
 			index = globalIndex;
 			globalIndex++;
@@ -185,6 +175,7 @@ namespace MacroManager {
 
 	//std::map<UnitTypeID, std::priority_queue<MacroAction, std::vector<MacroAction>, MacroActionCompare>> allActions;
 	std::map<UnitTypeID, std::multiset<MacroAction, MacroActionCompare>> allActions;
+	std::unordered_map<Aux::encoding2D, MacroActionData, Aux::encoding2DHash> dataEncoding;
 	
 	int lastPylonTriggered_frames = 0;
 	int macroExecuteCooldown_frames = 0;
@@ -220,18 +211,111 @@ namespace MacroManager {
 		}
 
 		UnitTypeData pylon_stats = Aux::getStats(UNIT_TYPEID::PROTOSS_PYLON, agent);
+		int psi = agent->Observation()->GetFoodUsed();
+		int psiCap = agent->Observation()->GetFoodCap();
 
 		std::string diagnostics = "";
 
 		for (auto it = topActions.begin(); it != topActions.end(); it++) {
 			const MacroAction* currentAction = *it;
-			currentAction->readyInFrames = 0;
 
-			int foodCap = agent->Observation()->GetFoodCap();
-			int foodUsed = agent->Observation()->GetFoodUsed();
-			
+			if (currentAction->executor == UNIT_TYPEID::PROTOSS_GATEWAY &&
+				agent->Observation()->GetWarpGateCount() > 0 && currentAction->ability != ABILITY_ID::TRAIN_ARCHON) {
+				bool swapped = false;
+				if (currentAction->ability == ABILITY_ID::TRAIN_ZEALOT) {
+					currentAction->ability = ABILITY_ID::TRAINWARP_ZEALOT;
+					swapped = true;
+				}
+				else if (currentAction->ability == ABILITY_ID::TRAIN_STALKER) {
+					currentAction->ability = ABILITY_ID::TRAINWARP_STALKER;
+					swapped = true;
+				}
+				else if (currentAction->ability == ABILITY_ID::TRAIN_ADEPT) {
+					currentAction->ability = ABILITY_ID::TRAINWARP_ADEPT;
+					swapped = true;
+				}
+				else if (currentAction->ability == ABILITY_ID::TRAIN_SENTRY) {
+					currentAction->ability = ABILITY_ID::TRAINWARP_SENTRY;
+					swapped = true;
+				}
+				else if (currentAction->ability == ABILITY_ID::TRAIN_DARKTEMPLAR) {
+					currentAction->ability = ABILITY_ID::TRAINWARP_DARKTEMPLAR;
+					swapped = true;
+				}
+				else if (currentAction->ability == ABILITY_ID::TRAIN_HIGHTEMPLAR) {
+					currentAction->ability = ABILITY_ID::TRAINWARP_HIGHTEMPLAR;
+					swapped = true;
+				}
+				else {
+					//printf("DELETED WARPGATE ACTION\n");
+					//it->second.erase(it->second.begin());
+					//continue;
+				}
+
+				if (swapped && currentAction->position.pa_type == Aux::PointArea::INVALID) {
+					currentAction->position = Aux::PointDefault();
+				}
+			}
+
+			Aux::Cost abilityCost = Aux::abilityToCost(currentAction->ability, agent);
+
 			diagnostics += AbilityTypeToName((*it)->ability);
 			diagnostics += ": ";
+
+			int pylonInX = -1;
+
+			//Check PSI
+			if (abilityCost.psi + psi > psiCap && currentAction->readyInFrames != -1 && 
+				currentAction->readyInFrames < pylon_stats.build_time && 
+				(allActions[UNIT_TYPEID::PROTOSS_PROBE].size() != 0 && allActions[UNIT_TYPEID::PROTOSS_PROBE].begin()->ability != ABILITY_ID::BUILD_PYLON)) {
+
+				UnitWrappers pylons = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PYLON);
+
+				float pylonBuildTime = pylon_stats.build_time;
+
+				for (auto it = pylons.begin(); it != pylons.end(); it++) {
+					const Unit* prereq = agent->Observation()->GetUnit((*it)->self);
+					if (prereq != nullptr) {
+						float ticks = (1.0 - prereq->build_progress) * pylonBuildTime;
+						if (ticks != 0 && (pylonInX == -1 || pylonInX > ticks)) {
+							pylonInX = ticks;
+						}
+					}
+				}
+
+				bool pylonRequested = false;
+				UnitWrappers probes = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PROBE);
+				for (auto it = probes.begin(); it != probes.end(); it++) {
+					UnitWrapperPtr p = *it;
+					ProbePtr probe = std::static_pointer_cast<Probe>(p);
+					for (int b = 0; b < probe->buildings.size(); b++) {
+						if (probe->buildings[b].build == ABILITY_ID::BUILD_PYLON) {
+							pylonRequested = true;
+							break;
+						}
+					}
+				}
+				if (!pylonRequested && pylonInX == -1) {
+					addAction(MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::PointDefault(), MacroActionData(), -1, 0));
+					diagnostics += "PYLON REQUESTED\n\n";
+					break;
+				}
+
+				if (pylonInX == -1) {
+					
+				}
+			}
+			if (pylonInX == -1) {
+				currentAction->readyInFrames = 0;
+			}
+			else {
+				currentAction->readyInFrames = pylonInX;
+			}
+
+			if (currentAction->readyInFrames != 0) {
+				diagnostics += strprintf("PYLON IN TRANSIT [%d]\n\n", currentAction->readyInFrames);
+				continue;
+			}
 
 			UnitWrappers allPossibleUnits = UnitManager::getSelf(currentAction->executor);
 
@@ -267,7 +351,7 @@ namespace MacroManager {
 					}
 				}
 				else {
-					printf("what is this state\n");
+					//printf("what is this state\n");
 				}
 			}
 			if (ticksToExecutorReady != -1 && currentAction->readyInFrames < ticksToExecutorReady) {
@@ -338,8 +422,6 @@ namespace MacroManager {
 			}
 
 			UnitTypeID prerequisite = ability_stats.tech_requirement;
-
-			Aux::Cost abilityCost = Aux::abilityToCost(currentAction->ability, agent);
 
 			int theoryMin = agent->Observation()->GetMinerals();
 			int theoryVesp = agent->Observation()->GetVespene();
@@ -420,7 +502,7 @@ namespace MacroManager {
 					UnitWrappers pylons = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PYLON);
 					float ticksToPrereq = -1;
 
-					float pylonBuildTime = Aux::getStats(UNIT_TYPEID::PROTOSS_PYLON, agent).build_time;
+					float pylonBuildTime = pylon_stats.build_time;
 
 					for (auto it = pylons.begin(); it != pylons.end(); it++) {
 						const Unit* prereq = agent->Observation()->GetUnit((*it)->self);
@@ -489,16 +571,10 @@ namespace MacroManager {
 				continue;
 			}
 
-			int psi = agent->Observation()->GetFoodUsed();
-			int psiCap = agent->Observation()->GetFoodCap();
-
-			//if (abilityCost.psi + psi > psiCap && currentAction->readyInFrames()) {
-			//	//TODO: PYLON CREATION WHEN SUPPLY TOO LOW
-			//}
-
 			if (theoryMin >= int(abilityCost.minerals) && theoryVesp >= int(abilityCost.vespene)) {
+				const Unit* unit = currentAction->executorPtr->get(agent);
+
 				if (currentAction->executor != UNIT_TYPEID::PROTOSS_PROBE) {
-					const Unit* unit = currentAction->executorPtr->get(agent);
 					AvailableAbilities unitAbilities = agent->Query()->GetAbilitiesForUnit(unit);
 					bool hasAbility = false;
 					for (int a = 0; a < unitAbilities.abilities.size(); a++) {
@@ -525,14 +601,26 @@ namespace MacroManager {
 						if (currentAction->executor == UNIT_TYPEID::PROTOSS_PROBE) {
 							std::static_pointer_cast<Probe>(currentAction->executorPtr)->addBuilding(*currentAction);
 							Aux::loadUnitPlacement(Aux::BUILDING_RESERVE, currentAction->position.pos, unitToCreate);
+							dataEncoding[currentAction->position.pos] = currentAction->extraData;
 						}
 						else {
 							agent->Actions()->UnitCommand(currentAction->executorPtr->self, currentAction->ability, currentAction->position.pos);
+							dataEncoding[currentAction->position.pos] = currentAction->extraData;
 						}
 					}
 				}
 				else {
-					agent->Actions()->UnitCommand(currentAction->executorPtr->self, currentAction->ability);
+					Aux::encoding2D encodingPoint;
+					while (encodingPoint == Aux::encoding2D()) {
+						Aux::encoding2D prospectivePoint = Aux::getRandomEncodingPoint();
+						if (dataEncoding.find(prospectivePoint) == dataEncoding.end()) {
+							encodingPoint = prospectivePoint;
+							break;
+						}
+					}
+					agent->Actions()->UnitCommand(currentAction->executorPtr->self, ABILITY_ID::RALLY_BUILDING, encodingPoint);
+					agent->Actions()->UnitCommand(currentAction->executorPtr->self, currentAction->ability, true);
+					dataEncoding[encodingPoint] = currentAction->extraData;
 				}
 				//if (topAct.chronoBoost) {
 				//	Nexus::addChrono(UnitManager::find(getSuperType(actionUnit->unit_type), actionUnit->tag));
