@@ -20,18 +20,50 @@
 #define DEBUG
 
 namespace UnitManager {
+    void encode(UnitWrapperPtr wrap, const Unit* unit_) {
+        if (unit_->orders.size() != 0 && unit_->orders[0].target_pos != Point2D()) {
+            Aux::encoding2D point(unit_->orders[0].target_pos);
+            if (MacroManager::dataEncoding.find(point) != MacroManager::dataEncoding.end()) {
+                wrap->creationData = MacroManager::dataEncoding.at(point);
+                MacroManager::dataEncoding.erase(point);
+            }
+            else {
+                printf("missed production\n");
+            }
+        }
+        else {
+            Aux::encoding2D point(unit_->pos);
+            bool encoded = false;
+            for (auto it = MacroManager::dataEncoding.begin(); it != MacroManager::dataEncoding.end(); it++) {
+                if (DistanceSquared2D((*it).first, point) < 2) {
+                    wrap->creationData = MacroManager::dataEncoding.at((*it).first);
+                    MacroManager::dataEncoding.erase((*it).first);
+                    encoded = true;
+                    break;
+                }
+            }
+            if (!encoded) {
+                printf("missed production 2\n");
+            }
+        }
+        
+
+    }
+
     void add(UnitWrapperMap& units, const Unit* unit_, Agent* const agent) {
         UnitTypeID stype = getSuperType(unit_->unit_type);
         if (unit_->alliance == Unit::Self) {
             if (stype == UNIT_TYPEID::PROTOSS_PROBE) {
-                units[stype].insert(std::make_shared<Probe>(unit_));
-                return;
+                ProbePtr probe = std::make_shared<Probe>(unit_);
+                encode(probe, unit_);
+                units[stype].insert(probe);
             }else if (stype == UNIT_TYPEID::PROTOSS_NEXUS) {
-                std::shared_ptr<Nexus> nexus = std::make_shared<Nexus>(unit_);
+                NexusPtr nexus = std::make_shared<Nexus>(unit_);
                 nexus->init(agent);
+                encode(nexus, unit_);
                 units[stype].insert(nexus);
-                return;
-            }else if (stype == UNIT_TYPEID::PROTOSS_ASSIMILATOR) {
+            }
+            else if (stype == UNIT_TYPEID::PROTOSS_ASSIMILATOR) {
                 UnitWrapperPtr assimilator = std::make_shared<UnitWrapper>(unit_, stype);
                 UnitWrappers nexuses = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_NEXUS);
                 for (UnitWrapperPtr nexus : nexuses) {
@@ -40,23 +72,20 @@ namespace UnitManager {
                         break;
                     }
                 }
+                encode(assimilator, unit_);
                 units[stype].insert(assimilator);
             }
-            UnitWrapperPtr selfUnit = std::make_shared<UnitWrapper>(unit_, stype);
-            if (unit_->orders.size() != 0 && unit_->orders[0].target_pos != Point2D()) {
-                Aux::encoding2D point(unit_->orders[0].target_pos);
-                if (MacroManager::dataEncoding.find(point) != MacroManager::dataEncoding.end()) {
-                    selfUnit->creationData = MacroManager::dataEncoding.at(point);
-                    MacroManager::dataEncoding.erase(point);
-                }
+            else {
+                UnitWrapperPtr selfUnit = std::make_shared<UnitWrapper>(unit_, stype);
+                encode(selfUnit, unit_);
+                units[stype].insert(selfUnit);
             }
-            units[stype].insert(selfUnit);
+            agent->Actions()->UnitCommand(unit_->tag, ABILITY_ID::GENERAL_MOVE, unit_->pos);
             return;
         }
         else if (unit_->alliance == Unit::Neutral) {
             if (stype == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER) {
                 units[stype].insert(std::make_shared<Vespene>(unit_, stype));
-                return;
             }
             else if (stype == UNIT_TYPEID::NEUTRAL_MINERALFIELD) {
                 UnitWrapperPtr mineral = std::make_shared<UnitWrapper>(unit_, stype);
@@ -68,8 +97,8 @@ namespace UnitManager {
                     }
                 }
                 units[stype].insert(mineral);
-                return;
             }
+            return;
         }
         units[stype].insert(std::make_shared<UnitWrapper>(unit_, stype));
     }
@@ -140,29 +169,29 @@ struct Bot: sc2::Agent
             MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
             MacroBuilding(ABILITY_ID::BUILD_CYBERNETICSCORE),
             MacroBuilding(ABILITY_ID::BUILD_NEXUS),
-            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER, true, MacroActionData(8, "Paul")),
+            MacroGateway(ABILITY_ID::TRAIN_STALKER),
             MacroAction(UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, ABILITY_ID::RESEARCH_WARPGATE),
             MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
             MacroBuilding(ABILITY_ID::BUILD_PYLON),
-            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
-            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
+            MacroGateway(ABILITY_ID::TRAIN_STALKER),
+            MacroGateway(ABILITY_ID::TRAIN_STALKER),
             MacroBuilding(ABILITY_ID::BUILD_ROBOTICSFACILITY),
-            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_OBSERVER),
-            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_IMMORTAL),
+            MacroRobo(ABILITY_ID::TRAIN_OBSERVER),
+            MacroRobo(ABILITY_ID::TRAIN_IMMORTAL),
             MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
             MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
             MacroBuilding(ABILITY_ID::BUILD_ROBOTICSBAY),
-            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
-            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
-            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
+            MacroGateway(ABILITY_ID::TRAIN_STALKER),
+            MacroGateway(ABILITY_ID::TRAIN_STALKER),
+            MacroGateway(ABILITY_ID::TRAIN_STALKER),
             MacroAction(UNIT_TYPEID::PROTOSS_TWILIGHTCOUNCIL, ABILITY_ID::RESEARCH_BLINK),
             MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
             MacroBuilding(ABILITY_ID::BUILD_TWILIGHTCOUNCIL),
             MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
-            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_COLOSSUS),
+            MacroGateway(ABILITY_ID::TRAIN_COLOSSUS),
             MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSBAY, ABILITY_ID::RESEARCH_EXTENDEDTHERMALLANCE),
-            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_COLOSSUS),
-            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_IMMORTAL),
+            MacroGateway(ABILITY_ID::TRAIN_COLOSSUS),
+            MacroGateway(ABILITY_ID::TRAIN_IMMORTAL),
             MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
             MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
             MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
@@ -174,7 +203,7 @@ struct Bot: sc2::Agent
             MacroBuilding(ABILITY_ID::BUILD_PYLON),
             MacroBuilding(ABILITY_ID::BUILD_PYLON),
             MacroBuilding(ABILITY_ID::BUILD_PYLON),
-            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_WARPPRISM),
+            MacroRobo(ABILITY_ID::TRAIN_WARPPRISM),
             MacroBuilding(ABILITY_ID::BUILD_NEXUS),
         };
 

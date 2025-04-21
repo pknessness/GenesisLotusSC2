@@ -50,6 +50,7 @@ struct MacroAction {
 		else {
 			index = index_;
 		}
+		extraData.index = index;
 	}
 
 	MacroAction(UnitTypeID unit_type_, AbilityID ability_, UnitWrapperPtr target_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1)
@@ -62,6 +63,7 @@ struct MacroAction {
 		else {
 			index = index_;
 		}
+		extraData.index = index;
 	}
 
 	MacroAction(UnitTypeID unit_type_, AbilityID ability_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1)
@@ -75,6 +77,7 @@ struct MacroAction {
 		else {
 			index = index_;
 		}
+		extraData.index = index;
 	}
 
 	operator Building() const {
@@ -589,7 +592,7 @@ namespace MacroManager {
 						continue;
 					}
 				}
-				if (currentAction->ability == 880) {
+				if (currentAction->ability == 1006) {
 					printf("ebxus\n");
 				}
 				if (currentAction->position.pos != Point2D{ 0, 0 }) {
@@ -631,6 +634,7 @@ namespace MacroManager {
 				//else {
 				//	actions[topAct.unit_type].erase(actions[topAct.unit_type].begin());
 				//}
+				macroExecuteCooldown_frames = 1;
 				allActions[currentAction->executor].erase(allActions[currentAction->executor].begin());
 				diagnostics += "SUCCESS\n\n";
 				break;

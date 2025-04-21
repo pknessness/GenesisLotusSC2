@@ -23,6 +23,10 @@ struct MacroActionData {
     MacroActionData(int index_, std::string name_ = "", int32_t data1_ = 0, int32_t data2_ = 0) : index(index_), name(name_), data1(data1_), data2(data2_) {
 
     }
+
+    MacroActionData(std::string name_, int32_t data1_ = 0, int32_t data2_ = 0) : index(-1), name(name_), data1(data1_), data2(data2_) {
+
+    }
 };
 
 class UnitWrapper {
