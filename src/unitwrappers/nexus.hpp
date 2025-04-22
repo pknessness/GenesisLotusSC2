@@ -5,6 +5,8 @@
 #include "vespene.hpp"
 #include "../auxiliary/helpers.hpp"
 
+static std::vector<UnitWrapperPtr> chronoBoosts;
+
 class Nexus : public UnitWrapper {
 private:
 public:
@@ -63,6 +65,23 @@ public:
             VespenePtr vespene = std::static_pointer_cast<Vespene>(vespeneW);
             if (DistanceSquared2D(vespene->pos(agent), pos(agent)) < 100) {
                 vespene->nearNexus = true;
+            }
+        }
+    }
+
+    static void addChrono(UnitWrapperPtr toChrono) {
+        chronoBoosts.push_back(toChrono);
+    }
+
+    void execute(Agent* const agent) {
+        if (chronoBoosts.size() > 0) {
+            if (get(agent)->energy >= Aux::unitAbilityToCost(ABILITY_ID::EFFECT_CHRONOBOOSTENERGYCOST, agent).energy) {
+                std::vector<BuffID> buffs = chronoBoosts[0]->get(agent)->buffs;
+                if (std::find(buffs.begin(), buffs.end(), BUFF_ID::CHRONOBOOSTENERGYCOST) == buffs.end()) {
+                    agent->Actions()->UnitCommand(self, ABILITY_ID::EFFECT_CHRONOBOOSTENERGYCOST, chronoBoosts[0]->self);
+                    chronoBoosts.erase(chronoBoosts.begin());
+                }
+
             }
         }
     }

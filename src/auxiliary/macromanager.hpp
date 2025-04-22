@@ -11,6 +11,7 @@
 #include "../unitwrappers/probe.hpp"
 #include "../unitwrappers/vespene.hpp"
 #include "debugging.hpp"
+#include "../unitwrappers/nexus.hpp"
 
 using namespace sc2;
 
@@ -622,15 +623,9 @@ namespace MacroManager {
 					agent->Actions()->UnitCommand(currentAction->executorPtr->self, currentAction->ability, true);
 					dataEncoding[encodingPoint] = currentAction->extraData;
 				}
-				//if (topAct.chronoBoost) {
-				//	Nexus::addChrono(UnitManager::find(getSuperType(actionUnit->unit_type), actionUnit->tag));
-				//}
-				//if (topAct.unit_type == UNIT_TYPEID::PROTOSS_WARPGATE) {
-				//	actions[UNIT_TYPEID::PROTOSS_GATEWAY].erase(actions[UNIT_TYPEID::PROTOSS_GATEWAY].begin());
-				//}
-				//else {
-				//	actions[topAct.unit_type].erase(actions[topAct.unit_type].begin());
-				//}
+				if (currentAction->chronoBoost) {
+					Nexus::addChrono(currentAction->executorPtr);
+				}
 				macroExecuteCooldown_frames = 1;
 				allActions[currentAction->executor].erase(allActions[currentAction->executor].begin());
 				diagnostics += "SUCCESS\n\n";

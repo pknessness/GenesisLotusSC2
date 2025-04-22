@@ -16,8 +16,12 @@
 #include "auxiliary/macromanager.hpp"
 #include "unitwrappers/nexus.hpp"
 #include "unitwrappers/vespene.hpp"
+#include "auxiliary/strategymanager.hpp"
 
 #define DEBUG
+
+#define ADEPT_RUSH
+//#define STALKER_COLOSSUS_TIMING
 
 namespace UnitManager {
     void encode(UnitWrapperPtr wrap, const Unit* unit_) {
@@ -155,13 +159,11 @@ struct Bot: sc2::Agent
 
         Aux::allData(this);
 
-        std::cout << "New game started!" << std::endl;
-        //MacroManager::addAction(MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::criticalPoints[Aux::SELF_FIRSTPYLON_POINT]));
-        //MacroManager::addAction(MacroBuilding(ABILITY_ID::BUILD_GATEWAY, Aux::PointDefault()));
-        //MacroManager::addAction(MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR, Aux::PointDefault()));
-        //MacroManager::addAction(MacroBuilding(ABILITY_ID::BUILD_CYBERNETICSCORE, Aux::PointDefault()));
-        //MacroManager::addAction(MacroGateway(ABILITY_ID::TRAIN_ADEPT));
-        std::vector<MacroAction> build_order = {
+        StrategyManager::load();
+
+        StrategyManager::Strategy strat = StrategyManager::glaive_adept_rush_lightwisdom;
+        
+        /*std::vector<MacroAction> build_order = {
             MacroAction(UNIT_TYPEID::PROTOSS_NEXUS, ABILITY_ID::TRAIN_PROBE, true),
             MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::criticalPoints[Aux::SELF_FIRSTPYLON_POINT]),
             MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
@@ -205,10 +207,10 @@ struct Bot: sc2::Agent
             MacroBuilding(ABILITY_ID::BUILD_PYLON),
             MacroRobo(ABILITY_ID::TRAIN_WARPPRISM),
             MacroBuilding(ABILITY_ID::BUILD_NEXUS),
-        };
+        };*/
 
-        for (int i = 0; i < build_order.size(); i++) {
-            MacroManager::addAction(build_order[i]);
+        for (int i = 0; i < strat.build_order.size(); i++) {
+            MacroManager::addAction(strat.build_order[i]);
         }
     }
 
@@ -240,6 +242,12 @@ struct Bot: sc2::Agent
                 DebugText(this, strprintf("%s", AbilityTypeToName(probe->buildings[0].build)), probe->pos3D(this) + Point3D{ 0,0,1 });
             }
 #endif
+        }
+
+        UnitWrappers nexi = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_NEXUS);
+        for (auto it = nexi.begin(); it != nexi.end(); it++) {
+            NexusPtr nexus = std::static_pointer_cast<Nexus>(*it);
+            nexus->execute(this);
         }
 
         onStepProfiler.midLog("oS-probeExec");
