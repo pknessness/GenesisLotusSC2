@@ -592,9 +592,6 @@ namespace MacroManager {
 						continue;
 					}
 				}
-				if (currentAction->ability == 1006) {
-					printf("ebxus\n");
-				}
 				if (currentAction->position.pos != Point2D{ 0, 0 }) {
 					if (currentAction->position.pos == Point2D{ -1, -1 }) {
 						diagnostics += "POS NOT DEFINED EARLIER\n\n";

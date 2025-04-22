@@ -107,13 +107,13 @@ public:
                     continue;
                 }
 
-                if (capacity < probeTargetting[targetWrap->self]) {
-                    continue;
-                }
+                //if (capacity < probeTargetting[targetWrap->self]) {
+                //    continue;
+                //}
 
                 float dist = DistanceSquared2D(pos(agent), targetWrap->pos(agent));
 
-                if (minDist == -1 || (!hasNexus && nexusNearby[targetWrap->self]) || (capacity > probeTargetting[targetWrap->self]) || dist < minDist) {
+                if (minDist == -1 || (!hasNexus && nexusNearby[targetWrap->self])/* || (capacity > probeTargetting[targetWrap->self])*/ || dist < minDist) {
                     if (nexusNearby[targetWrap->self]) {
                         hasNexus = true;
                     }
