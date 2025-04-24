@@ -176,7 +176,7 @@ public:
                     for (auto it = vespenes.begin(); it != vespenes.end(); it++) {
                         printf("TRY: %.1f,%.1f %.1f,%.1f\n", (*it)->pos(agent).x, (*it)->pos(agent).y,
                             pos(agent).x, pos(agent).y);
-                        if (DistanceSquared2D((*it)->pos(agent), pos(agent)) < 4) {
+                        if (DistanceSquared2D((*it)->pos(agent), top.pos) < 4) {
                             printf("%Ix %s %Ix\n", self, AbilityTypeToName(top.build), (*it)->self);
                             agent->Actions()->UnitCommand(self, top.build, (*it)->self);
                             std::static_pointer_cast<Vespene>((*it))->taken = true;

@@ -117,6 +117,11 @@ namespace Aux {
 			obstacle == BUILDING_RESERVE);
 	}
 
+	bool isPathableTile(int i, int j) {
+		ObstacleInfo obstacle = getObstacle(i, j);
+		return !((imRef(masterMap, i, j) & 0x01));
+	}
+
 	bool isPlacable(int i, int j) {
 		ObstacleInfo obstacle = getObstacle(i, j);
 		return !(imRef(masterMap, i, j) & 0x02 || 
@@ -1035,5 +1040,45 @@ namespace Aux {
 		loadUnitPlacement(NOTHING, agent->Observation()->GetStartLocation(), 5, 5);
 
 		saveMasterBitmap("masterMap.bmp");
+	}
+
+	void gridTemplate(Agent* const agent, std::function<Color(int, int)> color, int cellSize = 1, bool pathableCheck = true, float boxBorder = 0.05F) {
+		Point2D center = agent->Observation()->GetCameraPos();
+		int wS = int(center.x) - 10;
+		if (wS < 1)
+			wS = 1;
+		int hS = int(center.y) - 5;
+		if (hS < 1)
+			hS = 1;
+		int wE = int(center.x) + 11;
+		if (wE >= Aux::mapWidth_cache - 2)
+			wE = Aux::mapWidth_cache - 2;
+		int hE = int(center.y) + 14;
+		if (hE >= Aux::mapHeight_cache - 2)
+			hE = Aux::mapHeight_cache - 2;
+
+		for (int w = wS; w < wE; w++) {
+			for (int h = hS; h < hE; h++) {
+				if ((pathableCheck && !Aux::isPathableTile(w, h)) || w % cellSize != 0 || h % cellSize != 0) {
+					continue;
+				}
+				Point2DI point = Point2DI(w, h);
+				float boxHeight = 0;
+				Color c = color(w, h);
+
+				if (0 || !(c.r == 255 && c.g == 255 && c.b == 255) || boxHeight != 0) {
+					float height = std::max(
+						agent->Observation()->TerrainHeight(Point2D{ float(w), float(h) }), 
+						agent->Observation()->TerrainHeight(Point2D{ float(w + 1), float(h + 1) }));
+
+					DebugBox(agent, Point3D(w + boxBorder, h + boxBorder, height + 0.05F),
+						Point3D(w + cellSize - boxBorder, h + cellSize - boxBorder, height + boxHeight), c);
+
+					//DebugText(agent, strprintf("%d, %d", w, h),
+					//	Point3D(w + boxBorder, h + 0.2F + boxBorder, height + 0.1F),
+					//	Color(200, 90, 15), 8);
+				}
+			}
+		}
 	}
 }

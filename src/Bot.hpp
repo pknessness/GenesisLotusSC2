@@ -18,6 +18,7 @@
 #include "unitwrappers/vespene.hpp"
 #include "auxiliary/armymanager.hpp"
 #include "unitwrappers/armyunit.hpp"
+#include "auxiliary/spatialhashgrid.hpp"
 
 #define DEBUG
 
@@ -171,53 +172,9 @@ struct Bot: sc2::Agent
 
         StrategyManager::load();
 
-        strat = StrategyManager::glaive_adept_rush_lightwisdom;
-        
-        /*std::vector<MacroAction> build_order = {
-            MacroAction(UNIT_TYPEID::PROTOSS_NEXUS, ABILITY_ID::TRAIN_PROBE, true),
-            MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::criticalPoints[Aux::SELF_FIRSTPYLON_POINT]),
-            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
-            MacroBuilding(ABILITY_ID::GENERAL_MOVE, Aux::criticalPoints[Aux::ENEMY_STARTLOC_POINT]),
-            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
-            MacroBuilding(ABILITY_ID::BUILD_CYBERNETICSCORE),
-            MacroBuilding(ABILITY_ID::BUILD_NEXUS),
-            MacroGateway(ABILITY_ID::TRAIN_STALKER),
-            MacroAction(UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, ABILITY_ID::RESEARCH_WARPGATE),
-            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
-            MacroBuilding(ABILITY_ID::BUILD_PYLON),
-            MacroGateway(ABILITY_ID::TRAIN_STALKER),
-            MacroGateway(ABILITY_ID::TRAIN_STALKER),
-            MacroBuilding(ABILITY_ID::BUILD_ROBOTICSFACILITY),
-            MacroRobo(ABILITY_ID::TRAIN_OBSERVER),
-            MacroRobo(ABILITY_ID::TRAIN_IMMORTAL),
-            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
-            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
-            MacroBuilding(ABILITY_ID::BUILD_ROBOTICSBAY),
-            MacroGateway(ABILITY_ID::TRAIN_STALKER),
-            MacroGateway(ABILITY_ID::TRAIN_STALKER),
-            MacroGateway(ABILITY_ID::TRAIN_STALKER),
-            MacroAction(UNIT_TYPEID::PROTOSS_TWILIGHTCOUNCIL, ABILITY_ID::RESEARCH_BLINK),
-            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
-            MacroBuilding(ABILITY_ID::BUILD_TWILIGHTCOUNCIL),
-            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
-            MacroRobo(ABILITY_ID::TRAIN_COLOSSUS),
-            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSBAY, ABILITY_ID::RESEARCH_EXTENDEDTHERMALLANCE),
-            MacroRobo(ABILITY_ID::TRAIN_COLOSSUS),
-            MacroRobo(ABILITY_ID::TRAIN_IMMORTAL),
-            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
-            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
-            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
-            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
-            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
-            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
-            MacroBuilding(ABILITY_ID::BUILD_PYLON),
-            MacroBuilding(ABILITY_ID::BUILD_PYLON),
-            MacroBuilding(ABILITY_ID::BUILD_PYLON),
-            MacroBuilding(ABILITY_ID::BUILD_PYLON),
-            MacroBuilding(ABILITY_ID::BUILD_PYLON),
-            MacroRobo(ABILITY_ID::TRAIN_WARPPRISM),
-            MacroBuilding(ABILITY_ID::BUILD_NEXUS),
-        };*/
+        SpatialHashGrid::init();
+
+        strat = StrategyManager::glaive_adept_rush_hupsaiya;
 
         for (int i = 0; i < strat.build_order.size(); i++) {
             MacroManager::addAction(strat.build_order[i]);
@@ -397,11 +354,21 @@ struct Bot: sc2::Agent
 
         onStepProfiler.midLog("oS-Build");
 
+        SpatialHashGrid::updateSelf(this);
+
+        onStepProfiler.midLog("oS-SpacSelf");
+
+        SpatialHashGrid::updateEnemy(this);
+
+        onStepProfiler.midLog("oS-SpacEnemy");
+
         DebugText(this, strprintf("%.3fms", lastDT / 1000.0));
 
         Aux::displayExpansions(this);
 
         MacroManager::displayMacroActions(this);
+
+        SpatialHashGrid::debug(this);
 
         onStepProfiler.midLog("oS-Debug");
 
@@ -543,8 +510,8 @@ struct Bot: sc2::Agent
     //! OnUnitCreated and OnUnitIdle if it does not have a rally set.
     //!< \param unit The idle unit.
     void OnUnitIdle(const sc2::Unit* unit_){
-        std::cout << sc2::UnitTypeToName(unit_->unit_type) <<
-             "(" << unit_->tag << ") is idle" << std::endl;
+        //std::cout << sc2::UnitTypeToName(unit_->unit_type) <<
+        //     "(" << unit_->tag << ") is idle" << std::endl;
     }
 
     //! Called when the unit in the previous step had a build progress less than 1.0 but is greater than or equal to 1.0 in

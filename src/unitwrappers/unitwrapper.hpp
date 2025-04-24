@@ -115,6 +115,11 @@ public:
         return pos_cache;
     }
 
+    inline float radius(Agent* const agent) {
+        get(agent);
+        return radius_cache;
+    }
+
     inline bool isBuilding() {
         return isBuilding_;
     }

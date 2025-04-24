@@ -383,7 +383,7 @@ namespace MacroManager {
 					for (UnitWrapperPtr vespeneW : vespenes) {
 						VespenePtr vespene = std::static_pointer_cast<Vespene>(vespeneW);
 
-						if (vespene->taken || (hasNexus && !vespene->nearNexus)) {
+						if (vespene->taken || (hasNexus && !vespene->nearNexus) || Aux::getObstacle((int)vespene->pos(agent).x, (int)vespene->pos(agent).y) != Aux::ObstacleInfo::VESPENE) {
 							continue;
 						}
 
