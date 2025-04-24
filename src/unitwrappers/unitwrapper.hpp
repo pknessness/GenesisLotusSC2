@@ -33,6 +33,7 @@ class UnitWrapper {
 private:
     UnitTypeID storageType;
     Unit::Alliance team;
+    bool isBuilding_;
 
     //cache data
     UnitTypeID recentType_cache;
@@ -59,7 +60,6 @@ private:
     
 public:
     Tag self;
-    bool construction_finished;
     MacroActionData creationData;
 
     UnitWrapper(const Unit* unit_, UnitTypeID sType) :
@@ -69,7 +69,7 @@ public:
         shields_cache(unit_->shield), shieldsMax_cache(unit_->shield_max),
         energy_cache(unit_->energy), energyMax_cache(unit_->energy_max), pos_cache(unit_->pos), dead(false),
         attackUpgradeLevel_cache(0), armorUpgradeLevel_cache(0), shieldUpgradeLevel_cache(0),
-        finished_frames(0), construction_finished(!unit_->is_building), creationData(){
+        finished_frames(0), isBuilding_(unit_->is_building), creationData(){
         //self = unit_->tag;
     }
     ~UnitWrapper() {
@@ -115,32 +115,16 @@ public:
         return pos_cache;
     }
 
-    virtual void atk(Agent* const agent, Point2D point) {
-
+    inline bool isBuilding() {
+        return isBuilding_;
     }
 
-    virtual void atk(Agent* const agent, UnitWrapper* target) {
-
+    inline bool isDead() {
+        return dead;
     }
 
-    virtual void mov(Agent* const agent, Point2D point) {
+    virtual void execute(Agent* const agent) {
 
-    }
-
-    //virtual void execute(Agent* const agent) {
-
-    //}
-
-    void setConstructed(Agent* const agent) {
-        if (!construction_finished && finished_frames >= 5) {
-            construction_finished = true;
-        }
-        else if(!construction_finished){
-            const Unit* unit = get(agent);
-            if (unit != nullptr && unit->build_progress == 1.0) {
-                finished_frames += 1;
-            }
-        }
     }
 
     virtual std::vector<Point2D> getPath(Agent* const agent, Point2D point) {
@@ -149,6 +133,14 @@ public:
 
     UnitTypeID getStorageType() {
         return storageType;
+    }
+
+    static float getPathLengthGround(Agent* const agent, Point2D start, Point2D end) {
+        return agent->Query()->PathingDistance(start, end);
+    }
+
+    static float getPathLengthAir(Agent* const agent, Point2D start, Point2D end) {
+        return Distance2D(start, end);
     }
 
     virtual float getPathLength(Agent* const agent, Point2D point) {

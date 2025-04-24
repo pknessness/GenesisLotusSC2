@@ -52,9 +52,12 @@ namespace StrategyManager {
         std::vector<MacroAction> build_order;
         UnitRatio unitRatio;
         int armyAttackNum = 12;
+
+        //std::function<void(Agent* const agent)> armyTargetting;
     };
 
     Strategy glaive_adept_rush_lightwisdom;
+    Strategy glaive_adept_rush_hupsaiya;
 
     void load(){
         glaive_adept_rush_lightwisdom.build_order = {
@@ -110,16 +113,45 @@ namespace StrategyManager {
             MacroGateway(ABILITY_ID::TRAIN_ADEPT),
             MacroGateway(ABILITY_ID::TRAIN_ADEPT)
         };
-
-        //Unit Ratios
-        glaive_adept_rush_lightwisdom.unitRatio.adept = 24;
-
-        //Key Notes :
-        //1. Uses Aux::criticalPoints for smart pylon / gateway placement
-        // 2. Chrono Boosts marked on Warp Gate and Resonating Glaives
-        // 3. All production is through MacroGateway after Warp Gate finishes
-        // 4. Pylons are placed at critical supply blocks(50, 62, etc.)
+        glaive_adept_rush_lightwisdom.unitRatio.adept = 1;
+        glaive_adept_rush_lightwisdom.armyAttackNum = 10;
         
+        glaive_adept_rush_hupsaiya.build_order = {
+            MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::criticalPoints[Aux::SELF_FIRSTPYLON_POINT]),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::GENERAL_MOVE, Aux::criticalPoints[Aux::ENEMY_STARTLOC_POINT]),
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_CYBERNETICSCORE),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroAction(UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, ABILITY_ID::RESEARCH_WARPGATE),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroBuilding(ABILITY_ID::BUILD_TWILIGHTCOUNCIL),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroAction(UNIT_TYPEID::PROTOSS_TWILIGHTCOUNCIL, ABILITY_ID::RESEARCH_ADEPTRESONATINGGLAIVES),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON), //Proxy Pylon near their 3rd base
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_SHIELDBATTERY),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+        };
+        glaive_adept_rush_hupsaiya.unitRatio.adept = 1;
+        glaive_adept_rush_hupsaiya.armyAttackNum = 14; //Hit at 4:37 with 14 Adepts
+
     }
 
 }

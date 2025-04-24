@@ -452,26 +452,37 @@ namespace MacroManager {
 				if (currentAction->executorPtr == nullptr) {
 					currentAction->executorPtr = *possibleUnits.begin();
 				}
-				UnitWrapperPtr newProbe = UnitManager::getRandomSelf(UNIT_TYPEID::PROTOSS_PROBE);
 
+				UnitTypeID oldProbeTarget = std::static_pointer_cast<Probe>(currentAction->executorPtr)->getTargetTag(agent)->getStorageType();
+				
 				float distToTravel = currentAction->executorPtr->getPathLength(agent, currentAction->position.pos);
-				float newDist = newProbe->getPathLength(agent, currentAction->position.pos);
 
-				if (distToTravel == 0) {
-					distToTravel = Distance2D(currentAction->executorPtr->pos(agent), currentAction->position.pos);
-				}
-				if (newDist == 0) {
-					newDist = Distance2D(newProbe->pos(agent), currentAction->position.pos);
+				for (int i = 0; i < 10; i++) {
+					UnitWrapperPtr potentialNewProbe = UnitManager::getRandomSelf(UNIT_TYPEID::PROTOSS_PROBE);
+					UnitTypeID newProbeTarget = std::static_pointer_cast<Probe>(potentialNewProbe)->getTargetTag(agent)->getStorageType();
+					if (oldProbeTarget == UNIT_TYPEID::NEUTRAL_MINERALFIELD && newProbeTarget == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER) {
+						continue;
+					}
+
+					float newDist = potentialNewProbe->getPathLength(agent, currentAction->position.pos);
+
+					if (distToTravel == 0) {
+						distToTravel = Distance2D(currentAction->executorPtr->pos(agent), currentAction->position.pos);
+					}
+					if (newDist == 0) {
+						newDist = Distance2D(potentialNewProbe->pos(agent), currentAction->position.pos);
+					}
+
+					if (newDist <= distToTravel || (newProbeTarget == UNIT_TYPEID::NEUTRAL_MINERALFIELD && oldProbeTarget == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER)) {
+						currentAction->executorPtr = potentialNewProbe;
+						distToTravel = newDist;
+						break;
+					}
 				}
 
-				DebugSphere(agent, AP3D(currentAction->position.pos), 2);
+				DebugSphere(agent, AP3D(currentAction->position.pos), 1);
 
 				UnitTypeData probeStats = Aux::getStats(UNIT_TYPEID::PROTOSS_PROBE, agent);
-
-				if (newDist <= distToTravel) {
-					currentAction->executorPtr = newProbe;
-					distToTravel = newDist;
-				}
 
 				float dtTravel = (distToTravel - 2) / (probeStats.movement_speed * timeSpeed);
 
@@ -591,6 +602,13 @@ namespace MacroManager {
 					if (!hasAbility) {
 						diagnostics += "UNIT DOES NOT HAVE REQUIRED ABILITY\n\n";
 						continue;
+					}
+				}
+				if (currentAction->executorPtr->get(agent)->unit_type == UNIT_TYPEID::PROTOSS_WARPGATE) {
+					printf("asdas\n");
+					if (agent->Query()->Placement(currentAction->ability, currentAction->position.pos)) {
+						printf("CAN SPAWN %s %.1f,%.1f\n", AbilityTypeToName(currentAction->ability), currentAction->position.pos.x, currentAction->position.pos.y);
+						//agent->Actions()->UnitCommand(self, currentAction->ability, currentAction->position.pos);
 					}
 				}
 				if (currentAction->position.pos != Point2D{ 0, 0 }) {

@@ -581,14 +581,11 @@ namespace Aux {
 		Point2D py;
 		py.x = (criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].x > mapWidth_cache / 2) ? criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].x - 6 : criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].x + 6;
 		py.y = (criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].y > mapHeight_cache / 2) ? criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].y - 6 : criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].y + 6;
-
-		//Point2D py2;
-		//py2.x = (criticalPoints[CrucialPoints::ENEMY_STARTLOC_POINT].x > mapWidth_cache / 2) ? criticalPoints[CrucialPoints::ENEMY_STARTLOC_POINT].x - 6 : criticalPoints[CrucialPoints::ENEMY_STARTLOC_POINT].x + 6;
-		//py2.y = (criticalPoints[CrucialPoints::ENEMY_STARTLOC_POINT].y > mapHeight_cache / 2) ? criticalPoints[CrucialPoints::ENEMY_STARTLOC_POINT].y - 6 : criticalPoints[CrucialPoints::ENEMY_STARTLOC_POINT].y + 6;
-
 		criticalPoints[CrucialPoints::SELF_FIRSTPYLON_POINT] = py;
-		//criticalPoints[CrucialPoints::ENEMY_STARTLOC_POINT] = py2;
 
+		py.x = (criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].x > mapWidth_cache / 2) ? expansions[selfRankedExpansions.begin()->expansionIndex].pos.x - 3 : expansions[selfRankedExpansions.begin()->expansionIndex].pos.x + 3;
+		py.y = (criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].y > mapHeight_cache / 2) ? expansions[selfRankedExpansions.begin()->expansionIndex].pos.y - 3 : expansions[selfRankedExpansions.begin()->expansionIndex].pos.y + 3;
+		criticalPoints[CrucialPoints::SELF_RALLY_POINT] = py;
 
 	}
 

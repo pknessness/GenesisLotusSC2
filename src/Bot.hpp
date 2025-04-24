@@ -16,7 +16,8 @@
 #include "auxiliary/macromanager.hpp"
 #include "unitwrappers/nexus.hpp"
 #include "unitwrappers/vespene.hpp"
-#include "auxiliary/strategymanager.hpp"
+#include "auxiliary/armymanager.hpp"
+#include "unitwrappers/armyunit.hpp"
 
 #define DEBUG
 
@@ -79,10 +80,17 @@ namespace UnitManager {
                 encode(assimilator, unit_);
                 units[stype].insert(assimilator);
             }
-            else {
+            else if(unit_->is_building){
                 UnitWrapperPtr selfUnit = std::make_shared<UnitWrapper>(unit_, stype);
                 encode(selfUnit, unit_);
                 units[stype].insert(selfUnit);
+            }
+            else {
+                ArmyUnitPtr armyUnit = std::make_shared<ArmyUnit>(unit_, stype);
+                encode(armyUnit, unit_);
+                units[stype].insert(armyUnit);
+                ArmyManager::mainAttackSquad.add(armyUnit);
+                armyUnit->squad = &ArmyManager::mainAttackSquad;
             }
             agent->Actions()->UnitCommand(unit_->tag, ABILITY_ID::GENERAL_MOVE, unit_->pos);
             return;
@@ -145,6 +153,8 @@ struct Bot: sc2::Agent
     Bot() = default;
     long long lastDT = 0;
 
+    StrategyManager::Strategy strat;
+
  private:
     //! Called when a game is started or restarted.
     void OnGameStart(){
@@ -161,7 +171,7 @@ struct Bot: sc2::Agent
 
         StrategyManager::load();
 
-        StrategyManager::Strategy strat = StrategyManager::glaive_adept_rush_lightwisdom;
+        strat = StrategyManager::glaive_adept_rush_lightwisdom;
         
         /*std::vector<MacroAction> build_order = {
             MacroAction(UNIT_TYPEID::PROTOSS_NEXUS, ABILITY_ID::TRAIN_PROBE, true),
@@ -303,6 +313,10 @@ struct Bot: sc2::Agent
         onStepProfiler.midLog("oS-probe");
 
         MacroManager::execute(this);
+
+        onStepProfiler.midLog("oS-macroExec");
+
+        ArmyManager::execute(this, strat);
 
         onStepProfiler.midLog("oS-macroExec");
 
