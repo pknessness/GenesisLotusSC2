@@ -63,17 +63,17 @@ namespace StrategyManager {
         glaive_adept_rush_lightwisdom.build_order = {
             //Early Economy
             MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::criticalPoints[Aux::SELF_FIRSTPYLON_POINT]),
-            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY, Aux::PointArea(), MacroActionData("Gate1")),
             MacroBuilding(ABILITY_ID::GENERAL_MOVE, Aux::criticalPoints[Aux::ENEMY_STARTLOC_POINT]),
             MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
             MacroBuilding(ABILITY_ID::BUILD_NEXUS),
 
             //Core Infrastructure
             MacroBuilding(ABILITY_ID::BUILD_PYLON),
-            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY, Aux::PointArea(), MacroActionData("Gate2")),
             MacroBuilding(ABILITY_ID::BUILD_CYBERNETICSCORE),
-            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
-            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY, Aux::PointArea(), MacroActionData("Gate3")),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY, Aux::PointArea(), MacroActionData("Gate4")),
 
             //Warp Gate + Early Units
             MacroAction(UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, ABILITY_ID::RESEARCH_WARPGATE, true), //Chrono Boosted
