@@ -87,11 +87,10 @@ namespace UnitManager {
                 units[stype].insert(selfUnit);
             }
             else {
-                ArmyUnitPtr armyUnit = std::make_shared<ArmyUnit>(unit_, stype);
+                ArmyUnitPtr armyUnit = std::make_shared<ArmyUnit>(unit_, stype, &ArmyManager::mainAttackSquad);
                 encode(armyUnit, unit_);
                 units[stype].insert(armyUnit);
                 ArmyManager::mainAttackSquad.add(armyUnit);
-                armyUnit->squad = &ArmyManager::mainAttackSquad;
             }
             agent->Actions()->UnitCommand(unit_->tag, ABILITY_ID::GENERAL_MOVE, unit_->pos);
             return;
@@ -193,6 +192,8 @@ struct Bot: sc2::Agent
     //! In realtime this function gets called as often as possible after request/responses are received from the game gathering observation state.
     void OnStep(){
         Profiler onStepProfiler("onStep");
+        Aux::effectiveMinerals = Observation()->GetMinerals();
+        Aux::effectiveVespene = Observation()->GetVespene();
 
         UnitWrappers probes = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PROBE);
         for (auto it = probes.begin(); it != probes.end(); it++) {
@@ -275,7 +276,7 @@ struct Bot: sc2::Agent
 
         ArmyManager::execute(this, strat);
 
-        onStepProfiler.midLog("oS-macroExec");
+        onStepProfiler.midLog("oS-armyExec");
 
 #ifndef BUILD_FOR_LADDER
         std::vector<ChatMessage> chats = Observation()->GetChatMessages();
@@ -367,6 +368,7 @@ struct Bot: sc2::Agent
         Aux::displayExpansions(this);
 
         MacroManager::displayMacroActions(this);
+        MacroManager::displayEncodingStack(this);
 
         SpatialHashGrid::debug(this);
 

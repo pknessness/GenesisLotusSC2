@@ -1,0 +1,6 @@
+Assign each unit a threat value of each other unit, then tally up all of the threat values of the enemy units.
+
+(DPS + Bonus) * Range
+
+2 zealot 3 stalker
+3 marine 2 marauders

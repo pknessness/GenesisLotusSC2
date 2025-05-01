@@ -194,6 +194,9 @@ public:
                     }
                 }
                 buildings.erase(buildings.begin());
+                Aux::Cost g = Aux::buildAbilityToCost(top.build, agent);
+                Aux::effectiveMinerals -= g.minerals;
+                Aux::effectiveVespene -= g.vespene;
             }
             else {
                 DebugBox(agent, AP3D(top.pos) + Point3D{ -1.5,-1.5,0 }, AP3D(top.pos) + Point3D{ 1.5,1.5,3 }, Colors::Teal);

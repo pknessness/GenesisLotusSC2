@@ -108,6 +108,12 @@ int main(int argc, char* argv[])
     sc2::Coordinator coordinator;
     coordinator.LoadSettings(argc, argv);
 
+    // NOTE: Uncomment to start the game in full screen mode.
+    // coordinator.SetFullScreen(true);
+
+    // NOTE: Uncomment to play at normal speed.
+    // coordinator.SetRealtime(true);
+
     Bot bot;
     sc2::Difficulty diff = sc2::Difficulty::Hard;
     sc2::Race race = (sc2::Race)(std::rand() % 4);  // Race::Random;

@@ -3,6 +3,7 @@
 
 namespace ArmyManager {
 	SquadManager::Squad mainAttackSquad;
+    bool commited = false;
 
 	void execute(Agent* const agent, StrategyManager::Strategy& strategem) {
         UnitWrappers buildings;
@@ -16,7 +17,8 @@ namespace ArmyManager {
         }
 
         if (buildings.size() > 0) {
-            if (mainAttackSquad.squadSize(agent) >= strategem.armyAttackNum) {
+            if (mainAttackSquad.squadSize(agent) >= strategem.armyAttackNum || (strategem.commit && commited)) {
+                commited = true;
                 if (mainAttackSquad.getCore(agent) != nullptr) {
                     float mindist = 512;
                     UnitWrapperPtr min = nullptr;
@@ -36,7 +38,7 @@ namespace ArmyManager {
                 }
             }
             else {
-                mainAttackSquad.doAttack(Aux::criticalPoints[Aux::CrucialPoints::SELF_RALLY_POINT]);
+                mainAttackSquad.doDefend(Aux::criticalPoints[Aux::CrucialPoints::SELF_RALLY_POINT]);
             }
         }
         else {

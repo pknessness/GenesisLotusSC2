@@ -10,8 +10,11 @@ public:
 
     SquadManager::Squad* squad;
 
-    ArmyUnit(const Unit* unit, UnitTypeID sType) : UnitWrapper(unit, sType){
+    Point2D moveLocation;
 
+    ArmyUnit(const Unit* unit, UnitTypeID sType, SquadManager::Squad* squad_) : UnitWrapper(unit, sType), squad(squad_){
+        squad->squadMainStates[unit->tag] = 'u';
+        squad->unitStates[unit->tag] = ' ';
     }
 
     virtual void atk(Agent* const agent, Point2D point) {
@@ -27,7 +30,31 @@ public:
     }
 
     virtual void executeAttack(Agent* const agent) {
-        atk(agent, squad->targetPosition);
+        moveLocation = Point2D{ -1, -1 };
+        if (squad->squadMainStates[self] == 'u') {
+            moveLocation = squad->targetPosition;
+            if (get(agent)->weapon_cooldown > 0) {
+                squad->unitStates[self] = 'n';
+            }
+            else {
+                squad->unitStates[self] = 'k';
+            }
+        }
+        if (squad->squadMainStates[self] == 'u') {
+            if (squad->unitStates[self] = 'n') {
+                mov(agent, squad->targetPosition);
+            }
+            else if (squad->unitStates[self] == 'k') {
+                atk(agent, squad->targetPosition);
+            }
+            else {
+                atk(agent, squad->targetPosition);
+            }
+            
+        }
+        else if (squad->squadMainStates[self] == 'j') {
+            atk(agent, squad->targetPosition);
+        }
     }
 
     virtual void executeHarass(Agent* const agent) {
@@ -39,12 +66,16 @@ public:
     }
 
     virtual void executeSearch(Agent* const agent) {
-        atk(agent, squad->targetPosition);
+        //atk(agent, squad->targetPosition);
+
     }
 
     virtual void execute(Agent* const agent) {
         if (get(agent) == nullptr) {
             return;
+        }
+        if (squad->squadMainStates[self] == 'u' && DistanceSquared2D(pos(agent), squad->getCorePosition(agent)) < squad->armyballSquaredRadius()) {
+            squad->squadMainStates[self] = 'j';
         }
         if (squad->squadMode == SquadManager::ATTACK) {
             executeAttack(agent);

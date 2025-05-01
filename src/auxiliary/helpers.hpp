@@ -45,6 +45,10 @@ namespace Aux {
 
 	std::vector<Point2D> criticalPoints;
 
+	int effectiveMinerals;
+	int effectiveVespene;
+	//int effectivePsi;
+
 	enum CrucialPoints {
 		PLACEHOLDER_POINT,
 		SELF_STARTLOC_POINT,

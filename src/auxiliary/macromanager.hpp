@@ -53,6 +53,7 @@ struct MacroAction {
 			index = index_;
 		}
 		extraData.index = index;
+		extraData.type = Aux::buildAbilityToUnit(ability_);
 	}
 
 	MacroAction(UnitTypeID unit_type_, AbilityID ability_, UnitWrapperPtr target_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1)
@@ -66,6 +67,7 @@ struct MacroAction {
 			index = index_;
 		}
 		extraData.index = index;
+		extraData.type = Aux::buildAbilityToUnit(ability_);
 	}
 
 	MacroAction(UnitTypeID unit_type_, AbilityID ability_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1)
@@ -80,6 +82,7 @@ struct MacroAction {
 			index = index_;
 		}
 		extraData.index = index;
+		extraData.type = Aux::buildAbilityToUnit(ability_);
 	}
 
 	operator Building() const {
@@ -170,10 +173,15 @@ namespace MacroManager {
 		bool blocked = false;
 		for (auto it = inRange.begin(); it != inRange.end(); it++) {
 			if (Distance2D(pos, (*it)->pos(agent)) < warpBlockoutUnitRadius + (*it)->radius(agent)) {
+				DebugSphere(agent, AP3D(pos), warpBlockoutUnitRadius, Colors::Red);
+				DebugBox(agent, AP3D(pos) + Point3D{ -0.5, -0.5, 0 }, AP3D(pos) + Point3D{ 0.5, 0.5, 1 }, Colors::Red);
+				DebugBox(agent, (*it)->pos3D(agent) + Point3D{ -0.5, -0.5, 0 }, (*it)->pos3D(agent) + Point3D{ 0.5, 0.5, 1 }, Colors::Red);
+				SendDebug(agent);
 				blocked = true;
+				break;
 			}
 		}
-		return blocked;
+		return !blocked;
 	}
 	
 	Point2D getWarpLocation(Agent* const agent, Point2D pos = { 0,0 }, float radius = 0) { //TODO: ACCOUNT FOR HEIGHT, PYLONS CAN ONLY POWER DOWNWARDS NOT UPWARDS
@@ -186,7 +194,7 @@ namespace MacroManager {
 				}
 				Point2D p = Aux::getRandomPointRadius(pylon->posCache(), 6);
 
-				if (!checkWarpLocation(agent, p)) {
+				if (checkWarpLocation(agent, p)) {
 					return p;
 				}
 			}
@@ -244,8 +252,8 @@ namespace MacroManager {
 		}
 		
 		std::multiset<const MacroAction*, MacroActionPtrCompare> topActions;
-		int currentMinerals = agent->Observation()->GetMinerals();
-		int currentVespene = agent->Observation()->GetVespene();
+		int currentMinerals = Aux::effectiveMinerals;
+		int currentVespene = Aux::effectiveVespene;
 		//TODO: TAKE INTO ACCOUNT PROBE BUILDING STORAGE
 			
 		for (auto it = allActions.begin(); it != allActions.end(); it++) {
@@ -378,25 +386,41 @@ namespace MacroManager {
 			float ticksToExecutorReady = -1;
 			for (auto it = allPossibleUnits.begin(); it != allPossibleUnits.end(); it++) {
 				const Unit* unwrapUnit = (*it)->get(agent);
-				if (unwrapUnit != nullptr && (unwrapUnit->orders.size() == 0 || currentAction->executor == UNIT_TYPEID::PROTOSS_PROBE) && unwrapUnit->build_progress == 1.0F) {
-					possibleUnits.insert(*it);
-					ticksToExecutorReady = 0;
-				}
-				else if (unwrapUnit != nullptr && unwrapUnit->orders.size() != 0) {
-					float ready = (1.0F - unwrapUnit->orders[0].progress) * ability_stats.build_time;
-					if (ticksToExecutorReady == -1 || ticksToExecutorReady > ready) {
-						ticksToExecutorReady = ready;
+				if (unwrapUnit != nullptr && unwrapUnit->unit_type == UNIT_TYPEID::PROTOSS_WARPGATE) {
+					AvailableAbilities unitAbilities = agent->Query()->GetAbilitiesForUnit(unwrapUnit);
+					bool hasAbility = false;
+					for (int a = 0; a < unitAbilities.abilities.size(); a++) {
+						if (unitAbilities.abilities[a].ability_id == currentAction->ability) {
+							hasAbility = true;
+							break;
+						}
 					}
-				}
-				else if (unwrapUnit != nullptr && unwrapUnit->build_progress != 1.0F) {
-					UnitTypeData executor_stats = Aux::getStats(unwrapUnit->unit_type, agent);
-					float ready = (1.0F - unwrapUnit->build_progress) * executor_stats.build_time;
-					if (ticksToExecutorReady == -1 || ticksToExecutorReady > ready) {
-						ticksToExecutorReady = ready;
+					if (hasAbility) {
+						possibleUnits.insert(*it);
+						ticksToExecutorReady = 0;
 					}
 				}
 				else {
-					//printf("what is this state\n");
+					if (unwrapUnit != nullptr && (unwrapUnit->orders.size() == 0 || currentAction->executor == UNIT_TYPEID::PROTOSS_PROBE) && unwrapUnit->build_progress == 1.0F) {
+						possibleUnits.insert(*it);
+						ticksToExecutorReady = 0;
+					}
+					else if (unwrapUnit != nullptr && unwrapUnit->orders.size() != 0) {
+						float ready = (1.0F - unwrapUnit->orders[0].progress) * ability_stats.build_time;
+						if (ticksToExecutorReady == -1 || ticksToExecutorReady > ready) {
+							ticksToExecutorReady = ready;
+						}
+					}
+					else if (unwrapUnit != nullptr && unwrapUnit->build_progress != 1.0F) {
+						UnitTypeData executor_stats = Aux::getStats(unwrapUnit->unit_type, agent);
+						float ready = (1.0F - unwrapUnit->build_progress) * executor_stats.build_time;
+						if (ticksToExecutorReady == -1 || ticksToExecutorReady > ready) {
+							ticksToExecutorReady = ready;
+						}
+					}
+					else {
+						//printf("what is this state\n");
+					}
 				}
 			}
 			if (ticksToExecutorReady != -1 && currentAction->readyInFrames < ticksToExecutorReady) {
@@ -472,8 +496,8 @@ namespace MacroManager {
 
 			UnitTypeID prerequisite = ability_stats.tech_requirement;
 
-			int theoryMin = agent->Observation()->GetMinerals();
-			int theoryVesp = agent->Observation()->GetVespene();
+			int theoryMin = Aux::effectiveMinerals;
+			int theoryVesp = Aux::effectiveVespene;
 
 			UnitWrappers probes = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PROBE);
 			for (auto it = probes.begin(); it != probes.end(); it++) {
@@ -484,6 +508,15 @@ namespace MacroManager {
 					theoryMin -= g.minerals;
 					theoryVesp -= g.vespene;
 				}
+				//const Unit* probe_ = probe->get(agent);
+				//if (probe_ == nullptr) {
+				//	continue;
+				//}
+				//for (int o = 0; o < probe_->orders.size(); o++) {
+				//	Aux::Cost g = Aux::buildAbilityToCost(probe_->orders[o].ability_id, agent);
+				//	theoryMin -= g.minerals;
+				//	theoryVesp -= g.vespene;
+				//}
 			}
 
 			if (currentAction->executor == UNIT_TYPEID::PROTOSS_PROBE && currentAction->ability != ABILITY_ID::MOVE_MOVE &&
@@ -657,6 +690,8 @@ namespace MacroManager {
 					//	//agent->Actions()->UnitCommand(self, currentAction->ability, currentAction->position.pos);
 					//}
 					if (!checkWarpLocation(agent, currentAction->position.pos) && currentAction->position.pa_type == Aux::PointArea::SINGLE_POINT) {
+						DebugBox(agent, AP3D(currentAction->position.pos) + Point3D{ -0.5, -0.5, 0 }, AP3D(currentAction->position.pos) + Point3D{ 0.5, 0.5, 1 }, Colors::Red);
+						SendDebug(agent);
 						currentAction->position = Aux::PointDefault();
 						diagnostics += "BLOCKED WARP SPOT\n\n";
 						continue;
@@ -695,12 +730,17 @@ namespace MacroManager {
 					}
 					agent->Actions()->UnitCommand(currentAction->executorPtr->self, ABILITY_ID::RALLY_BUILDING, encodingPoint);
 					agent->Actions()->UnitCommand(currentAction->executorPtr->self, currentAction->ability, true);
+					if (currentAction->executor == UNIT_TYPEID::PROTOSS_GATEWAY) {
+						//DebugBox(agent, AP3D(encodingPoint) + Point3D{ -0.5, -0.5, 0 }, AP3D(encodingPoint) + Point3D{ 0.5, 0.5, 1 }, Colors::Purple);
+						printf("Gateway: %s\n", currentAction->executorPtr->creationData.name.c_str());
+						printf("");
+					}
 					dataEncoding[encodingPoint] = currentAction->extraData;
 				}
 				if (currentAction->chronoBoost) {
 					Nexus::addChrono(currentAction->executorPtr);
 				}
-				macroExecuteCooldown_frames = 1;
+				macroExecuteCooldown_frames = 3;
 				allActions[currentAction->executor].erase(allActions[currentAction->executor].begin());
 				diagnostics += "SUCCESS\n\n";
 				break;
@@ -731,5 +771,15 @@ namespace MacroManager {
 			}
 		}
 		DebugText(agent, tot, Point2D(0.81F, 0.11F), Color(250, 50, 15), 8);
+	}
+
+	void displayEncodingStack(Agent* const agent) {
+		std::string tot = "ENCODING:\n";
+		for (auto it = dataEncoding.begin(); it != dataEncoding.end(); it++) {
+			auto all = it->second;
+			std::string type = UnitTypeToName(it->second.type);
+			tot += strprintf("[%.1f, %.1f] %d %s: %s %d %d\n", it->first.x, it->first.y, it->second.index, UnitTypeToName(it->second.type), it->second.name.c_str(), it->second.data1, it->second.data2);
+		}
+		DebugText(agent, tot, Point2D(0.01F, 0.21F), Color(132, 67, 135), 8);
 	}
 };
