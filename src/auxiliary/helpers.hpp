@@ -45,6 +45,10 @@ namespace Aux {
 
 	std::vector<Point2D> criticalPoints;
 
+	int effectiveMinerals;
+	int effectiveVespene;
+	//int effectivePsi;
+
 	enum CrucialPoints {
 		PLACEHOLDER_POINT,
 		SELF_STARTLOC_POINT,
@@ -1072,7 +1076,7 @@ namespace Aux {
 						agent->Observation()->TerrainHeight(Point2D{ float(w + 1), float(h + 1) }));
 
 					DebugBox(agent, Point3D(w + boxBorder, h + boxBorder, height + 0.05F),
-						Point3D(w + cellSize - boxBorder, h + cellSize - boxBorder, height + boxHeight), c);
+						Point3D(w + cellSize - boxBorder, h + cellSize - boxBorder, height - 0.5F), c);
 
 					//DebugText(agent, strprintf("%d, %d", w, h),
 					//	Point3D(w + boxBorder, h + 0.2F + boxBorder, height + 0.1F),

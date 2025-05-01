@@ -13,14 +13,26 @@ namespace SquadManager {
 	class Squad {
 		UnitWrapperPtr core;
 		StrategyManager::UnitRatio unitComp;
-		
-		std::map<UnitWrapperPtr, char> squadStates;
-		std::map<UnitWrapperPtr, char> unitStates;
 
 		UnitWrappers armyContents;
 		UnitWrappers squadTargets;
 
 	public:
+		/*
+		* ' ' is without state
+		* 'j' is joined squad
+		*/
+		std::map<Tag, char> squadMainStates;
+
+		/*
+		* ' ' is without-state
+		* 'n' is moving safely
+		* 'k' is attack moving
+		* 'a' is target attacking
+		* 'm' is manual
+		*/
+		std::map<Tag, char> unitStates;
+
 		SquadMode squadMode;
 		Point2D targetPosition;
 
@@ -52,12 +64,12 @@ namespace SquadManager {
 			return Point2D{ 0,0 };
 		}
 
-		inline float armyballRadius() {
+		inline float armyballSquaredRadius() {
 			return armyContents.size() * 4;
 		}
 
-		inline float armyballSquaredRadius() {
-			return std::sqrt(armyballRadius());
+		inline float armyballRadius() {
+			return  std::sqrt(armyballSquaredRadius());
 		}
 
 		void doAttack(Point2D location_) {
@@ -114,7 +126,10 @@ namespace SquadManager {
 			Point2D corePos = getCorePosition(agent);
 			int count = 0;
 			for (auto it = armyContents.begin(); it != armyContents.end(); it++) {
-				if (DistanceSquared2D((*it)->pos(agent), corePos) < armyballSquaredRadius()) {
+				/*if (DistanceSquared2D((*it)->pos(agent), corePos) < armyballSquaredRadius()) {
+					count++;
+				}*/
+				if (squadMainStates[(*it)->self] != 'u') {
 					count++;
 				}
 			}

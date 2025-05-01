@@ -144,12 +144,12 @@ namespace SpatialHashGrid {
         return { x, xmax, y, ymax };
     }
 
-    static inline Bounds fillSpacialModify(Point2D pos, float radius, Agent* agent) {
+    static inline Bounds fillSpacialModify(Point2D pos, float radius) {
         return fillSpacialMapRadius(pos, radius, [](int i, int j) {imRef(gridModify, i, j) = 1;});
     }
 
-    static inline Bounds fillSpacialModify(Circle c, Agent* agent) {
-        return fillSpacialModify(c.pos, c.radius, agent);
+    static inline Bounds fillSpacialModify(Circle c) {
+        return fillSpacialModify(c.pos, c.radius);
     }
 
     static void updateSelf(Agent* const agent) {
@@ -172,7 +172,7 @@ namespace SpatialHashGrid {
         }
     }
 
-    static UnitWrappers findInRadiusSelf_INTERNAL(Bounds b, Agent* agent) {
+    static UnitWrappers findInRadiusSelf_INTERNAL(Bounds b) {
         UnitWrappers found;
         for (int i = b.xmin; i < b.xmax; i++) {
             for (int j = b.ymin; j < b.ymax; j++) {
@@ -189,30 +189,30 @@ namespace SpatialHashGrid {
         return found;
     }
 
-    static UnitWrappers findInRadiusSelfLoose(Point2D pos, float radius, Agent* agent) {
+    static UnitWrappers findInRadiusSelfLoose(Point2D pos, float radius) {
         resetModify();
-        Bounds b = fillSpacialModify(pos, radius, agent);
+        Bounds b = fillSpacialModify(pos, radius);
 
-        return findInRadiusSelf_INTERNAL(b, agent);
+        return findInRadiusSelf_INTERNAL(b);
     }
 
-    static inline UnitWrappers findInRadiusSelfLoose(Circle c, Agent* agent) {
-        return findInRadiusSelfLoose(c.pos, c.radius, agent);
+    static inline UnitWrappers findInRadiusSelfLoose(Circle c) {
+        return findInRadiusSelfLoose(c.pos, c.radius);
     }
 
-    static UnitWrappers findInRadiiSelfLoose(Circles circles, Agent* agent) {
+    static UnitWrappers findInRadiiSelfLoose(Circles circles) {
         if (circles.size() == 0) {
             return UnitWrappers();
         }
-        Bounds bound = fillSpacialModify(circles.begin()->pos, circles.begin()->radius, agent);
+        Bounds bound = fillSpacialModify(circles.begin()->pos, circles.begin()->radius);
         for (auto it = circles.begin(); it != circles.end(); it++) {
-            bound += fillSpacialModify(*it, agent);
+            bound += fillSpacialModify(*it);
         }
 
-        return findInRadiusSelf_INTERNAL(bound, agent);
+        return findInRadiusSelf_INTERNAL(bound);
     }
 
-    static UnitWrappers findInRadiusEnemy_INTERNAL(Bounds b, Agent* agent) {
+    static UnitWrappers findInRadiusEnemy_INTERNAL(Bounds b) {
         UnitWrappers found;
         for (int i = b.xmin; i < b.xmax; i++) {
             for (int j = b.ymin; j < b.ymax; j++) {
@@ -231,27 +231,27 @@ namespace SpatialHashGrid {
         return found;
     }
 
-    static UnitWrappers findInRadiusEnemyLoose(Point2D pos, float radius, Agent* agent) {
+    static UnitWrappers findInRadiusEnemyLoose(Point2D pos, float radius) {
         resetModify();
-        Bounds b = fillSpacialModify(pos, radius, agent);
+        Bounds b = fillSpacialModify(pos, radius);
 
-        return findInRadiusEnemy_INTERNAL(b, agent);
+        return findInRadiusEnemy_INTERNAL(b);
     }
 
-    static inline UnitWrappers findInRadiusEnemyLoose(Circle c, Agent* agent) {
-        return findInRadiusEnemyLoose(c.pos, c.radius, agent);
+    static inline UnitWrappers findInRadiusEnemyLoose(Circle c) {
+        return findInRadiusEnemyLoose(c.pos, c.radius);
     }
 
-    static UnitWrappers findInRadiiEnemyLoose(Circles circles, Agent* agent) {
+    static UnitWrappers findInRadiiEnemyLoose(Circles circles) {
         if (circles.size() == 0) {
             return UnitWrappers();
         }
-        Bounds bound = fillSpacialModify(circles.begin()->pos, circles.begin()->radius, agent);
+        Bounds bound = fillSpacialModify(circles.begin()->pos, circles.begin()->radius);
         for (auto it = circles.begin(); it != circles.end(); it++) {
-            bound += fillSpacialModify(*it, agent);
+            bound += fillSpacialModify(*it);
         }
 
-        return findInRadiusEnemy_INTERNAL(bound, agent);
+        return findInRadiusEnemy_INTERNAL(bound);
     }
 
     static void debug(Agent* const agent) {
