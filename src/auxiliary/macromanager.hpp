@@ -537,7 +537,7 @@ namespace MacroManager {
 
 				for (int i = 0; i < 10; i++) {
 					UnitWrapperPtr potentialNewProbe = UnitManager::getRandomSelf(UNIT_TYPEID::PROTOSS_PROBE);
-					UnitTypeID newProbeTarget = std::static_pointer_cast<Probe>(potentialNewProbe)->getTargetTag(agent)->getStorageType();
+					UnitTypeID newProbeTarget = std::static_pointer_cast<Probe>(potentialNewProbe)->getTargetTag(agent)->getStorageType(); //TODO: MAKE SURE TARGET TAG ISNT NULL
 					if (oldProbeTarget == UNIT_TYPEID::NEUTRAL_MINERALFIELD && newProbeTarget == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER) {
 						continue;
 					}

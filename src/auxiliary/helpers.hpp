@@ -253,8 +253,8 @@ namespace Aux {
 		if (eX == -1) eX = (float)mapWidth_cache;
 		if (sY == -1) sY = 0;
 		if (eY == -1) eY = (float)mapHeight_cache;
-		float x = sX + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (eX - sX)));
-		float y = sY + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (eY - sY)));
+		float x = sX + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (eX - sX - 1)));
+		float y = sY + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (eY - sY - 1)));
 		return Point2D{ x, y };
 	}
 
