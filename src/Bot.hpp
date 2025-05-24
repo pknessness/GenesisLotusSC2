@@ -19,6 +19,7 @@
 #include "auxiliary/armymanager.hpp"
 #include "unitwrappers/armyunit.hpp"
 #include "auxiliary/spatialhashgrid.hpp"
+#include "auxiliary/visiblemap.hpp"
 
 #define DEBUG
 
@@ -172,6 +173,7 @@ struct Bot: sc2::Agent
         StrategyManager::load();
 
         SpatialHashGrid::init();
+        VisibleMap2D::init();
 
         strat = StrategyManager::glaive_adept_rush_hupsaiya;
 
@@ -278,10 +280,13 @@ struct Bot: sc2::Agent
 
         onStepProfiler.midLog("oS-armyExec");
 
+        VisibleMap2D::update(this);
+
+        onStepProfiler.midLog("oS-armyExec");
+
 #ifndef BUILD_FOR_LADDER
         std::vector<ChatMessage> chats = Observation()->GetChatMessages();
         for (int i = 0; i < chats.size(); i++) {
-            printf("[%s]\n", chats[i].message.c_str());
             if (chats[i].message[0] == '.') {
                 std::string command = "";
                 int commandPtr = 0;
@@ -311,19 +316,27 @@ struct Bot: sc2::Agent
                     }
                 }
 
-                Actions()->SendChat("Command: " + command);
-                for (std::string argument : arguments) {
-                    Actions()->SendChat(argument);
-                }
+                //Actions()->SendChat("Command: " + command);
+                //for (std::string argument : arguments) {
+                //    Actions()->SendChat(argument);
+                //}
 
                 if (command == "s") { //spawn
                     if (spawnCommandMap.find(arguments[0]) != spawnCommandMap.end()) {
                         DebugCreateUnit(this, spawnCommandMap[arguments[0]], Observation()->GetCameraPos(), 1);
+                        Actions()->SendChat("Spawning Ally " + spawnCommandMap[arguments[0]]);
+                    }
+                    else {
+                        Actions()->SendChat("Invalid Unit " + spawnCommandMap[arguments[0]]);
                     }
                 }
                 else if (command == "se") { //spawn enemy
                     if (spawnCommandMap.find(arguments[0]) != spawnCommandMap.end()) {
                         DebugCreateUnit(this, spawnCommandMap[arguments[0]], Observation()->GetCameraPos(), 2);
+                        Actions()->SendChat("Spawning Enemy " + spawnCommandMap[arguments[0]]);
+                    }
+                    else {
+                        Actions()->SendChat("Invalid Unit " + spawnCommandMap[arguments[0]]);
                     }
                 }
                 else if (command == "v") { //spawn enemy
@@ -370,7 +383,9 @@ struct Bot: sc2::Agent
         MacroManager::displayMacroActions(this);
         MacroManager::displayEncodingStack(this);
 
-        SpatialHashGrid::debug(this);
+        //SpatialHashGrid::debug(this);
+
+        VisibleMap2D::debug(this);
 
         onStepProfiler.midLog("oS-Debug");
 
@@ -413,7 +428,7 @@ struct Bot: sc2::Agent
             }
             profilestr += (name + lateststr + dtstr + maxstr + "\n");
         }
-        DebugText(this, profilestr, Point2D(0.61F, 0.41F), Color(1, 212, 41), 8);
+        DebugText(this, profilestr, Point2D(0.01F, 0.41F), Color(1, 212, 41), 8);
 
         onStepProfiler.midLog("oS-logging");
 

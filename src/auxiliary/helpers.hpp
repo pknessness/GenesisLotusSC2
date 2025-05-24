@@ -121,6 +121,14 @@ namespace Aux {
 			obstacle == BUILDING_RESERVE);
 	}
 
+	bool isPathable(Point2D p) {
+		return isPathable(int(p.x), int(p.y));
+	}
+
+	bool withinBounds(Point2D p) {
+		return p.x > 0 && p.y > 0 && p.x < mapWidth_cache && p.y < mapHeight_cache;
+	}
+
 	bool isPathableTile(int i, int j) {
 		ObstacleInfo obstacle = getObstacle(i, j);
 		return !((imRef(masterMap, i, j) & 0x01));
@@ -235,6 +243,38 @@ namespace Aux {
 	std::vector<Expansion> expansions;
 	std::set<ExpansionDistance, ExpansionDistanceCompare> selfRankedExpansions;
 	std::set<ExpansionDistance, ExpansionDistanceCompare> enemyRankedExpansions;
+
+	static Point2D getRandomPoint(Agent* agent, float startX = -1, float endX = -1, float startY = -1, float endY = -1) {
+		float sX = startX;
+		float eX = endX;
+		float sY = startY;
+		float eY = endY;
+		if (sX == -1) sX = 0;
+		if (eX == -1) eX = (float)mapWidth_cache;
+		if (sY == -1) sY = 0;
+		if (eY == -1) eY = (float)mapHeight_cache;
+		float x = sX + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (eX - sX)));
+		float y = sY + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (eY - sY)));
+		return Point2D{ x, y };
+	}
+
+	static Point2D getRandomPathable(Agent* agent, float startX = -1, float endX = -1, float startY = -1, float endY = -1) {
+
+		Point2D p;
+		do {
+			p = getRandomPoint(agent, startX, endX, startY, endY);
+		} while (!Aux::isPathable(p) || !Aux::withinBounds(p));
+		return p;
+	}
+
+	//static Point2D getRandomNonPathable(Agent* agent, float startX = -1, float endX = -1, float startY = -1, float endY = -1) {
+
+	//	Point2D p;
+	//	do {
+	//		p = getRandomPoint(agent, startX, endX, startY, endY);
+	//	} while (Aux::isPathable(p) || !Aux::withinBounds(p));
+	//	return p;
+	//}
 
 	UnitTypes allData(Agent* agent) {
 		if (!init_data) {
@@ -1055,11 +1095,11 @@ namespace Aux {
 		if (hS < 1)
 			hS = 1;
 		int wE = int(center.x) + 11;
-		if (wE >= Aux::mapWidth_cache - 2)
-			wE = Aux::mapWidth_cache - 2;
+		if (wE >= (Aux::mapWidth_cache - 2))
+			wE = (Aux::mapWidth_cache - 2);
 		int hE = int(center.y) + 14;
-		if (hE >= Aux::mapHeight_cache - 2)
-			hE = Aux::mapHeight_cache - 2;
+		if (hE >= (Aux::mapHeight_cache - 2))
+			hE = (Aux::mapHeight_cache - 2);
 
 		for (int w = wS; w < wE; w++) {
 			for (int h = hS; h < hE; h++) {
@@ -1070,13 +1110,13 @@ namespace Aux {
 				float boxHeight = 0;
 				Color c = color(w, h);
 
-				if (0 || !(c.r == 255 && c.g == 255 && c.b == 255) || boxHeight != 0) {
+				if (0 || (c.r != 255 && c.r != 0) || (c.g != 255 && c.g != 0) || (c.b != 255 && c.b != 0) || boxHeight != 0) {
 					float height = std::max(
 						agent->Observation()->TerrainHeight(Point2D{ float(w), float(h) }), 
-						agent->Observation()->TerrainHeight(Point2D{ float(w + 1), float(h + 1) }));
+						agent->Observation()->TerrainHeight(Point2D{ float(w + cellSize), float(h + cellSize) }));
 
 					DebugBox(agent, Point3D(w + boxBorder, h + boxBorder, height + 0.05F),
-						Point3D(w + cellSize - boxBorder, h + cellSize - boxBorder, height - 0.5F), c);
+						Point3D(w + cellSize - boxBorder, h + cellSize - boxBorder, 0), c);
 
 					//DebugText(agent, strprintf("%d, %d", w, h),
 					//	Point3D(w + boxBorder, h + 0.2F + boxBorder, height + 0.1F),

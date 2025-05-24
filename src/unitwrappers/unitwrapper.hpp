@@ -116,6 +116,11 @@ public:
         return pos_cache;
     }
 
+    inline UnitTypeID getActualType(Agent* const agent) {
+        get(agent);
+        return recentType_cache;
+    }
+
     inline float radius(Agent* const agent) {
         get(agent);
         return radius_cache;

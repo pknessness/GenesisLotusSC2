@@ -15,8 +15,16 @@ namespace VisibleMap2D {
 
     static map2d<int16_t>* visibleMap;
 
+    int realScaleToVisMap(int dimension) {
+        return dimension / visibleCellSize;
+    }
+
+    Point2D realScaleToVisMap(Point2D dimension) {
+        return dimension / visibleCellSize;
+    }
+
     static void init() {
-        visibleMap = new map2d<int16_t>(Aux::mapWidth_cache, Aux::mapHeight_cache, true);
+        visibleMap = new map2d<int16_t>(Aux::mapWidth_cache / visibleCellSize + 1, Aux::mapHeight_cache / visibleCellSize + 1, true);
     }
 
     static void reset() {
@@ -43,113 +51,29 @@ namespace VisibleMap2D {
 
     static void update(Agent* const agent) {
         for (int i = 0; i < (Aux::mapWidth_cache / visibleCellSize) + 1; i++) {
-            for (int i = 0; i < (Aux::mapHeight_cache / visibleCellSize) + 1; i++) {
-
+            for (int j = 0; j < (Aux::mapHeight_cache / visibleCellSize) + 1; j++) {
+                if (imRef(visibleMap, i, j) > 0) {
+                    imRef(visibleMap, i, j) -= 1;
+                }
+                if (imRef(visibleMap, i, j) < 0) {
+                    imRef(visibleMap, i, j) = 0;
+                }
             }
         }
-    }
 
-    static void updateEnemy(Agent* const agent) {
-        resetEnemy();
-        for (auto it = UnitManager::enemy_units.begin(); it != UnitManager::enemy_units.end(); it++) {
+        //DO I WANT TO USE UNITWRAPPER FOR THIS OR GETUNITS??
+        for (auto it = UnitManager::self_units.begin(); it != UnitManager::self_units.end(); it++) {
             for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
-                Bounds b = fillSpacialMapRadius((*it2)->pos(agent), (*it2)->radius(agent), [it2](int i, int j) {imRef(spatialGridEnemy, i, j).insert(*it2);});
-                DebugSphere(agent, (*it2)->pos3D(agent), (*it2)->radius(agent));
+                fillVisibleMapRadius((*it2)->pos(agent), Aux::getStats((*it2)->getActualType(agent), agent).sight_range, 32767);
             }
         }
-    }
-
-    static UnitWrappers findInRadiusSelf_INTERNAL(Bounds b) {
-        UnitWrappers found;
-        for (int i = b.xmin; i < b.xmax; i++) {
-            for (int j = b.ymin; j < b.ymax; j++) {
-                if (i < 0 || j < 0 || i >= Aux::mapWidth_cache || j >= Aux::mapHeight_cache) {
-                    continue;
-                }
-                if (imRef(gridModify, i, j) == 1) {
-                    for (auto it = imRef(spatialGridSelf, i, j).begin(); it != imRef(spatialGridSelf, i, j).end(); it++) {
-                        found.insert(*it);
-                    }
-                }
-            }
-        }
-        return found;
-    }
-
-    static UnitWrappers findInRadiusSelfLoose(Point2D pos, float radius) {
-        resetModify();
-        Bounds b = fillSpacialModify(pos, radius);
-
-        return findInRadiusSelf_INTERNAL(b);
-    }
-
-    static inline UnitWrappers findInRadiusSelfLoose(Circle c) {
-        return findInRadiusSelfLoose(c.pos, c.radius);
-    }
-
-    static UnitWrappers findInRadiiSelfLoose(Circles circles) {
-        if (circles.size() == 0) {
-            return UnitWrappers();
-        }
-        Bounds bound = fillSpacialModify(circles.begin()->pos, circles.begin()->radius);
-        for (auto it = circles.begin(); it != circles.end(); it++) {
-            bound += fillSpacialModify(*it);
-        }
-
-        return findInRadiusSelf_INTERNAL(bound);
-    }
-
-    static UnitWrappers findInRadiusEnemy_INTERNAL(Bounds b) {
-        UnitWrappers found;
-        for (int i = b.xmin; i < b.xmax; i++) {
-            for (int j = b.ymin; j < b.ymax; j++) {
-                if (i < 0 || j < 0 || i >= Aux::mapWidth_cache || j >= Aux::mapHeight_cache) {
-                    continue;
-                }
-                if (imRef(gridModify, i, j) == 1) {
-                    for (int u = 0; u < imRef(spatialGridEnemy, i, j).size(); u++) {
-                        for (auto it = imRef(spatialGridEnemy, i, j).begin(); it != imRef(spatialGridEnemy, i, j).end(); it++) {
-                            found.insert(*it);
-                        }
-                    }
-                }
-            }
-        }
-        return found;
-    }
-
-    static UnitWrappers findInRadiusEnemyLoose(Point2D pos, float radius) {
-        resetModify();
-        Bounds b = fillSpacialModify(pos, radius);
-
-        return findInRadiusEnemy_INTERNAL(b);
-    }
-
-    static inline UnitWrappers findInRadiusEnemyLoose(Circle c) {
-        return findInRadiusEnemyLoose(c.pos, c.radius);
-    }
-
-    static UnitWrappers findInRadiiEnemyLoose(Circles circles) {
-        if (circles.size() == 0) {
-            return UnitWrappers();
-        }
-        Bounds bound = fillSpacialModify(circles.begin()->pos, circles.begin()->radius);
-        for (auto it = circles.begin(); it != circles.end(); it++) {
-            bound += fillSpacialModify(*it);
-        }
-
-        return findInRadiusEnemy_INTERNAL(bound);
     }
 
     static void debug(Agent* const agent) {
         Aux::gridTemplate(agent, [](int i, int j) {
-            if (imRef(spatialGridSelf, realScaleToSpacial(i), realScaleToSpacial(j)).size() > 0) {
-                return Color{ 90, 135, 205 };
-            }
-            else if (imRef(spatialGridEnemy, realScaleToSpacial(i), realScaleToSpacial(j)).size() > 0) {
-                return Color{ 215, 55, 25 };
-            }
-            return Color{ 255, 255, 255 };
-            }, spatialCellSize);
+            return Color{ uint8_t(imRef(visibleMap, realScaleToVisMap(i), realScaleToVisMap(j)) / 255),
+                uint8_t(imRef(visibleMap, realScaleToVisMap(i), realScaleToVisMap(j)) / 255),
+                uint8_t(imRef(visibleMap, realScaleToVisMap(i), realScaleToVisMap(j)) / 255) };
+            }, visibleCellSize);
     }
 }

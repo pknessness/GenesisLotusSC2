@@ -3,6 +3,7 @@
 #include "../auxiliary/helpers.hpp"
 #include "unitwrapper.hpp"
 #include "../auxiliary/squadmanager.hpp"
+#include "../auxiliary/visiblemap.hpp"
 
 class ArmyUnit : public UnitWrapper {
 private:
@@ -23,6 +24,15 @@ public:
 
     virtual void atk(Agent* const agent, UnitWrapper* target) {
         agent->Actions()->UnitCommand(self, ABILITY_ID::ATTACK, target->self);
+    }
+
+    virtual void atkmov(Agent* const agent, Point2D point) {
+        if (get(agent)->weapon_cooldown > 0) {
+            agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, point);
+        }
+        else {
+            agent->Actions()->UnitCommand(self, ABILITY_ID::ATTACK, point);
+        }
     }
 
     virtual void mov(Agent* const agent, Point2D point) {
@@ -65,9 +75,32 @@ public:
         atk(agent, squad->targetPosition);
     }
 
+    float searchCost(Point2D p) {
+        if (p.x == 0 && p.y == 0) {
+            return -1;
+        }
+        return imRef(VisibleMap2D::visibleMap, 
+            VisibleMap2D::realScaleToVisMap((int)(p.x)), 
+            VisibleMap2D::realScaleToVisMap((int)(p.y)));
+    }
+
     virtual void executeSearch(Agent* const agent) {
         //atk(agent, squad->targetPosition);
-
+        float cost = -1;
+        if (Aux::withinBounds(moveLocation)) {
+            cost = searchCost(moveLocation);
+        }
+        //posTarget = { 0,0 };
+        for (int i = 0; i < 5; i++) {
+            Point2D check;
+            check = Aux::getRandomPathable(agent);
+            float cos = searchCost(check);
+            if (cos < cost || cost == -1) {
+                cost = cos;
+                moveLocation = check;
+            }
+        }
+        atkmov(agent, moveLocation);
     }
 
     virtual void execute(Agent* const agent) {

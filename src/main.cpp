@@ -115,7 +115,7 @@ int main(int argc, char* argv[])
     // coordinator.SetRealtime(true);
 
     Bot bot;
-    sc2::Difficulty diff = sc2::Difficulty::Hard;
+    sc2::Difficulty diff = sc2::Difficulty::HardVeryHard;
     sc2::Race race = (sc2::Race)(std::rand() % 4);  // Race::Random;
     sc2::AIBuild build = sc2::AIBuild::RandomBuild;
     coordinator.SetParticipants({ CreateParticipant(sc2::Race::Protoss, &bot), CreateComputer(race, diff, build) });

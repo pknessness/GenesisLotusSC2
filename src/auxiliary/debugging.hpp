@@ -124,6 +124,8 @@ std::map<std::string, UnitTypeID> spawnCommandMap = {
     {"bunker", UNIT_TYPEID::TERRAN_BUNKER},
     {"kd8charge", UNIT_TYPEID::TERRAN_KD8CHARGE},
 
+    {"hatchery", UNIT_TYPEID::ZERG_HATCHERY},
+
     {"zergling", UNIT_TYPEID::ZERG_ZERGLING},
     {"queen", UNIT_TYPEID::ZERG_QUEEN},
 
