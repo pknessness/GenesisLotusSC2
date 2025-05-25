@@ -9,7 +9,7 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     container: aiarena/arenaclient #debian:bookworm #aiarena/arenaclient
     steps:
     - uses: actions/checkout@v4
