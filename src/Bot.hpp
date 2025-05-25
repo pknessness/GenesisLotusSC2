@@ -233,11 +233,11 @@ struct Bot: sc2::Agent
             if (nexus->get(this)->build_progress < percentUntilViable) {
                 continue;
             }
-            if (nexus->assimilator1 != NullTag) {
+            if (nexus->assimilator1 != nullptr) {
                 numProbesMaxN += 3;
                 numProbesN += probeTargetting[nexus->assimilator1->self];
             }
-            if (nexus->assimilator2 != NullTag) {
+            if (nexus->assimilator2 != nullptr) {
                 numProbesMaxN += 3;
                 numProbesN += probeTargetting[nexus->assimilator2->self];
             }
