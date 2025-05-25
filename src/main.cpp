@@ -91,7 +91,7 @@ int main(int argc, char* argv[])
     // Join the already started game
     coordinator.JoinGame();
     coordinator.SetTimeoutMS(120000);	// 2 min
-    std::cout << "Successfully joined game" << std::endl;
+    std::cout << "Successfully joined ladder game" << std::endl;
     // Step forward the game simulation.
     while (coordinator.Update()) {
     }
