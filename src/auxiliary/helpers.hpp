@@ -24,7 +24,7 @@ std::string strprintf(const char* format, Args... args) {
 
 #define AP3D(point) Point3D{point.x, point.y, agent->Observation()->TerrainHeight(point)}
 
-constexpr float M_PI = 3.14159274F;
+constexpr float GS_PI = 3.14159274F;
 constexpr float timeSpeed = 1.4F;
 constexpr float fps = 16 * timeSpeed;
 
@@ -673,7 +673,7 @@ namespace Aux {
 	}
 
 	Point2D getRandomPointRadius(Point2D point, float radius_max) {
-		float theta = (2.0F * M_PI * rand()) / RAND_MAX;
+		float theta = (2.0F * GS_PI * rand()) / RAND_MAX;
 		float radius = (radius_max * rand()) / RAND_MAX;
 		return point + Point2D{ radius * cos(theta), radius * sin(theta) };
 	}
