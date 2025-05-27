@@ -15,6 +15,7 @@ public:
     }
 
     void init(Agent* const agent) {
+        FUNCTION_LOG();
         UnitWrappers vespenes = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_NEXUS);
         for (UnitWrapperPtr vespeneW : vespenes) {
             std::shared_ptr<Vespene> vespene = std::static_pointer_cast<Vespene>(vespeneW);
