@@ -40,6 +40,7 @@ public:
     }
 
     virtual void executeAttack(Agent* const agent) {
+        FUNCTION_LOG();
         moveLocation = Point2D{ -1, -1 };
         if (squad->squadMainStates[self] == 'u') {
             moveLocation = squad->targetPosition;
@@ -68,14 +69,17 @@ public:
     }
 
     virtual void executeHarass(Agent* const agent) {
+        FUNCTION_LOG();
         atk(agent, squad->targetPosition);
     }
 
     virtual void executeDefend(Agent* const agent) {
+        FUNCTION_LOG();
         atk(agent, squad->targetPosition);
     }
 
     float searchCost(Point2D p) {
+        FUNCTION_LOG();
         if (p.x == 0 && p.y == 0) {
             return -1;
         }
@@ -85,6 +89,7 @@ public:
     }
 
     virtual void executeSearch(Agent* const agent) {
+        FUNCTION_LOG();
         //atk(agent, squad->targetPosition);
         float cost = -1;
         if (Aux::withinBounds(moveLocation)) {
@@ -104,6 +109,7 @@ public:
     }
 
     virtual void execute(Agent* const agent) {
+        FUNCTION_LOG();
         if (get(agent) == nullptr) {
             return;
         }

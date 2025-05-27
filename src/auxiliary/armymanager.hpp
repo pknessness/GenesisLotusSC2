@@ -6,6 +6,7 @@ namespace ArmyManager {
     bool commited = false;
 
 	void execute(Agent* const agent, StrategyManager::Strategy& strategem) {
+        FUNCTION_LOG();
         UnitWrappers buildings;
         for (auto it = UnitManager::enemy_units.begin(); it != UnitManager::enemy_units.end(); it++) {
             for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {

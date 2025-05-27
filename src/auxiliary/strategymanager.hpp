@@ -61,6 +61,7 @@ namespace StrategyManager {
     Strategy glaive_adept_rush_hupsaiya;
 
     void load(){
+        FUNCTION_LOG();
         glaive_adept_rush_lightwisdom.build_order = {
             //Early Economy
             MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::criticalPoints[Aux::SELF_FIRSTPYLON_POINT]),

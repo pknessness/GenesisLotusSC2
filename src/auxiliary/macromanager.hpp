@@ -119,6 +119,7 @@ int MacroAction::globalIndex = 0;
 namespace MacroManager {
 
 	Point2D getPylonLocation(Point2D pos = { 0,0 }, float radius = 0) {
+		FUNCTION_LOG();
 		if (pos == Point2D{ 0, 0 }) {
 			UnitWrappers pylons = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PYLON);
 			for (auto it = pylons.begin(); it != pylons.end(); it++) {
@@ -143,6 +144,7 @@ namespace MacroManager {
 	}
 
 	Point2D getBuildingLocation(Point2D pos = { 0,0 }, float radius = 0) { //TODO: ACCOUNT FOR HEIGHT, PYLONS CAN ONLY POWER DOWNWARDS NOT UPWARDS
+		FUNCTION_LOG();
 		if (pos == Point2D{ 0, 0 }) {
 			UnitWrappers pylons = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PYLON);
 			for (auto it = pylons.begin(); it != pylons.end(); it++) {
@@ -169,6 +171,7 @@ namespace MacroManager {
 #define warpBlockoutUnitRadius 0.5F
 	
 	bool checkWarpLocation(Agent* const agent, Point2D pos) { //TODO: ACCOUNT FOR HEIGHT, PYLONS CAN ONLY POWER DOWNWARDS NOT UPWARDS
+		FUNCTION_LOG();
 		UnitWrappers inRange = SpatialHashGrid::findInRadiusSelfLoose(pos, warpBlockoutUnitRadius);
 		bool blocked = false;
 		for (auto it = inRange.begin(); it != inRange.end(); it++) {
@@ -185,6 +188,7 @@ namespace MacroManager {
 	}
 	
 	Point2D getWarpLocation(Agent* const agent, Point2D pos = { 0,0 }, float radius = 0) { //TODO: ACCOUNT FOR HEIGHT, PYLONS CAN ONLY POWER DOWNWARDS NOT UPWARDS
+		FUNCTION_LOG();
 		float r2 = warpBlockoutUnitRadius * warpBlockoutUnitRadius;
 		if (pos == Point2D{ 0, 0 }) {
 			for (int i = 0; i < 10; i++) {
@@ -237,14 +241,17 @@ namespace MacroManager {
 	std::unordered_set<int> finishedActions;
 
 	inline bool isActionCompleted(int action) {
+		FUNCTION_LOG();
 		return finishedActions.count(action);
 	}
 
 	void addAction(MacroAction action) {
+		FUNCTION_LOG();
 		allActions[action.executor].insert(action);
 	}
 
 	void execute(Agent* const agent) {
+		FUNCTION_LOG();
 		Profiler macroProfiler("mac.exec");
 		if (macroExecuteCooldown_frames > 0) {
 			macroExecuteCooldown_frames--;
@@ -757,6 +764,7 @@ namespace MacroManager {
 	}
 
 	void displayMacroActions(Agent* const agent) {
+		FUNCTION_LOG();
 		std::string tot = "MACRO:\n";
 		for (auto it = allActions.begin(); it != allActions.end(); it++) {
 			auto all = it->second;
@@ -774,6 +782,7 @@ namespace MacroManager {
 	}
 
 	void displayEncodingStack(Agent* const agent) {
+		FUNCTION_LOG();
 		std::string tot = "ENCODING:\n";
 		for (auto it = dataEncoding.begin(); it != dataEncoding.end(); it++) {
 			auto all = it->second;

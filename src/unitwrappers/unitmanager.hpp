@@ -84,6 +84,7 @@ namespace UnitManager {
     };
 
     UnitTypeID getSuperType(UnitTypeID in) {
+        FUNCTION_LOG();
         if (superTypes.find(in) == superTypes.end()) {
             return in;
         }
@@ -93,6 +94,7 @@ namespace UnitManager {
     }
 
     UnitWrappers get(UnitWrapperMap* wrapperMap, UnitTypeID type) {
+        FUNCTION_LOG();
         UnitTypeID super = getSuperType(type);
         if (wrapperMap->find(super) == wrapperMap->end()) {
             UnitWrappers empty;
@@ -102,6 +104,7 @@ namespace UnitManager {
     }
 
     UnitWrappers getMulti(UnitWrapperMap* wrapperMap, std::vector<UnitTypeID> types) {
+        FUNCTION_LOG();
         UnitWrappers wraps;
         for (UnitTypeID type : types) {
             for(UnitWrapperPtr wrap : (*wrapperMap)[type]) {
@@ -113,10 +116,12 @@ namespace UnitManager {
 
     //TODO: REPLACE getSelf WITH A MACRO
     UnitWrappers getSelf(UnitTypeID type) {
+        FUNCTION_LOG();
         return get(&self_units, type);
     }
 
     UnitWrapperPtr getRandomSelf(UnitTypeID type) {
+        FUNCTION_LOG();
         UnitWrappers all = getSelf(type);
         if (all.size() == 0) {
             return nullptr;
@@ -128,18 +133,22 @@ namespace UnitManager {
     }
 
     UnitWrappers getNeutral(UnitTypeID type) {
+        FUNCTION_LOG();
         return get(&neutral_units, type);
     }
 
     UnitWrappers getMinerals() {
+        FUNCTION_LOG();
         return getNeutral(UNIT_TYPEID::NEUTRAL_MINERALFIELD);
     }
 
     UnitWrappers getVespene() {
+        FUNCTION_LOG();
         return getNeutral(UNIT_TYPEID::NEUTRAL_VESPENEGEYSER);
     }
 
     UnitWrappers getEnemy(UnitTypeID type) {
+        FUNCTION_LOG();
         return get(&enemy_units, type);
     }
 }

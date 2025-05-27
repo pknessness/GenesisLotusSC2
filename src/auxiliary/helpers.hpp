@@ -105,10 +105,12 @@ namespace Aux {
 	};
 
 	ObstacleInfo getObstacle(int i, int j) {
+		FUNCTION_LOG();
 		return (ObstacleInfo)(imRef(masterMap, i, j) >> 2);
 	}
 
 	bool isPathable(int i, int j) {
+		FUNCTION_LOG();
 		ObstacleInfo obstacle = getObstacle(i, j);
 		return !((imRef(masterMap, i, j) & 0x01) || 
 			obstacle == SELF_BUILDINGS || 
@@ -122,19 +124,23 @@ namespace Aux {
 	}
 
 	bool isPathable(Point2D p) {
+		FUNCTION_LOG();
 		return isPathable(int(p.x), int(p.y));
 	}
 
 	bool withinBounds(Point2D p) {
+		FUNCTION_LOG();
 		return p.x > 0 && p.y > 0 && p.x < mapWidth_cache && p.y < mapHeight_cache;
 	}
 
 	bool isPathableTile(int i, int j) {
+		FUNCTION_LOG();
 		ObstacleInfo obstacle = getObstacle(i, j);
 		return !((imRef(masterMap, i, j) & 0x01));
 	}
 
 	bool isPlacable(int i, int j) {
+		FUNCTION_LOG();
 		ObstacleInfo obstacle = getObstacle(i, j);
 		return !(imRef(masterMap, i, j) & 0x02 || 
 			obstacle == SELF_BUILDINGS ||
@@ -245,6 +251,7 @@ namespace Aux {
 	std::set<ExpansionDistance, ExpansionDistanceCompare> enemyRankedExpansions;
 
 	static Point2D getRandomPoint(Agent* agent, float startX = -1, float endX = -1, float startY = -1, float endY = -1) {
+		FUNCTION_LOG();
 		float sX = startX;
 		float eX = endX;
 		float sY = startY;
@@ -259,7 +266,7 @@ namespace Aux {
 	}
 
 	static Point2D getRandomPathable(Agent* agent, float startX = -1, float endX = -1, float startY = -1, float endY = -1) {
-
+		FUNCTION_LOG();
 		Point2D p;
 		do {
 			p = getRandomPoint(agent, startX, endX, startY, endY);
@@ -277,6 +284,7 @@ namespace Aux {
 	//}
 
 	UnitTypes allData(Agent* agent) {
+		FUNCTION_LOG();
 		if (!init_data) {
 			cached_data = agent->Observation()->GetUnitTypeData();
 			init_data = true;
@@ -285,6 +293,7 @@ namespace Aux {
 	}
 
 	UnitTypeData getStats(UnitTypeID type, Agent* agent) {
+		FUNCTION_LOG();
 		if (statsMap.find(type) == statsMap.end()) {
 			try {
 				statsMap[type] = allData(agent).at(static_cast<uint32_t>(type));
@@ -316,6 +325,7 @@ namespace Aux {
 	}
 
 	static UpgradeID researchAbilityToUpgrade(AbilityID build_ability) {
+		FUNCTION_LOG();
 		switch (uint32_t(build_ability)) {
 		case (uint32_t(ABILITY_ID::RESEARCH_ADEPTRESONATINGGLAIVES)):
 			return UPGRADE_ID::ADEPTKILLBOUNCE;
@@ -388,6 +398,7 @@ namespace Aux {
 	}
 
 	static UnitTypeID buildAbilityToUnit(AbilityID build_ability) {
+		FUNCTION_LOG();
 		switch (uint32_t(build_ability)) {
 		case (uint32_t(ABILITY_ID::BUILD_ASSIMILATOR)):
 			return UNIT_TYPEID::PROTOSS_ASSIMILATOR;
@@ -478,12 +489,14 @@ namespace Aux {
 	}
 
 	static Cost buildAbilityToCost(AbilityID build_ability, Agent* agent) {
+		FUNCTION_LOG();
 		//sc2::UnitTypeData unit_stats =
 		//    agent->Observation()->GetUnitTypeData().at(static_cast<uint32_t>(buildAbilityToUnit(build_ability)));
 		return { getStats(buildAbilityToUnit(build_ability), agent).mineral_cost, getStats(buildAbilityToUnit(build_ability), agent).vespene_cost, 0, int(getStats(buildAbilityToUnit(build_ability), agent).food_required) };
 	}
 
 	static Cost unitAbilityToCost(AbilityID build_ability, Agent* agent) {
+		FUNCTION_LOG();
 		if (build_ability == ABILITY_ID::EFFECT_CHRONOBOOSTENERGYCOST) {
 			return { 0, 0, 50, 0 };
 		}
@@ -563,12 +576,14 @@ namespace Aux {
 	}
 
 	static Cost UpgradeToCost(AbilityID research_ability, Agent* agent) {
+		FUNCTION_LOG();
 		UpgradeData upgrade_stats =
 			agent->Observation()->GetUpgradeData().at(static_cast<uint32_t>(researchAbilityToUpgrade(research_ability)));
 		return { upgrade_stats.mineral_cost, upgrade_stats.vespene_cost, 0 };
 	}
 
 	static Cost abilityToCost(AbilityID ability, Agent* agent) {
+		FUNCTION_LOG();
 		if (buildAbilityToUnit(ability) != 0) {
 			return buildAbilityToCost(ability, agent);
 		}
@@ -582,6 +597,7 @@ namespace Aux {
 	}
 
 	void setupExpansions(Agent* const agent) {
+		FUNCTION_LOG();
 		Point3D start = agent->Observation()->GetStartLocation();
 		Point3D enemy = AP3D( gameInfo_cache.enemy_start_locations[0] );
 
@@ -639,6 +655,7 @@ namespace Aux {
 	}
 
 	void displayExpansions(Agent* const agent) {
+		FUNCTION_LOG();
 		for (int i = 0; i < expansions.size(); i++) {
 			DebugSphere(agent, expansions[i].pos, 12, Colors::Yellow);
 			float selfDist = -1.0F;
@@ -660,6 +677,7 @@ namespace Aux {
 	}
 
 	static bool isMineralType(UnitTypeID type) {
+		FUNCTION_LOG();
 		return (type == UNIT_TYPEID::NEUTRAL_MINERALFIELD || type == UNIT_TYPEID::NEUTRAL_LABMINERALFIELD ||
 			type == UNIT_TYPEID::NEUTRAL_MINERALFIELD750 || type == UNIT_TYPEID::NEUTRAL_LABMINERALFIELD750 ||
 			type == UNIT_TYPEID::NEUTRAL_MINERALFIELD450 || type == UNIT_TYPEID::NEUTRAL_RICHMINERALFIELD ||
@@ -667,18 +685,21 @@ namespace Aux {
 	}
 
 	static bool isVespeneType(UnitTypeID type) {
+		FUNCTION_LOG();
 		return (type == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER || type == UNIT_TYPEID::NEUTRAL_PROTOSSVESPENEGEYSER ||
 			type == UNIT_TYPEID::NEUTRAL_PURIFIERVESPENEGEYSER || type == UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER ||
 			type == UNIT_TYPEID::NEUTRAL_SHAKURASVESPENEGEYSER || type == UNIT_TYPEID::NEUTRAL_SPACEPLATFORMGEYSER);
 	}
 
 	Point2D getRandomPointRadius(Point2D point, float radius_max) {
+		FUNCTION_LOG();
 		float theta = (2.0F * GS_PI * rand()) / RAND_MAX;
 		float radius = (radius_max * rand()) / RAND_MAX;
 		return point + Point2D{ radius * cos(theta), radius * sin(theta) };
 	}
 
 	encoding2D getRandomEncodingPoint() {
+		FUNCTION_LOG();
 		float x = (50 * rand()) / RAND_MAX + 50;
 		float y = (50 * rand()) / RAND_MAX + 50;
 		return encoding2D(Point2D{ x, y });
@@ -810,6 +831,7 @@ namespace Aux {
 	};
 
 	static void loadUnitPlacement(ObstacleInfo obstacle, Point2D pos, int sizeX, int sizeY, int8_t(*pattern)[10][10] = nullptr) {
+		FUNCTION_LOG();
 		int x = (int)(pos.x - (sizeX / 2) + ((sizeX % 2 == 0) ? 0.5F : 0.0F));
 		int y = (int)(pos.y - (sizeY / 2) + ((sizeY % 2 == 0) ? 0.5F : 0.0F));
 		for (int i = 0; i < sizeX; i++) {
@@ -836,6 +858,7 @@ namespace Aux {
 	}
 
 	static void loadUnitPlacement(ObstacleInfo obstacle, Point2D pos, UnitTypeID unit_type, int8_t(*pattern)[10][10] = nullptr) {
+		FUNCTION_LOG();
 		if (structureDiameter.find(unit_type) != structureDiameter.end()) {
 			float diam = structureDiameter[unit_type];
 			if (diam > 0) {
@@ -848,6 +871,7 @@ namespace Aux {
 	}
 
 	static void loadNeutralUnitPlacement(Point2D pos, UnitTypeID unit_type) {
+		FUNCTION_LOG();
 		//int diam = structureDiameter(unit_type);
 		if (isMineralType(unit_type)) {
 			loadUnitPlacement(MINERALS, pos, 2, 1);
@@ -897,6 +921,7 @@ namespace Aux {
 	}
 
 	static bool checkStructurePlacement(Point2D pos, int size) {
+		FUNCTION_LOG();
 		int x = (int)(pos.x - (size / 2) + ((size % 2 == 0) ? 0.5F : 0.0F));
 		int y = (int)(pos.y - (size / 2) + ((size % 2 == 0) ? 0.5F : 0.0F));
 		for (int i = 0; i < size; i++) {
@@ -913,6 +938,7 @@ namespace Aux {
 	static Point2D possibleNextBuildings[6] = { Point2D{-2.5, -0.5}, Point2D{0.5, -2.5}, Point2D{5.5, -2.5}, Point2D{4.5, 2.5}, Point2D{1.5, 4.5}, Point2D{-3.5, 4.5} };
 
 	void reloadMasterMap(Agent* const agent, Point2D pos, int sizeX, int sizeY) {
+		FUNCTION_LOG();
 		int x = (int)(pos.x - (sizeX / 2) + ((sizeX % 2 == 0) ? 0.5F : 0.0F));
 		int y = (int)(pos.y - (sizeY / 2) + ((sizeY % 2 == 0) ? 0.5F : 0.0F));
 		for (int i = 0; i < sizeX; i++) {
@@ -931,6 +957,7 @@ namespace Aux {
 	}
 
 	static void unloadNeutralUnitPlacement(Agent* const agent, Point2D pos, UnitTypeID unit_type) {
+		FUNCTION_LOG();
 		//int diam = structureDiameter(unit_type);
 		if (isMineralType(unit_type)) {
 			loadUnitPlacement(NOTHING, pos, 2, 1);
@@ -1007,6 +1034,7 @@ namespace Aux {
 	}
 
 	void saveMasterBitmap(std::string fileName) {
+		FUNCTION_LOG();
 		saveBitmap(fileName, masterMap->width(), masterMap->height(), [](int i, int j) {
 			ObstacleInfo obstacle = getObstacle(i, j);
 			uint8_t p = imRef(masterMap, i, j);
@@ -1055,6 +1083,7 @@ namespace Aux {
 	}
 
 	void setupMasterMap(Agent* const agent) {
+		FUNCTION_LOG();
 		Units units = agent->Observation()->GetUnits(sc2::Unit::Alliance::Neutral);
 		for (const Unit* unit : units) {
 			loadNeutralUnitPlacement(unit->pos, unit->unit_type);
@@ -1087,6 +1116,7 @@ namespace Aux {
 	}
 
 	void gridTemplate(Agent* const agent, std::function<Color(int, int)> color, int cellSize = 1, bool pathableCheck = true, float boxBorder = 0.05F) {
+		FUNCTION_LOG();
 		Point2D center = agent->Observation()->GetCameraPos();
 		int wS = int(center.x) - 10;
 		if (wS < 1)

@@ -78,6 +78,7 @@ public:
     }
 
     inline const Unit* get(Agent* const agent) {
+        FUNCTION_LOG();
         const Unit* unit = agent->Observation()->GetUnit(self);
         if (unit != nullptr) {
             recentType_cache = unit->unit_type;

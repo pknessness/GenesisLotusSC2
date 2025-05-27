@@ -37,6 +37,7 @@ public:
     }
 
     void setTarget(UnitWrapperPtr newTarget) {
+        FUNCTION_LOG();
         if (target != nullptr) {
             probeTargetting[target->self] -= 1;
         }
@@ -47,6 +48,7 @@ public:
     }
 
     UnitWrapperPtr getTargetTag(Agent* agent) { //TODO: IF ASSIMILATOR EMPTY RETARGET
+        FUNCTION_LOG();
         if (target != nullptr && (target->get(agent) == nullptr || (target->getStorageType() == UNIT_TYPEID::PROTOSS_ASSIMILATOR && target->get(agent)->vespene_contents == 0))) {
             UnitWrapperPtr oldTarget = target;
             setTarget(nullptr);
@@ -129,10 +131,12 @@ public:
     }
 
     void addBuilding(Building b) {
+        FUNCTION_LOG();
         buildings.push_back(b);
     }
 
     void execute(Agent* const agent) {
+        FUNCTION_LOG();
         const Unit* unit = get(agent);
         if (unit == nullptr) {
             return;

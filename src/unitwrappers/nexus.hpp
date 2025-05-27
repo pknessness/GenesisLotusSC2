@@ -17,12 +17,14 @@ public:
     int8_t minsFound;
 
     Nexus(const Unit* unit) : UnitWrapper(unit, UNIT_TYPEID::PROTOSS_NEXUS), assimilator1(nullptr), assimilator2(nullptr), minsFound(0) {
+        FUNCTION_LOG();
         for (int i = 0; i < 8; i++) {
             minerals[i] = nullptr;
         }
     }
 
     void addMineral(UnitWrapperPtr mineral) {
+        FUNCTION_LOG();
         if (minsFound == 8) {
             throw 8;
         }
@@ -30,6 +32,7 @@ public:
     }
 
     void addAssimilator(UnitWrapperPtr assim) {
+        FUNCTION_LOG();
         if (assimilator1 == nullptr) {
             assimilator1 = assim;
         }
@@ -42,6 +45,7 @@ public:
     }
 
     void init(Agent* const agent) {
+        FUNCTION_LOG();
         UnitWrappers mineralWraps = UnitManager::getMinerals();
         UnitWrappers assimilatorWraps = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_ASSIMILATOR);
         mineralWraps.insert(assimilatorWraps.begin(), assimilatorWraps.end());
@@ -70,10 +74,12 @@ public:
     }
 
     static void addChrono(UnitWrapperPtr toChrono) {
+        FUNCTION_LOG();
         chronoBoosts.push_back(toChrono);
     }
 
     void execute(Agent* const agent) {
+        FUNCTION_LOG();
         if (chronoBoosts.size() > 0) {
             if (get(agent)->energy >= Aux::unitAbilityToCost(ABILITY_ID::EFFECT_CHRONOBOOSTENERGYCOST, agent).energy) {
                 std::vector<BuffID> buffs = chronoBoosts[0]->get(agent)->buffs;

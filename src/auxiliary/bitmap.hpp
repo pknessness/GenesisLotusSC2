@@ -37,6 +37,7 @@ unsigned char* createBitmapInfoHeader(int height, int width);
 
 void saveBitmap(std::string fileName, int width, int height, std::function<unsigned char(int,int)> red, std::function<unsigned char(int, int)> green, std::function<unsigned char(int, int)> blue)
 {
+    FUNCTION_LOG();
     std::filesystem::create_directory("data");
     unsigned char image[256][256][BYTES_PER_PIXEL] = { 0 };
     std::string file = (char*)"data/" + fileName;
@@ -55,11 +56,13 @@ void saveBitmap(std::string fileName, int width, int height, std::function<unsig
 
 void saveBitmap(std::string fileName, int width, int height, std::function<Color(int, int)> color)
 {
+    FUNCTION_LOG();
     saveBitmap(fileName, width, height, [color](int i, int j) {return color(i, j).r;}, [color](int i, int j) {return color(i, j).g;}, [color](int i, int j) {return color(i, j).b;});
 }
 
 void generateBitmapImage(unsigned char* image, int height, int width, const char* imageFileName)
 {
+    FUNCTION_LOG();
     int widthInBytes = width * BYTES_PER_PIXEL;
 
     unsigned char padding[3] = { 0, 0, 0 };
@@ -86,6 +89,7 @@ void generateBitmapImage(unsigned char* image, int height, int width, const char
 
 unsigned char* createBitmapFileHeader(int height, int stride)
 {
+    FUNCTION_LOG();
     int fileSize = FILE_HEADER_SIZE + INFO_HEADER_SIZE + (stride * height);
 
     static unsigned char fileHeader[] = {
@@ -108,6 +112,7 @@ unsigned char* createBitmapFileHeader(int height, int stride)
 
 unsigned char* createBitmapInfoHeader(int height, int width)
 {
+    FUNCTION_LOG();
     static unsigned char infoHeader[] = {
         0,0,0,0, /// header size
         0,0,0,0, /// image width

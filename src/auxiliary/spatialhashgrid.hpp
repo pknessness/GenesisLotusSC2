@@ -87,6 +87,7 @@ namespace SpatialHashGrid {
     }
 
     static void init() {
+        FUNCTION_LOG();
         spatialGridSelf = new map2d<UnitWrappers>(Aux::mapWidth_cache, Aux::mapHeight_cache, false);
         spatialGridEnemy = new map2d<UnitWrappers>(Aux::mapWidth_cache, Aux::mapHeight_cache, false);
         gridModify = new map2d<uint8_t>(Aux::mapWidth_cache, Aux::mapHeight_cache, true);
@@ -100,6 +101,7 @@ namespace SpatialHashGrid {
     }
 
     static void resetSelf() {
+        FUNCTION_LOG();
         for (int i = 0; i < Aux::mapWidth_cache; i++) {
             for (int j = 0; j < Aux::mapHeight_cache; j++) {
                 //imRef(gridModify, i, j) &= 0xFE;
@@ -109,6 +111,7 @@ namespace SpatialHashGrid {
     }
 
     static void resetEnemy() {
+        FUNCTION_LOG();
         for (int i = 0; i < Aux::mapWidth_cache; i++) {
             for (int j = 0; j < Aux::mapHeight_cache; j++) {
                 //imRef(gridModify, i, j) &= 0xFD;
@@ -118,6 +121,7 @@ namespace SpatialHashGrid {
     }
 
     static void resetModify() {
+        FUNCTION_LOG();
         //for (int i = 0; i < Aux::mapWidth_cache; i++) {
         //    for (int j = 0; j < Aux::mapHeight_cache; j++) {
         //        //imRef(gridModify, i, j) &= 0xFB;
@@ -127,6 +131,7 @@ namespace SpatialHashGrid {
     }
 
     static Bounds fillSpacialMapRadius(Point2D pos, float radius, std::function<void(int, int)> action) {
+        FUNCTION_LOG();
         int x = (int)((pos.x - radius) / spatialCellSize);
         int y = (int)((pos.y - radius) / spatialCellSize);
         int xmax = (int)((pos.x + radius) / spatialCellSize) + 1;
@@ -145,14 +150,17 @@ namespace SpatialHashGrid {
     }
 
     static inline Bounds fillSpacialModify(Point2D pos, float radius) {
+        FUNCTION_LOG();
         return fillSpacialMapRadius(pos, radius, [](int i, int j) {imRef(gridModify, i, j) = 1;});
     }
 
     static inline Bounds fillSpacialModify(Circle c) {
+        FUNCTION_LOG();
         return fillSpacialModify(c.pos, c.radius);
     }
 
     static void updateSelf(Agent* const agent) {
+        FUNCTION_LOG();
         resetSelf();
         for (auto it = UnitManager::self_units.begin(); it != UnitManager::self_units.end(); it++) {
             for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
@@ -163,6 +171,7 @@ namespace SpatialHashGrid {
     }
 
     static void updateEnemy(Agent* const agent) {
+        FUNCTION_LOG();
         resetEnemy();
         for (auto it = UnitManager::enemy_units.begin(); it != UnitManager::enemy_units.end(); it++) {
             for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
@@ -173,6 +182,7 @@ namespace SpatialHashGrid {
     }
 
     static UnitWrappers findInRadiusSelf_INTERNAL(Bounds b) {
+        FUNCTION_LOG();
         UnitWrappers found;
         for (int i = b.xmin; i < b.xmax; i++) {
             for (int j = b.ymin; j < b.ymax; j++) {
@@ -190,6 +200,7 @@ namespace SpatialHashGrid {
     }
 
     static UnitWrappers findInRadiusSelfLoose(Point2D pos, float radius) {
+        FUNCTION_LOG();
         resetModify();
         Bounds b = fillSpacialModify(pos, radius);
 
@@ -197,10 +208,12 @@ namespace SpatialHashGrid {
     }
 
     static inline UnitWrappers findInRadiusSelfLoose(Circle c) {
+        FUNCTION_LOG();
         return findInRadiusSelfLoose(c.pos, c.radius);
     }
 
     static UnitWrappers findInRadiiSelfLoose(Circles circles) {
+        FUNCTION_LOG();
         if (circles.size() == 0) {
             return UnitWrappers();
         }
@@ -213,6 +226,7 @@ namespace SpatialHashGrid {
     }
 
     static UnitWrappers findInRadiusEnemy_INTERNAL(Bounds b) {
+        FUNCTION_LOG();
         UnitWrappers found;
         for (int i = b.xmin; i < b.xmax; i++) {
             for (int j = b.ymin; j < b.ymax; j++) {
@@ -232,6 +246,7 @@ namespace SpatialHashGrid {
     }
 
     static UnitWrappers findInRadiusEnemyLoose(Point2D pos, float radius) {
+        FUNCTION_LOG();
         resetModify();
         Bounds b = fillSpacialModify(pos, radius);
 
@@ -239,10 +254,12 @@ namespace SpatialHashGrid {
     }
 
     static inline UnitWrappers findInRadiusEnemyLoose(Circle c) {
+        FUNCTION_LOG();
         return findInRadiusEnemyLoose(c.pos, c.radius);
     }
 
     static UnitWrappers findInRadiiEnemyLoose(Circles circles) {
+        FUNCTION_LOG();
         if (circles.size() == 0) {
             return UnitWrappers();
         }
@@ -255,6 +272,7 @@ namespace SpatialHashGrid {
     }
 
     static void debug(Agent* const agent) {
+        FUNCTION_LOG();
         Aux::gridTemplate(agent, [](int i, int j) {
             if (imRef(spatialGridSelf, realScaleToSpacial(i), realScaleToSpacial(j)).size() > 0) {
                 return Color{ 90, 135, 205 };

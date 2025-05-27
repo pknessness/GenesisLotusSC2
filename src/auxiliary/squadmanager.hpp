@@ -41,14 +41,17 @@ namespace SquadManager {
 		}
 
 		void add(UnitWrapperPtr armyUnit) {
+			FUNCTION_LOG();
 			armyContents.insert(armyUnit);
 		}
 
 		void remove(UnitWrapperPtr armyUnit) {
+			FUNCTION_LOG();
 			armyContents.erase(armyUnit);
 		}
 
 		UnitWrapperPtr getCore(Agent* const agent) {
+			FUNCTION_LOG();
 			if (core == nullptr || core->get(agent) == nullptr) {
 				if (armyContents.size() > 0) {
 					core = *armyContents.begin();
@@ -58,6 +61,7 @@ namespace SquadManager {
 		}
 
 		Point2D getCorePosition(Agent* const agent) {
+			FUNCTION_LOG();
 			if (getCore(agent) != nullptr) {
 				return core->pos(agent);
 			}
@@ -65,10 +69,12 @@ namespace SquadManager {
 		}
 
 		inline float armyballSquaredRadius() {
+			FUNCTION_LOG();
 			return armyContents.size() * 4;
 		}
 
 		inline float armyballRadius() {
+			FUNCTION_LOG();
 			return  std::sqrt(armyballSquaredRadius());
 		}
 
@@ -93,6 +99,7 @@ namespace SquadManager {
 		}
 
 		void execute(Agent* const agent) {
+			FUNCTION_LOG();
 			if (squadMode == INVALID) {
 				
 			}
@@ -123,6 +130,7 @@ namespace SquadManager {
 		}
 
 		int squadSize(Agent* const agent) {
+			FUNCTION_LOG();
 			Point2D corePos = getCorePosition(agent);
 			int count = 0;
 			for (auto it = armyContents.begin(); it != armyContents.end(); it++) {

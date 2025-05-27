@@ -24,14 +24,17 @@ namespace VisibleMap2D {
     }
 
     static void init() {
+        FUNCTION_LOG();
         visibleMap = new map2d<int16_t>(Aux::mapWidth_cache / visibleCellSize + 1, Aux::mapHeight_cache / visibleCellSize + 1, true);
     }
 
     static void reset() {
+        FUNCTION_LOG();
         visibleMap->clear();
     }
 
     static SpatialHashGrid::Bounds fillVisibleMapRadius(Point2D pos, float radius, int16_t value) {
+        FUNCTION_LOG();
         int x = (int)((pos.x - radius) / visibleCellSize);
         int y = (int)((pos.y - radius) / visibleCellSize);
         int xmax = (int)((pos.x + radius) / visibleCellSize) + 1;
@@ -50,6 +53,7 @@ namespace VisibleMap2D {
     }
 
     static void update(Agent* const agent) {
+        FUNCTION_LOG();
         for (int i = 0; i < (Aux::mapWidth_cache / visibleCellSize) + 1; i++) {
             for (int j = 0; j < (Aux::mapHeight_cache / visibleCellSize) + 1; j++) {
                 if (imRef(visibleMap, i, j) > 0) {
@@ -70,6 +74,7 @@ namespace VisibleMap2D {
     }
 
     static void debug(Agent* const agent) {
+        FUNCTION_LOG();
         Aux::gridTemplate(agent, [](int i, int j) {
             return Color{ uint8_t(imRef(visibleMap, realScaleToVisMap(i), realScaleToVisMap(j)) / 255),
                 uint8_t(imRef(visibleMap, realScaleToVisMap(i), realScaleToVisMap(j)) / 255),
