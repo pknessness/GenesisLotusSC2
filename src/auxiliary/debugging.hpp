@@ -168,3 +168,51 @@ void DebugCreateUnit(Agent* const agent, UnitTypeID unit_type, const Point2D& p,
     agent->Debug()->DebugCreateUnit(unit_type, p, player_id, count);
 #endif
 }
+
+void FunctionEnter(const char* fileName, const char* functionName, int lineNum);
+void FunctionExit(const char* fileName, const char* functionName, int lineNum);
+
+class TimeoutLogging {
+public:
+    std::string fileName;
+    std::string functionName;
+    int lineNum;
+
+    TimeoutLogging(std::string fileName_, std::string functionName_, int lineNum_) : fileName(fileName_), functionName(functionName_), lineNum(lineNum_) {
+        FunctionEnter(fileName.c_str(), functionName.c_str(), lineNum);
+    }
+
+    ~TimeoutLogging() {
+        FunctionExit(fileName.c_str(), functionName.c_str(), lineNum);
+    }
+};
+
+#define FUNCTION_NAME __FUNCTION__
+
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
+#define FUNCTION_NAME ""
+#endif
+
+#define FILE_NAME __FILE__
+
+#define LINE_NUM __LINE__
+
+//error checking macros
+#define FUNCTION_ENTER() FunctionEnter(FILE_NAME, FUNCTION_NAME, LINE_NUM)
+#define FUNCTION_EXIT() FunctionExit(FILE_NAME, FUNCTION_NAME, LINE_NUM)
+
+#define FUNCTION_LOG() TimeoutLogging timeoutLog(FILE_NAME, FUNCTION_NAME, LINE_NUM)
+
+void FunctionEnter(const char* fileName, const char* functionName, int lineNum) {
+    FILE* imageFile = fopen("data/functionLogs.txt", "a");
+    fprintf(imageFile, "Entered %s @%s #%d\n", functionName, fileName, lineNum);
+    fclose(imageFile);
+}
+
+void FunctionExit(const char* fileName, const char* functionName, int lineNum) {
+    FILE* imageFile = fopen("data/functionLogs.txt", "a");
+    fprintf(imageFile, "Exited %s @%s #%d\n", functionName, fileName, lineNum);
+    fclose(imageFile);
+}
+
+void ConsolePrintError(const std::string& errorText, const char* fileName, const char* functionName, int lineNum);

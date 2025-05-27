@@ -28,6 +28,7 @@
 
 namespace UnitManager {
     void encode(UnitWrapperPtr wrap, const Unit* unit_) {
+        FUNCTION_LOG();
         if (unit_->orders.size() != 0 && unit_->orders[0].target_pos != Point2D()) {
             Aux::encoding2D point(unit_->orders[0].target_pos);
             if (MacroManager::dataEncoding.find(point) != MacroManager::dataEncoding.end()) {
@@ -58,6 +59,7 @@ namespace UnitManager {
     }
 
     void add(UnitWrapperMap& units, const Unit* unit_, Agent* const agent) {
+        FUNCTION_LOG();
         UnitTypeID stype = getSuperType(unit_->unit_type);
         if (unit_->alliance == Unit::Self) {
             if (stype == UNIT_TYPEID::PROTOSS_PROBE) {
@@ -117,6 +119,7 @@ namespace UnitManager {
     }
 
     void remove(const Unit* unit_) {
+        FUNCTION_LOG();
         UnitTypeID stype = getSuperType(unit_->unit_type);
         UnitWrapperMap* units;
         if (unit_->alliance == Unit::Alliance::Self) {
@@ -159,6 +162,10 @@ struct Bot: sc2::Agent
  private:
     //! Called when a game is started or restarted.
     void OnGameStart(){
+        FILE* imageFile = fopen("data/functionLogs.txt", "wb");
+        fclose(imageFile);
+
+        FUNCTION_LOG();
         Aux::gameInfo_cache = Observation()->GetGameInfo();
         Aux::mapWidth_cache = Aux::gameInfo_cache.width;
         Aux::mapHeight_cache = Aux::gameInfo_cache.height;
@@ -184,6 +191,7 @@ struct Bot: sc2::Agent
 
     //! Called when a game has ended.
     void OnGameEnd(){
+        FUNCTION_LOG();
         std::cout << "Game over!" << std::endl;
         UnitManager::self_units.clear();
         UnitManager::neutral_units.clear();
@@ -193,6 +201,7 @@ struct Bot: sc2::Agent
     //! In non realtime games this function gets called after each step as indicated by step size.
     //! In realtime this function gets called as often as possible after request/responses are received from the game gathering observation state.
     void OnStep(){
+        FUNCTION_LOG();
         Profiler onStepProfiler("onStep");
         Aux::effectiveMinerals = Observation()->GetMinerals();
         Aux::effectiveVespene = Observation()->GetVespene();
@@ -442,6 +451,7 @@ struct Bot: sc2::Agent
     //! Called when a Unit has been created by the player.
     //!< \param unit The created unit.
     void OnUnitCreated(const sc2::Unit* unit_){
+        FUNCTION_LOG();
         printf("%s (%Ix) was created ", UnitTypeToName(unit_->unit_type), unit_->tag);
         //UnitWrapper u(unit_);
         //UnitManager::self_units.insert(std::make_shared<UnitWrapper>(unit_));
@@ -459,6 +469,7 @@ struct Bot: sc2::Agent
     //! Called when an enemy unit enters vision from out of fog of war.
     //!< \param unit The unit entering vision.
     virtual void OnUnitEnterVision(const sc2::Unit* unit_) {
+        FUNCTION_LOG();
         std::cout << sc2::UnitTypeToName(unit_->unit_type) <<
             "(" << unit_->tag << ") was created E" << std::endl;
 
@@ -469,6 +480,7 @@ struct Bot: sc2::Agent
     //!  Called when a neutral unit is created. For example, mineral fields observed for the first time
     //!< \param unit The observed unit.
     virtual void OnNeutralUnitCreated(const sc2::Unit* unit_) {
+        FUNCTION_LOG();
         std::cout << sc2::UnitTypeToName(unit_->unit_type) <<
             "(" << unit_->tag << ") was created N" << std::endl;
 
@@ -478,6 +490,7 @@ struct Bot: sc2::Agent
     //! Called whenever one of the player's units has been destroyed.
     //!< \param unit The destroyed unit.
     void OnUnitDestroyed(const sc2::Unit* unit_){
+        FUNCTION_LOG();
         std::cout << sc2::UnitTypeToName(unit_->unit_type) <<
              "(" << unit_->tag << ") was destroyed" << std::endl;
         UnitManager::remove(unit_);
@@ -489,6 +502,7 @@ struct Bot: sc2::Agent
     //! Called when an upgrade is finished, warp gate, ground weapons, baneling speed, etc.
     //!< \param upgrade The completed upgrade.
     void OnUpgradeCompleted(sc2::UpgradeID id_){
+        FUNCTION_LOG();
         std::cout << sc2::UpgradeIDToName(id_) << " completed" << std::endl;
     }
 
@@ -497,21 +511,22 @@ struct Bot: sc2::Agent
     //!< \param health The change in health (damage is positive)
     //!< \param shields The change in shields (damage is positive)
     virtual void OnUnitDamaged(const sc2::Unit* unit_, float health, float shields) {
-
+        FUNCTION_LOG();
     }
 
     //! Called when a nydus is placed.
     virtual void OnNydusDetected() {
-
+        FUNCTION_LOG();
     }
 
     //! Called when a nuclear launch is detected.
     virtual void OnNuclearLaunchDetected() {
-
+        FUNCTION_LOG();
     }
 
     //! Called for various errors the library can encounter. See ClientError enum for possible errors.
     void OnError(const std::vector<sc2::ClientError>& client_errors, const std::vector<std::string>& protocol_errors = {}){
+        FUNCTION_LOG();
         for (const auto i : client_errors) {
             std::cerr << "Encountered client error: " <<
                 static_cast<int>(i) << std::endl;
@@ -527,6 +542,7 @@ struct Bot: sc2::Agent
     //! OnUnitCreated and OnUnitIdle if it does not have a rally set.
     //!< \param unit The idle unit.
     void OnUnitIdle(const sc2::Unit* unit_){
+        FUNCTION_LOG();
         //std::cout << sc2::UnitTypeToName(unit_->unit_type) <<
         //     "(" << unit_->tag << ") is idle" << std::endl;
     }
@@ -535,6 +551,7 @@ struct Bot: sc2::Agent
     // !the current step.
     //!< \param unit The constructed unit.
     void OnBuildingConstructionComplete(const sc2::Unit* building_){
+        FUNCTION_LOG();
         std::cout << sc2::UnitTypeToName(building_->unit_type) <<
             "(" << building_->tag << ") constructed" << std::endl;
     }
