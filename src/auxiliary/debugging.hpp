@@ -207,12 +207,14 @@ void FunctionEnter(const char* fileName, const char* functionName, int lineNum) 
     FILE* imageFile = fopen("data/functionLogs.txt", "a");
     fprintf(imageFile, "Entered %s @%s #%d\n", functionName, fileName, lineNum);
     fclose(imageFile);
+    printf("Entered %s @%s #%d\n", functionName, fileName, lineNum);
 }
 
 void FunctionExit(const char* fileName, const char* functionName, int lineNum) {
     FILE* imageFile = fopen("data/functionLogs.txt", "a");
     fprintf(imageFile, "Exited %s @%s #%d\n", functionName, fileName, lineNum);
     fclose(imageFile);
+    printf("Exited %s @%s #%d\n", functionName, fileName, lineNum);
 }
 
 void ConsolePrintError(const std::string& errorText, const char* fileName, const char* functionName, int lineNum);
