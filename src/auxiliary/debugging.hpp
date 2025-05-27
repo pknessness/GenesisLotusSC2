@@ -1,6 +1,10 @@
 #pragma once
 #include <sc2api/sc2_api.h>
 
+#include <chrono>
+using timeus = std::chrono::time_point<std::chrono::steady_clock>;
+
+
 using namespace sc2;
 
 //! Outputs text at the top, left of the screen.
@@ -170,20 +174,23 @@ void DebugCreateUnit(Agent* const agent, UnitTypeID unit_type, const Point2D& p,
 }
 
 void FunctionEnter(const char* fileName, const char* functionName, int lineNum);
-void FunctionExit(const char* fileName, const char* functionName, int lineNum);
+void FunctionExit(const char* fileName, const char* functionName, int lineNum, long long time);
 
 class TimeoutLogging {
 public:
     std::string fileName;
     std::string functionName;
     int lineNum;
+    timeus start_time;
 
     TimeoutLogging(std::string fileName_, std::string functionName_, int lineNum_) : fileName(fileName_), functionName(functionName_), lineNum(lineNum_) {
         FunctionEnter(fileName.c_str(), functionName.c_str(), lineNum);
+        start_time = std::chrono::steady_clock::now();
     }
 
     ~TimeoutLogging() {
-        FunctionExit(fileName.c_str(), functionName.c_str(), lineNum);
+        timeus now = std::chrono::steady_clock::now();
+        FunctionExit(fileName.c_str(), functionName.c_str(), lineNum, std::chrono::duration_cast<std::chrono::microseconds>(now - start_time).count());
     }
 };
 
@@ -210,11 +217,11 @@ void FunctionEnter(const char* fileName, const char* functionName, int lineNum) 
     printf("Entered %s @%s #%d\n", functionName, fileName, lineNum);
 }
 
-void FunctionExit(const char* fileName, const char* functionName, int lineNum) {
+void FunctionExit(const char* fileName, const char* functionName, int lineNum , long long time) {
     FILE* imageFile = fopen("data/functionLogs.txt", "a");
-    fprintf(imageFile, "Exited %s @%s #%d\n", functionName, fileName, lineNum);
+    fprintf(imageFile, "Exited %s @%s #%d [%lld]\n", functionName, fileName, lineNum, time);
     fclose(imageFile);
-    printf("Exited %s @%s #%d\n", functionName, fileName, lineNum);
+    printf("Exited %s @%s #%d [%lld]\n", functionName, fileName, lineNum, time);
 }
 
 void ConsolePrintError(const std::string& errorText, const char* fileName, const char* functionName, int lineNum);
