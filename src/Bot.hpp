@@ -162,6 +162,7 @@ struct Bot: sc2::Agent
  private:
     //! Called when a game is started or restarted.
     void OnGameStart(){
+        std::filesystem::create_directory("data");
         FILE* imageFile = fopen("data/functionLogs.txt", "wb");
         fclose(imageFile);
 
