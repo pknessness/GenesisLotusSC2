@@ -105,12 +105,10 @@ namespace Aux {
 	};
 
 	ObstacleInfo getObstacle(int i, int j) {
-		FUNCTION_LOG();
 		return (ObstacleInfo)(imRef(masterMap, i, j) >> 2);
 	}
 
 	bool isPathable(int i, int j) {
-		FUNCTION_LOG();
 		ObstacleInfo obstacle = getObstacle(i, j);
 		return !((imRef(masterMap, i, j) & 0x01) || 
 			obstacle == SELF_BUILDINGS || 
@@ -124,23 +122,19 @@ namespace Aux {
 	}
 
 	bool isPathable(Point2D p) {
-		FUNCTION_LOG();
 		return isPathable(int(p.x), int(p.y));
 	}
 
 	bool withinBounds(Point2D p) {
-		FUNCTION_LOG();
 		return p.x > 0 && p.y > 0 && p.x < mapWidth_cache && p.y < mapHeight_cache;
 	}
 
 	bool isPathableTile(int i, int j) {
-		FUNCTION_LOG();
 		ObstacleInfo obstacle = getObstacle(i, j);
 		return !((imRef(masterMap, i, j) & 0x01));
 	}
 
 	bool isPlacable(int i, int j) {
-		FUNCTION_LOG();
 		ObstacleInfo obstacle = getObstacle(i, j);
 		return !(imRef(masterMap, i, j) & 0x02 || 
 			obstacle == SELF_BUILDINGS ||
@@ -325,7 +319,6 @@ namespace Aux {
 	}
 
 	static UpgradeID researchAbilityToUpgrade(AbilityID build_ability) {
-		FUNCTION_LOG();
 		switch (uint32_t(build_ability)) {
 		case (uint32_t(ABILITY_ID::RESEARCH_ADEPTRESONATINGGLAIVES)):
 			return UPGRADE_ID::ADEPTKILLBOUNCE;
@@ -398,7 +391,6 @@ namespace Aux {
 	}
 
 	static UnitTypeID buildAbilityToUnit(AbilityID build_ability) {
-		FUNCTION_LOG();
 		switch (uint32_t(build_ability)) {
 		case (uint32_t(ABILITY_ID::BUILD_ASSIMILATOR)):
 			return UNIT_TYPEID::PROTOSS_ASSIMILATOR;
@@ -677,7 +669,6 @@ namespace Aux {
 	}
 
 	static bool isMineralType(UnitTypeID type) {
-		FUNCTION_LOG();
 		return (type == UNIT_TYPEID::NEUTRAL_MINERALFIELD || type == UNIT_TYPEID::NEUTRAL_LABMINERALFIELD ||
 			type == UNIT_TYPEID::NEUTRAL_MINERALFIELD750 || type == UNIT_TYPEID::NEUTRAL_LABMINERALFIELD750 ||
 			type == UNIT_TYPEID::NEUTRAL_MINERALFIELD450 || type == UNIT_TYPEID::NEUTRAL_RICHMINERALFIELD ||
@@ -685,21 +676,18 @@ namespace Aux {
 	}
 
 	static bool isVespeneType(UnitTypeID type) {
-		FUNCTION_LOG();
 		return (type == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER || type == UNIT_TYPEID::NEUTRAL_PROTOSSVESPENEGEYSER ||
 			type == UNIT_TYPEID::NEUTRAL_PURIFIERVESPENEGEYSER || type == UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER ||
 			type == UNIT_TYPEID::NEUTRAL_SHAKURASVESPENEGEYSER || type == UNIT_TYPEID::NEUTRAL_SPACEPLATFORMGEYSER);
 	}
 
 	Point2D getRandomPointRadius(Point2D point, float radius_max) {
-		FUNCTION_LOG();
 		float theta = (2.0F * GS_PI * rand()) / RAND_MAX;
 		float radius = (radius_max * rand()) / RAND_MAX;
 		return point + Point2D{ radius * cos(theta), radius * sin(theta) };
 	}
 
 	encoding2D getRandomEncodingPoint() {
-		FUNCTION_LOG();
 		float x = (50 * rand()) / RAND_MAX + 50;
 		float y = (50 * rand()) / RAND_MAX + 50;
 		return encoding2D(Point2D{ x, y });
@@ -831,7 +819,6 @@ namespace Aux {
 	};
 
 	static void loadUnitPlacement(ObstacleInfo obstacle, Point2D pos, int sizeX, int sizeY, int8_t(*pattern)[10][10] = nullptr) {
-		FUNCTION_LOG();
 		int x = (int)(pos.x - (sizeX / 2) + ((sizeX % 2 == 0) ? 0.5F : 0.0F));
 		int y = (int)(pos.y - (sizeY / 2) + ((sizeY % 2 == 0) ? 0.5F : 0.0F));
 		for (int i = 0; i < sizeX; i++) {
