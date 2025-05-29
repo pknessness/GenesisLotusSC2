@@ -162,6 +162,7 @@ struct Bot: sc2::Agent
  private:
     //! Called when a game is started or restarted.
     void OnGameStart(){
+        printf("onGameStart\n");
         std::filesystem::create_directory("data");
         FILE* imageFile = fopen("data/functionLogs.txt", "wb");
         fclose(imageFile);
@@ -202,6 +203,7 @@ struct Bot: sc2::Agent
     //! In non realtime games this function gets called after each step as indicated by step size.
     //! In realtime this function gets called as often as possible after request/responses are received from the game gathering observation state.
     void OnStep(){
+        printf("onStep %lld\n", Observation()->GetGameLoop());
         FUNCTION_LOG();
         Profiler onStepProfiler("onStep");
         Aux::effectiveMinerals = Observation()->GetMinerals();
