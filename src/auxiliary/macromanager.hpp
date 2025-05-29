@@ -538,7 +538,11 @@ namespace MacroManager {
 					currentAction->executorPtr = *possibleUnits.begin();
 				}
 
-				UnitTypeID oldProbeTarget = std::static_pointer_cast<Probe>(currentAction->executorPtr)->getTargetTag(agent)->getStorageType();
+				UnitWrapperPtr probeTarget = std::static_pointer_cast<Probe>(currentAction->executorPtr)->getTargetTag(agent);
+				UnitTypeID oldProbeTarget = UNIT_TYPEID::INVALID;
+				if (probeTarget != nullptr) {
+					oldProbeTarget = probeTarget->getStorageType();
+				}
 				
 				float distToTravel = currentAction->executorPtr->getPathLength(agent, currentAction->position.pos);
 
