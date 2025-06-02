@@ -203,14 +203,14 @@ namespace Aux {
 	}
 
 	bool operator==(const encoding2D& l, const encoding2D& r) {
-		return (l.x == r.x && l.y == r.y);
+		return (abs(l.x - r.x) < 0.001 && abs(l.y - r.y) < 0.001);
 	}
 
 	struct encoding2DHash
 	{
 		std::size_t operator()(const encoding2D& k) const
 		{
-			return k.x * 120 + k.y * 214012;
+			return int(k.x) * 120 + int(k.y) * 214012;
 		}
 	};
 
@@ -688,8 +688,8 @@ namespace Aux {
 	}
 
 	encoding2D getRandomEncodingPoint() {
-		float x = (50 * rand()) / RAND_MAX + 50;
-		float y = (50 * rand()) / RAND_MAX + 50;
+		float x = (50.0 * rand()) / RAND_MAX + 50;
+		float y = (50.0 * rand()) / RAND_MAX + 50;
 		return encoding2D(Point2D{ x, y });
 	}
 
