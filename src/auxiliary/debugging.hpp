@@ -210,18 +210,26 @@ public:
 
 #define FUNCTION_LOG() TimeoutLogging timeoutLog(FILE_NAME, FUNCTION_NAME, LINE_NUM)
 
+#ifdef BUILD_FOR_LADDER
+#define LINETHING 1
+#endif
+
 void FunctionEnter(const char* fileName, const char* functionName, int lineNum) {
-    //FILE* imageFile = fopen("data/functionLogs.txt", "a");
-    //fprintf(imageFile, "Entered %s @%s #%d\n", functionName, fileName, lineNum);
-    //fclose(imageFile);
-    //printf("Entered %s @%s #%d\n", functionName, fileName, lineNum);
+#if LINETHING
+    FILE* imageFile = fopen("data/functionLogs.txt", "a");
+    fprintf(imageFile, "Entered %s @%s #%d\n", functionName, fileName, lineNum);
+    fclose(imageFile);
+    printf("Entered %s @%s #%d\n", functionName, fileName, lineNum);
+#endif
 }
 
 void FunctionExit(const char* fileName, const char* functionName, int lineNum , long long time) {
-    //FILE* imageFile = fopen("data/functionLogs.txt", "a");
-    //fprintf(imageFile, "Exited %s @%s #%d [%lld]\n", functionName, fileName, lineNum, time);
-    //fclose(imageFile);
-    //printf("Exited %s @%s #%d [%lld]\n", functionName, fileName, lineNum, time);
+#if LINETHING
+    FILE* imageFile = fopen("data/functionLogs.txt", "a");
+    fprintf(imageFile, "Exited %s @%s #%d [%lld]\n", functionName, fileName, lineNum, time);
+    fclose(imageFile);
+    printf("Exited %s @%s #%d [%lld]\n", functionName, fileName, lineNum, time);
+#endif
 }
 
 void ConsolePrintError(const std::string& errorText, const char* fileName, const char* functionName, int lineNum);

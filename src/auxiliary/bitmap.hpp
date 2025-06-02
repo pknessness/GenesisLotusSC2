@@ -38,7 +38,6 @@ unsigned char* createBitmapInfoHeader(int height, int width);
 void saveBitmap(std::string fileName, int width, int height, std::function<unsigned char(int,int)> red, std::function<unsigned char(int, int)> green, std::function<unsigned char(int, int)> blue)
 {
     FUNCTION_LOG();
-    std::filesystem::create_directory("data");
     unsigned char image[256][256][BYTES_PER_PIXEL] = { 0 };
     std::string file = (char*)"data/" + fileName;
     const char* imageFileName = file.c_str();
