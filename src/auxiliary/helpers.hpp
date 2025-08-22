@@ -34,6 +34,8 @@ constexpr float VESPENE_PER_PROBE_PER_SEC = 61.0F / 60;
 constexpr float PYLON_RADIUS = 6.0F;
 constexpr float PYLON_RADIUS_SQUARED = PYLON_RADIUS*PYLON_RADIUS;
 
+constexpr float EPSILON = 0.1; //time between attacks for one time attacks
+
 namespace Aux {
 	GameInfo gameInfo_cache;
 	int mapWidth_cache;
@@ -155,6 +157,40 @@ namespace Aux {
 		int psi = 0;
 	};
 
+	struct ExtraWeapon : Weapon {
+		ExtraWeapon(){
+
+		}
+
+		ExtraWeapon(Weapon::TargetType type_, float damage_, uint32_t attacks_, float range_, float speed_) {
+			type = type_;
+			damage_ = damage_;
+			attacks = attacks_;
+			range = range_;
+			speed = speed_;
+		}
+
+		void setWeapon(Weapon::TargetType type_, float damage_, uint32_t attacks_, float range_, float speed_) {
+			type = type_;
+			damage_ = damage_;
+			attacks = attacks_;
+			range = range_;
+			speed = speed_;
+		}
+
+		void addDamageBonus(Attribute a, float bonus) {
+			DamageBonus b;
+			b.attribute = a;
+			b.bonus = bonus;
+			damage_bonus.push_back(b);
+		}
+	};
+
+	struct EnergyCost {
+		float energyCostStatic;
+		float energyCostPerFrame;
+	};
+
 	struct PointArea {
 		enum PointAreaType {
 			INVALID,
@@ -214,6 +250,192 @@ namespace Aux {
 		}
 	};
 
+	UnitTypeID BuildUnitOrder[18] = {
+		UNIT_TYPEID::PROTOSS_ZEALOT,
+		UNIT_TYPEID::PROTOSS_STALKER,
+		UNIT_TYPEID::PROTOSS_SENTRY,
+		UNIT_TYPEID::PROTOSS_ADEPT,
+		UNIT_TYPEID::PROTOSS_DARKTEMPLAR,
+		UNIT_TYPEID::PROTOSS_HIGHTEMPLAR,
+		UNIT_TYPEID::PROTOSS_ARCHON,
+
+		UNIT_TYPEID::PROTOSS_OBSERVER,
+		UNIT_TYPEID::PROTOSS_IMMORTAL,
+		UNIT_TYPEID::PROTOSS_WARPPRISM, //PHASED
+		UNIT_TYPEID::PROTOSS_COLOSSUS,
+		UNIT_TYPEID::PROTOSS_DISRUPTOR,
+
+		UNIT_TYPEID::PROTOSS_PHOENIX,
+		UNIT_TYPEID::PROTOSS_ORACLE,
+		UNIT_TYPEID::PROTOSS_VOIDRAY,
+		UNIT_TYPEID::PROTOSS_TEMPEST,
+		UNIT_TYPEID::PROTOSS_CARRIER,
+
+		UNIT_TYPEID::PROTOSS_MOTHERSHIP
+	};
+
+	UnitTypeID ArmyUnitsProtoss[] = {
+		UNIT_TYPEID::PROTOSS_ZEALOT,
+		UNIT_TYPEID::PROTOSS_STALKER,
+		UNIT_TYPEID::PROTOSS_SENTRY,
+		UNIT_TYPEID::PROTOSS_ADEPT,
+		UNIT_TYPEID::PROTOSS_DARKTEMPLAR,
+		UNIT_TYPEID::PROTOSS_HIGHTEMPLAR,
+		UNIT_TYPEID::PROTOSS_ARCHON,
+
+		UNIT_TYPEID::PROTOSS_OBSERVER,
+		UNIT_TYPEID::PROTOSS_IMMORTAL,
+		UNIT_TYPEID::PROTOSS_WARPPRISM, //PHASED
+		UNIT_TYPEID::PROTOSS_COLOSSUS,
+		UNIT_TYPEID::PROTOSS_DISRUPTOR,
+
+		UNIT_TYPEID::PROTOSS_PHOENIX,
+		UNIT_TYPEID::PROTOSS_ORACLE,
+		UNIT_TYPEID::PROTOSS_VOIDRAY,
+		UNIT_TYPEID::PROTOSS_TEMPEST,
+		UNIT_TYPEID::PROTOSS_CARRIER,
+
+		UNIT_TYPEID::PROTOSS_MOTHERSHIP,
+
+		UNIT_TYPEID::PROTOSS_PROBE,
+		UNIT_TYPEID::PROTOSS_PHOTONCANNON,
+		UNIT_TYPEID::PROTOSS_SHIELDBATTERY,
+	};
+
+	UnitTypeID NonArmyProtoss[] = {
+		UNIT_TYPEID::PROTOSS_NEXUS,
+		UNIT_TYPEID::PROTOSS_PYLON,
+		UNIT_TYPEID::PROTOSS_GATEWAY,
+		UNIT_TYPEID::PROTOSS_WARPGATE,
+		UNIT_TYPEID::PROTOSS_ASSIMILATOR,
+		UNIT_TYPEID::PROTOSS_CYBERNETICSCORE,
+		UNIT_TYPEID::PROTOSS_FORGE,
+		UNIT_TYPEID::PROTOSS_TWILIGHTCOUNCIL,
+		UNIT_TYPEID::PROTOSS_STARGATE,
+		UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY,
+		UNIT_TYPEID::PROTOSS_TEMPLARARCHIVE,
+		UNIT_TYPEID::PROTOSS_DARKSHRINE,
+		UNIT_TYPEID::PROTOSS_FLEETBEACON,
+		UNIT_TYPEID::PROTOSS_ROBOTICSBAY,
+	};
+
+	UnitTypeID ArmyUnitsTerran[] = {
+		UNIT_TYPEID::TERRAN_MARINE,
+		UNIT_TYPEID::TERRAN_MARAUDER,
+		UNIT_TYPEID::TERRAN_REAPER,
+
+		UNIT_TYPEID::TERRAN_GHOST,
+
+		UNIT_TYPEID::TERRAN_HELLION, //TERRAN_HELLIONTANK
+		UNIT_TYPEID::TERRAN_WIDOWMINE,
+		UNIT_TYPEID::TERRAN_CYCLONE,
+		UNIT_TYPEID::TERRAN_SIEGETANK, //TERRAN_SIEGETANKSIEGED
+
+		UNIT_TYPEID::TERRAN_THOR, //TERRAN_THORAP
+
+		UNIT_TYPEID::TERRAN_VIKINGFIGHTER, //TERRAN_VIKINGASSAULT
+		UNIT_TYPEID::TERRAN_MEDIVAC,
+		UNIT_TYPEID::TERRAN_LIBERATOR, //TERRAN_LIBERATORAG
+		UNIT_TYPEID::TERRAN_RAVEN,
+		UNIT_TYPEID::TERRAN_AUTOTURRET,
+		UNIT_TYPEID::TERRAN_BANSHEE,
+
+		UNIT_TYPEID::TERRAN_BATTLECRUISER,
+
+		UNIT_TYPEID::TERRAN_SCV,
+		UNIT_TYPEID::TERRAN_MULE,
+		UNIT_TYPEID::TERRAN_MISSILETURRET,
+		UNIT_TYPEID::TERRAN_PLANETARYFORTRESS,
+		UNIT_TYPEID::TERRAN_BUNKER,
+		UNIT_TYPEID::TERRAN_KD8CHARGE,
+	};
+
+	UnitTypeID ArmyUnitsZerg[] = {  //BURROWED, COCOON
+		UNIT_TYPEID::ZERG_ZERGLING,
+		UNIT_TYPEID::ZERG_QUEEN,
+
+		UNIT_TYPEID::ZERG_ROACH,
+		UNIT_TYPEID::ZERG_RAVAGER,
+
+		UNIT_TYPEID::ZERG_BANELING,
+
+		UNIT_TYPEID::ZERG_HYDRALISK,
+
+		UNIT_TYPEID::ZERG_INFESTOR,
+		UNIT_TYPEID::ZERG_SWARMHOSTMP,
+		UNIT_TYPEID::ZERG_LOCUSTMP,
+
+		UNIT_TYPEID::ZERG_MUTALISK,
+		UNIT_TYPEID::ZERG_CORRUPTOR,
+
+		UNIT_TYPEID::ZERG_LURKERMP,
+		UNIT_TYPEID::ZERG_LURKERMPBURROWED,
+
+		UNIT_TYPEID::ZERG_VIPER,
+
+		UNIT_TYPEID::ZERG_NYDUSCANAL,
+
+		UNIT_TYPEID::ZERG_ULTRALISK,
+
+		UNIT_TYPEID::ZERG_BROODLORD,
+		UNIT_TYPEID::ZERG_BROODLING,
+
+		UNIT_TYPEID::ZERG_DRONE,
+		UNIT_TYPEID::ZERG_OVERLORD,
+		UNIT_TYPEID::ZERG_OVERLORDTRANSPORT,
+		UNIT_TYPEID::ZERG_OVERSEER,
+
+		UNIT_TYPEID::ZERG_SPINECRAWLER,
+		UNIT_TYPEID::ZERG_SPORECRAWLER,
+	};
+
+	AbilityID UnitCreationAbility[18] = {
+		ABILITY_ID::TRAIN_ZEALOT,
+		ABILITY_ID::TRAIN_STALKER,
+		ABILITY_ID::TRAIN_SENTRY,
+		ABILITY_ID::TRAIN_ADEPT,
+		ABILITY_ID::TRAIN_DARKTEMPLAR,
+		ABILITY_ID::TRAIN_HIGHTEMPLAR,
+		ABILITY_ID::TRAIN_ARCHON,
+
+		ABILITY_ID::TRAIN_OBSERVER,
+		ABILITY_ID::TRAIN_IMMORTAL,
+		ABILITY_ID::TRAIN_WARPPRISM,
+		ABILITY_ID::TRAIN_COLOSSUS,
+		ABILITY_ID::TRAIN_DISRUPTOR,
+
+		ABILITY_ID::TRAIN_PHOENIX,
+		ABILITY_ID::TRAIN_ORACLE,
+		ABILITY_ID::TRAIN_VOIDRAY,
+		ABILITY_ID::TRAIN_TEMPEST,
+		ABILITY_ID::TRAIN_CARRIER,
+
+		ABILITY_ID::TRAIN_MOTHERSHIP
+	};
+
+	UnitTypeID UnitCreators[18] = {
+		UNIT_TYPEID::PROTOSS_GATEWAY,
+		UNIT_TYPEID::PROTOSS_GATEWAY,
+		UNIT_TYPEID::PROTOSS_GATEWAY,
+		UNIT_TYPEID::PROTOSS_GATEWAY,
+		UNIT_TYPEID::PROTOSS_GATEWAY,
+		UNIT_TYPEID::PROTOSS_GATEWAY,
+		UNIT_TYPEID::PROTOSS_GATEWAY,
+
+		UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY,
+		UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY,
+		UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY,
+		UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY,
+		UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY,
+
+		UNIT_TYPEID::PROTOSS_STARGATE,
+		UNIT_TYPEID::PROTOSS_STARGATE,
+		UNIT_TYPEID::PROTOSS_STARGATE,
+		UNIT_TYPEID::PROTOSS_STARGATE,
+		UNIT_TYPEID::PROTOSS_STARGATE,
+
+		UNIT_TYPEID::PROTOSS_NEXUS
+	};
 
 
 	struct Expansion {
@@ -297,23 +519,37 @@ namespace Aux {
 				throw 5;
 				//return UnitTypeData();//agent->Observation()->GetUnitTypeData().at(static_cast<uint32_t>(type));
 			}
-			//if (type == UNIT_TYPEID::PROTOSS_VOIDRAY) {
-			//	ComplexWeapon prismaticBeam(Weapon::TargetType::Any, 6, 1, 6, 0.36F);
-			//	prismaticBeam.addDamageBonus(Attribute::Armored, 4);
-			//	statsMap[UNIT_TYPEID::PROTOSS_VOIDRAY].weapons.push_back(prismaticBeam.w);
-			//}
-			//else if (type == UNIT_TYPEID::PROTOSS_SENTRY) {
-			//	ComplexWeapon disruptionBeam(Weapon::TargetType::Any, 6, 1, 5, 0.71F);
-			//	statsMap[UNIT_TYPEID::PROTOSS_SENTRY].weapons.push_back(disruptionBeam.w);
-			//}
-			//else if (type == UNIT_TYPEID::PROTOSS_DISRUPTOR) {
-			//	//https://www.reddit.com/r/starcraft/comments/40pl7l/how_far_can_a_disruptors_purification_nova_travel/?rdt=50754
-			//	ComplexWeapon novaAura(Weapon::TargetType::Any, 100, 1, 13, 21.4F);
-			//	statsMap[UNIT_TYPEID::PROTOSS_DISRUPTOR].weapons.push_back(novaAura.w);
-			//}
-			//else if (type == UNIT_TYPEID::PROTOSS_DISRUPTORPHASED) {
-			//	statsMap[UNIT_TYPEID::PROTOSS_DISRUPTOR].weapons.push_back(extraWeapons[ABILITY_ID::EFFECT_PURIFICATIONNOVA].w);
-			//}
+			if (type == UNIT_TYPEID::PROTOSS_VOIDRAY) {
+				ExtraWeapon prismaticBeam(Weapon::TargetType::Any, 6, 1, 6, 0.36F);
+				prismaticBeam.addDamageBonus(Attribute::Armored, 4);
+				statsMap[UNIT_TYPEID::PROTOSS_VOIDRAY].weapons.push_back(prismaticBeam);
+			}
+			else if (type == UNIT_TYPEID::PROTOSS_SENTRY) {
+				ExtraWeapon disruptionBeam(Weapon::TargetType::Any, 6, 1, 5, 0.71F);
+				statsMap[UNIT_TYPEID::PROTOSS_SENTRY].weapons.push_back(disruptionBeam);
+			}
+			else if (type == UNIT_TYPEID::PROTOSS_DISRUPTOR) {
+				//https://www.reddit.com/r/starcraft/comments/40pl7l/how_far_can_a_disruptors_purification_nova_travel/?rdt=50754
+				ExtraWeapon novaAura(Weapon::TargetType::Any, 100, 1, 13, 21.4F);
+				statsMap[UNIT_TYPEID::PROTOSS_DISRUPTOR].weapons.push_back(novaAura);
+			}
+			else if (type == UNIT_TYPEID::PROTOSS_DISRUPTORPHASED) {
+				ExtraWeapon purificationNova(Weapon::TargetType::Ground, 100, 1, 1.5, EPSILON);
+				statsMap[UNIT_TYPEID::PROTOSS_DISRUPTORPHASED].weapons.push_back(purificationNova);
+			}
+			else if (type == UNIT_TYPEID::ZERG_BANELING || type == UNIT_TYPEID::ZERG_BANELINGBURROWED) {
+				//https://www.reddit.com/r/starcraft/comments/40pl7l/how_far_can_a_disruptors_purification_nova_travel/?rdt=50754
+				ExtraWeapon volatileBurst(Weapon::TargetType::Ground, 16, 1, 2.2, EPSILON);
+				volatileBurst.addDamageBonus(Attribute::Light, 19);
+				statsMap[UNIT_TYPEID::ZERG_BANELING].weapons.push_back(volatileBurst);
+				statsMap[UNIT_TYPEID::ZERG_BANELINGBURROWED].weapons.push_back(volatileBurst);
+			}
+			else if (type == UNIT_TYPEID::TERRAN_BATTLECRUISER) {
+				ExtraWeapon ATSLaserBattery(Weapon::TargetType::Ground, 8, 1, 6, 0.16);
+				ExtraWeapon ATALaserBattery(Weapon::TargetType::Air, 5, 1, 6, 0.16);
+				statsMap[UNIT_TYPEID::TERRAN_BATTLECRUISER].weapons.push_back(ATSLaserBattery);
+				statsMap[UNIT_TYPEID::TERRAN_BATTLECRUISER].weapons.push_back(ATALaserBattery);
+			}
 		}
 		return statsMap[type];
 	}
@@ -1141,5 +1377,84 @@ namespace Aux {
 				}
 			}
 		}
+	}
+
+	const char* attributeNames[] = {
+		"Unknown",
+		"Light",
+		"Armored",
+		"Biological",
+		"Mechanical",
+		"Robotic",
+		"Psionic",
+		"Massive",
+		"Structure",
+		"Hover",
+		"Heroic",
+		"Summoned",
+		"Invalid"
+	};
+
+	const char* targetTypeNames[] = {
+		"Unknown",
+		"Ground",
+		"Air",
+		"Any",
+		"Invalid"
+	};
+
+	const char* displayTypeNames[] = {
+		"Visible",
+		"Snapshot",
+		"Hidden",
+		"Placeholder"
+	};
+
+	const char* allianceNames[] = {
+		"Self",
+		"Ally",
+		"Neutral",
+		"Enemy"
+	};
+
+	const char* cloakStateNames[] = {
+		"CloakedUnknown",
+		"Cloaked",
+		"CloakedDetected",
+		"NotCloaked",
+		"CloakedAllied"
+	};
+
+	const char* AttributeToName(Attribute a) {
+		return attributeNames[(int)a];
+	}
+
+	const char* TargetTypeToName(Weapon::TargetType t) {
+		return targetTypeNames[(int)t];
+	}
+
+	const char* DisplayTypeToName(Unit::DisplayType d) {
+		return displayTypeNames[(int)d];
+	}
+
+	const char* AllianceToName(Unit::Alliance a) {
+		return allianceNames[(int)a];
+	}
+
+	const char* CloakStateToName(Unit::CloakState c) {
+		return cloakStateNames[(int)c];
+	}
+
+	int damageExtraPerUpgrade(float baseDamage) {
+		if (baseDamage >= 45) {
+			return 5;
+		} else if (baseDamage >= 36) {
+			return 4;
+		} else if (baseDamage >= 24) {
+			return 3;
+		} else if (baseDamage >= 15) {
+			return 2;
+		}
+		return 1;
 	}
 }

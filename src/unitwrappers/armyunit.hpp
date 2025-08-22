@@ -39,6 +39,10 @@ public:
         agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, point);
     }
 
+    void damageAtPoint(Point2D point) {
+
+    }
+
     virtual void executeAttack(Agent* const agent) {
         FUNCTION_LOG();
         moveLocation = Point2D{ -1, -1 };

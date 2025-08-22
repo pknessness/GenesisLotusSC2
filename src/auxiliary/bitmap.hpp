@@ -35,22 +35,44 @@ unsigned char* createBitmapInfoHeader(int height, int width);
 //    printf("Image generated!!");
 //}
 
+//arr[x + xmax * (y + ymax * z)]
+//x -> B
+//y -> W
+//z -> H
+#define imageDYNA(H, W, B, HEIGHTMAX, WIDTHMAX) imageDyna[B + 3 * (W + WIDTHMAX * H)]
+
 void saveBitmap(std::string fileName, int width, int height, std::function<unsigned char(int,int)> red, std::function<unsigned char(int, int)> green, std::function<unsigned char(int, int)> blue)
 {
     FUNCTION_LOG();
-    unsigned char image[256][256][BYTES_PER_PIXEL] = { 0 };
+    //STATIC ALLOCATION
+    //unsigned char image[256][256][BYTES_PER_PIXEL] = { 0 };
+    //std::string file = (char*)"data/" + fileName;
+    //const char* imageFileName = file.c_str();
+
+    //int i, j;
+    //for (i = 0; i < height; i++) {
+    //    for (j = 0; j < width; j++) {
+    //        image[i][j][2] = red(j, i); //(unsigned char)(i * 255 / height);             ///red
+    //        image[i][j][1] = green(j, i); //(unsigned char)(j * 255 / width);              ///green
+    //        image[i][j][0] = blue(j, i); //(unsigned char)((i + j) * 255 / (height + width)); ///blue
+    //    }
+    //}
+    //generateBitmapImage((unsigned char*)image, 256, 256, imageFileName);
+
+    //DYNAMIC ALLOCATION
+    unsigned char* imageDyna = (unsigned char*)malloc(width * height * BYTES_PER_PIXEL);//new unsigned char[width * height * BYTES_PER_PIXEL];
     std::string file = (char*)"data/" + fileName;
     const char* imageFileName = file.c_str();
 
     int i, j;
     for (i = 0; i < height; i++) {
         for (j = 0; j < width; j++) {
-            image[i][j][2] = red(j, i); //(unsigned char)(i * 255 / height);             ///red
-            image[i][j][1] = green(j, i); //(unsigned char)(j * 255 / width);              ///green
-            image[i][j][0] = blue(j, i); //(unsigned char)((i + j) * 255 / (height + width)); ///blue
+            imageDYNA(i, j, 2, height, width) = red(j, i); //(unsigned char)(i * 255 / height);             ///red
+            imageDYNA(i, j, 1, height, width) = green(j, i); //(unsigned char)(j * 255 / width);              ///green
+            imageDYNA(i, j, 0, height, width) = blue(j, i); //(unsigned char)((i + j) * 255 / (height + width)); ///blue
         }
     }
-    generateBitmapImage((unsigned char*)image, 256, 256, imageFileName);
+    generateBitmapImage((unsigned char*)imageDyna, height, width, imageFileName);
 }
 
 void saveBitmap(std::string fileName, int width, int height, std::function<Color(int, int)> color)

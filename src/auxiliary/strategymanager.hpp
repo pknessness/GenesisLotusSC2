@@ -60,6 +60,8 @@ namespace StrategyManager {
     Strategy glaive_adept_rush_lightwisdom;
     Strategy glaive_adept_rush_hupsaiya;
 
+    Strategy test_plusone_atk;
+
     void load(){
         FUNCTION_LOG();
         glaive_adept_rush_lightwisdom.build_order = {
@@ -196,6 +198,38 @@ namespace StrategyManager {
         glaive_adept_rush_hupsaiya.unitRatio.adept = 1;
         glaive_adept_rush_hupsaiya.armyAttackNum = 13; //Hit at 4:37 with 14 Adepts
         glaive_adept_rush_hupsaiya.commit = true;
+
+        test_plusone_atk.build_order = {
+            MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::criticalPoints[Aux::SELF_FIRSTPYLON_POINT], MacroActionData("Pylar")),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY, Aux::PointDefault(), MacroActionData("Alice")),
+            MacroBuilding(ABILITY_ID::BUILD_FORGE, Aux::PointDefault(), MacroActionData("Frank")),
+            MacroBuilding(ABILITY_ID::GENERAL_MOVE, Aux::criticalPoints[Aux::ENEMY_STARTLOC_POINT]),
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY, Aux::PointDefault(), MacroActionData("Bob")),
+            MacroBuilding(ABILITY_ID::BUILD_CYBERNETICSCORE),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroAction(UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, ABILITY_ID::RESEARCH_WARPGATE),
+            MacroAction(UNIT_TYPEID::PROTOSS_FORGE, ABILITY_ID::RESEARCH_PROTOSSGROUNDWEAPONS),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroBuilding(ABILITY_ID::BUILD_TWILIGHTCOUNCIL),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroAction(UNIT_TYPEID::PROTOSS_TWILIGHTCOUNCIL, ABILITY_ID::RESEARCH_ADEPTRESONATINGGLAIVES),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY, Aux::PointDefault(), MacroActionData("Chris")),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY, Aux::PointDefault(), MacroActionData("Donna")),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON), //Proxy Pylon near their 3rd base
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY, Aux::PointDefault(), MacroActionData("Edith")),
+            MacroBuilding(ABILITY_ID::BUILD_SHIELDBATTERY),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+        };
     }
 
 }

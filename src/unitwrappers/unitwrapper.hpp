@@ -55,9 +55,10 @@ private:
     //std::vector<AbilityID> abilities_cache;
     std::vector<AvailableAbility> abilities_cache;
 
-    bool dead;
+    bool dead; //is dead? (unused probably idk)
+    bool isHallucination_; //is hallucination?
 
-    int finished_frames;
+    int finished_frames; //what is this?
     
 public:
     Tag self;
@@ -96,6 +97,8 @@ public:
             shieldUpgradeLevel_cache = unit->shield_upgrade_level;
 
             pos_cache = unit->pos;
+
+            isHallucination_ = unit->is_hallucination;
         }
         return unit;
     }
@@ -133,6 +136,10 @@ public:
 
     inline bool isDead() {
         return dead;
+    }
+
+    inline bool isHallucination() {
+        return isHallucination_;
     }
 
     virtual void execute(Agent* const agent) {

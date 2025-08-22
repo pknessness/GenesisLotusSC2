@@ -20,6 +20,7 @@
 #include "unitwrappers/armyunit.hpp"
 #include "auxiliary/spatialhashgrid.hpp"
 #include "auxiliary/visiblemap.hpp"
+#include "auxiliary/damagegrid.hpp"
 
 #define DEBUG
 
@@ -183,12 +184,112 @@ struct Bot: sc2::Agent
 
         SpatialHashGrid::init();
         VisibleMap2D::init();
+        DamageGrid::init();
 
-        strat = StrategyManager::glaive_adept_rush_hupsaiya;
+        strat = StrategyManager::glaive_adept_rush_hupsaiya;//StrategyManager::test_plusone_atk;//
 
         for (int i = 0; i < strat.build_order.size(); i++) {
             MacroManager::addAction(strat.build_order[i]);
         }
+
+#if 1
+        const char* races[] = {
+                "protoss",
+                "terran",
+                "zerg"
+        };
+        int p_c = sizeof(Aux::ArmyUnitsProtoss) / sizeof(UnitTypeID);
+        std::vector<UnitTypeID> p(Aux::ArmyUnitsProtoss, Aux::ArmyUnitsProtoss + p_c);
+        int t_c = sizeof(Aux::ArmyUnitsTerran) / sizeof(UnitTypeID);
+        std::vector<UnitTypeID> t(Aux::ArmyUnitsTerran, Aux::ArmyUnitsTerran + t_c);
+        int z_c = sizeof(Aux::ArmyUnitsZerg) / sizeof(UnitTypeID);
+        std::vector<UnitTypeID> z(Aux::ArmyUnitsZerg, Aux::ArmyUnitsZerg + z_c);
+
+        std::vector<UnitTypeID> unitLists[3] = { p, t, z };
+
+        std::string maxDPSPSpName = "";
+        float maxDPSPSp = 0;
+
+        int numWeapons = 0;
+
+        for (int f = 0; f < 3; f++) {
+            FILE* fp;
+            fp = fopen(strprintf("data/unitData_%s.txt", races[f]).c_str(), "w");
+            fprintf(fp, "Unit Data:\n");
+
+            //int numU = sizeof(unitLists[f]) / sizeof(UnitTypeID);
+            int numU = unitLists[f].size();
+            fprintf(fp, "%d Units\n\n---------------\n", numU);
+            for (int i = 0; i < numU; i++) {
+                UnitTypeData d = Aux::getStats(unitLists[f][i], this);
+                fprintf(fp, "%s:\nAvailable: %c\nCargo: %d\nMineralCost: %d\nVespeneCost: %d\nAttributes: ",
+                    UnitTypeToName(unitLists[f][i]),
+                    (d.available ? 'Y' : 'N'),
+                    d.cargo_size,
+                    d.mineral_cost,
+                    d.vespene_cost);
+                for (int a = 0; a < d.attributes.size(); a++) {
+                    fprintf(fp, "%s", Aux::AttributeToName(d.attributes[a]));
+                    if (a != d.attributes.size() - 1) {
+                        fprintf(fp, ", ");
+                    }
+                }
+                fprintf(fp, "\nMovementSpeed: %.2f\nArmor: %.1f\nWeapons:\n",
+                    d.movement_speed / timeSpeed,
+                    d.armor);
+                for (int w = 0; w < d.weapons.size(); w++) {
+                    float atkcd = d.weapons[w].speed / timeSpeed;
+                    if (unitLists[f][i] == UNIT_TYPEID::ZERG_ZERGLING) {
+                        atkcd -= 0.15;
+                    }else if (unitLists[f][i] == UNIT_TYPEID::TERRAN_MARINE) {
+                        atkcd *= 0.666667;
+                    }
+                    float dps = (d.weapons[w].damage_ * d.weapons[w].attacks) / (d.weapons[w].speed / timeSpeed);                    
+                    float maxdps = ((d.weapons[w].damage_ + 3 * Aux::damageExtraPerUpgrade(d.weapons[w].damage_)) * d.weapons[w].attacks) / atkcd;
+                    float dpspsp = dps * 200 / d.food_required;
+                    float maxdpspsp = maxdps * 200 / d.food_required;
+                    fprintf(fp, "-----\n%s\nDamage: %.2f\nAttacks: %d\nRange: %.2f\nCooldown: %.2fs\nDPS: %.2f\nDPSPSp: %.2f\nMAXDPS: %.2f\nMAXDPSPSp: %.2f\nBonuses: ",
+                        Aux::TargetTypeToName(d.weapons[w].type),
+                        d.weapons[w].damage_,
+                        d.weapons[w].attacks,
+                        d.weapons[w].range,
+                        d.weapons[w].speed / timeSpeed,
+                        dps, 
+                        dpspsp, 
+                        maxdps,
+                        maxdpspsp);
+                    if (maxDPSPSp < maxdpspsp && d.food_required != 0) {
+                        maxDPSPSp = maxdpspsp;
+                        maxDPSPSpName = UnitTypeToName(unitLists[f][i]);
+                    }
+                    for (int b = 0; b < d.weapons[w].damage_bonus.size(); b++) {
+                        fprintf(fp, "+%.1f %s", d.weapons[w].damage_bonus[b].bonus, Aux::AttributeToName(d.weapons[w].damage_bonus[b].attribute));
+                    }
+                    fprintf(fp, "\n-----");
+                    numWeapons++;
+                }
+                fprintf(fp, "\nSupply: %.1f\nSupply+: %.1f\nRace: %d\nBuildTime: %.2f\nSightRange: %.1f\nTechAliases: ",
+                    d.food_required,
+                    d.food_provided,
+                    d.race,
+                    d.build_time,
+                    d.sight_range);
+                for (int a = 0; a < d.tech_alias.size(); a++) {
+                    fprintf(fp, "%s", UnitTypeToName(d.tech_alias[a]));
+                    if (a != d.tech_alias.size() - 1) {
+                        fprintf(fp, ", ");
+                    }
+                }
+                fprintf(fp, "\nAlias: %s\nRequirement: %s\nRequireAttached: %c\n---------------\n",
+                    UnitTypeToName(d.unit_alias),
+                    UnitTypeToName(d.tech_requirement),
+                    (d.require_attached ? 'Y' : 'N'));
+            }
+            fclose(fp);
+        }
+        printf("TECHNICALLY MOST EFFECTIVE UNIT: %s @ %.3fdpspsp\nNUMWEAPONS: %d\n", maxDPSPSpName.c_str(), maxDPSPSp, numWeapons);
+
+#endif
     }
 
     //! Called when a game has ended.
@@ -294,7 +395,11 @@ struct Bot: sc2::Agent
 
         VisibleMap2D::update(this);
 
-        onStepProfiler.midLog("oS-armyExec");
+        onStepProfiler.midLog("oS-visMap");
+
+        DamageGrid::update(this);
+
+        onStepProfiler.midLog("oS-damageGrid");
 
 #ifndef BUILD_FOR_LADDER
         std::vector<ChatMessage> chats = Observation()->GetChatMessages();
@@ -351,17 +456,20 @@ struct Bot: sc2::Agent
                         Actions()->SendChat("Invalid Unit " + spawnCommandMap[arguments[0]]);
                     }
                 }
-                else if (command == "v") { //spawn enemy
+                else if (command == "v") { //show entire map
                     Debug()->DebugShowMap();
                 }
-                else if (command == "kn") { //spawn enemy
+                else if (command == "kn") { //kill all neutral
                     Units units = Observation()->GetUnits(sc2::Unit::Alliance::Neutral);
                     for (const Unit* unit : units) {
                         Debug()->DebugKillUnit(unit);
                     }
                 }
-                else if (command == "m") { //spawn enemy
+                else if (command == "m") { //save master bitmap
                     Aux::saveMasterBitmap("command.bmp");
+                }
+                else if (command == "dm") { //save main damage bitmap
+                    DamageGrid::saveDamageMapEnemyBitmap("damage");
                 }
                 else {
                     Actions()->SendChat("Invalid Command " + command);
@@ -393,7 +501,47 @@ struct Bot: sc2::Agent
         Aux::displayExpansions(this);
 
         MacroManager::displayMacroActions(this);
-        MacroManager::displayEncodingStack(this);
+
+        std::string selected = "";
+        int8_t found = 0;
+        std::vector< UnitWrapperMap* > maps = { &UnitManager::self_units, &UnitManager::neutral_units, &UnitManager::enemy_units};
+        for (int i = 0; i < 3; i++) {
+            for (auto typeIt = maps[i]->begin(); typeIt != maps[i]->end(); typeIt++) {
+                for (auto it = typeIt->second.begin(); it != typeIt->second.end(); it++) {
+                    const Unit* selectedUnit = (*it)->get(this);
+                    if (selectedUnit != nullptr && selectedUnit->is_selected) {
+                        found += 1;
+                        if (found > 1) {
+                            break;
+                        }
+                        selected = strprintf("%s %llx:\n%s %s\n{%.1f,%.1f,%.1f} H:%.2f\nR:%.1f Radar:%.1f Detect:%.1f\nOnScreen:%c isBlip:%c\n%.1f/%.1fHP %.1f/%.1fSH\n%.1f/%.1fEN\nFLY:%c BUR:%c\nWeaponCD:%.1f\nATK:%x AMR:%x SHIELD:%x",
+                            UnitTypeToName(selectedUnit->unit_type), selectedUnit->tag,
+                            Aux::DisplayTypeToName(selectedUnit->display_type), Aux::CloakStateToName(selectedUnit->cloak),
+                            selectedUnit->pos.x, selectedUnit->pos.y, selectedUnit->pos.z, selectedUnit->facing,
+                            selectedUnit->radius, selectedUnit->radar_range, selectedUnit->detect_range,
+                            selectedUnit->is_on_screen ? 'Y' : 'N', selectedUnit->is_blip ? 'Y' : 'N',
+                            selectedUnit->health, selectedUnit->health_max, selectedUnit->shield, selectedUnit->shield_max,
+                            selectedUnit->energy, selectedUnit->energy_max,
+                            selectedUnit->is_flying ? 'Y' : 'N', selectedUnit->is_burrowed ? 'Y' : 'N',
+                            selectedUnit->weapon_cooldown,
+                            selectedUnit->attack_upgrade_level, selectedUnit->armor_upgrade_level, selectedUnit->shield_upgrade_level);
+                    }
+                }
+                if (found > 1) {
+                    break;
+                }
+            }
+            if (found > 1) {
+                break;
+            }
+        }
+        if (found == 1) {
+            DebugText(this, selected, Point2D(0.01F, 0.21F), Color(132, 67, 135), 8);
+        }
+        else {
+            MacroManager::displayEncodingStack(this);
+        }
+        
 
         //SpatialHashGrid::debug(this);
 
