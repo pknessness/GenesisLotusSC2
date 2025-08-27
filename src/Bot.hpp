@@ -21,6 +21,7 @@
 #include "auxiliary/spatialhashgrid.hpp"
 #include "auxiliary/visiblemap.hpp"
 #include "auxiliary/damagegrid.hpp"
+#include "auxiliary/primordialstar.hpp"
 
 #define DEBUG
 
@@ -179,6 +180,8 @@ struct Bot: sc2::Agent
         Aux::setupMasterMap(this);
 
         Aux::allData(this);
+
+        PrimordialStar::load(this);
 
         StrategyManager::load();
 

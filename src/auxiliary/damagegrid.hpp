@@ -305,7 +305,6 @@ namespace DamageGrid {
                 }
                 std::vector<Weapon> weapons = Aux::getStats((*it2)->getActualType(agent), agent).weapons;
                 //TODO:
-                // add abilities, oracle, baneling
                 // add psi storm (more damage the more time it has left, prioritzed more since its constant dmag)
                 // add helion line, lurker line, liberator circle
                 // add ravager artillery, tank
@@ -337,7 +336,7 @@ namespace DamageGrid {
         FUNCTION_LOG();
         saveBitmap(fileName_without_extension + "_main.bmp", damageMap_enemy->width(), damageMap_enemy->height(), [](int i, int j) {
             DamageCell cell = getRawCell(i, j);
-            return Color{ (uint8_t)(cell.normal_air/2),0, (uint8_t)(cell.normal_gnd / 2) };
+            return Color{ (uint8_t)(cell.normal_air / 2),0, (uint8_t)(cell.normal_gnd / 2) };
             });
     }
 }

@@ -57,13 +57,13 @@ public:
         }
         if (squad->squadMainStates[self] == 'u') {
             if (squad->unitStates[self] = 'n') {
-                mov(agent, squad->targetPosition);
+                mov(agent, squad->getCorePosition(agent));
             }
             else if (squad->unitStates[self] == 'k') {
-                atk(agent, squad->targetPosition);
+                atk(agent, squad->getCorePosition(agent));
             }
             else {
-                atk(agent, squad->targetPosition);
+                atk(agent, squad->getCorePosition(agent));
             }
             
         }

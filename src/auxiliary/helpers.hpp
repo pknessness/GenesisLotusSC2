@@ -36,6 +36,8 @@ constexpr float PYLON_RADIUS_SQUARED = PYLON_RADIUS*PYLON_RADIUS;
 
 constexpr float EPSILON = 0.1; //time between attacks for one time attacks
 
+constexpr float MY_PI = 3.141592653589;
+
 namespace Aux {
 	GameInfo gameInfo_cache;
 	int mapWidth_cache;
@@ -1456,5 +1458,34 @@ namespace Aux {
 			return 2;
 		}
 		return 1;
+	}
+
+	static Color randomColor() {
+		return Color{ uint8_t(255 * rand() / RAND_MAX) , uint8_t(255 * rand() / RAND_MAX) , uint8_t(255 * rand() / RAND_MAX) };
+	}
+
+	Point3D P3D(Agent* const agent, const Point2D& p) {
+		return Point3D(p.x, p.y, agent->Observation()->TerrainHeight(p));
+	}
+
+	Point2D P2D(const Point2DI& p) {
+		return Point2D((float)p.x, (float)p.y);
+	}
+
+	Point2D P2D(const Point3D& p) {
+		return Point2D(p.x, p.y);
+	}
+
+	Point2DI P2DI(const Point3D& p) {
+		return Point2DI((int)p.x, (int)p.y);
+	}
+
+	Point2DI P2DI(const Point2D& p) {
+		return Point2DI((int)p.x, (int)p.y);
+	}
+
+	Point2D normalize(const Point2D& p) {
+		return p / (std::sqrt(p.x * p.x + p.y * p.y));
+
 	}
 }

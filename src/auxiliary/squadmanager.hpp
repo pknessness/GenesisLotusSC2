@@ -20,6 +20,7 @@ namespace SquadManager {
 	public:
 		/*
 		* ' ' is without state
+		* 'u' is unjoined squad
 		* 'j' is joined squad
 		*/
 		std::map<Tag, char> squadMainStates;
