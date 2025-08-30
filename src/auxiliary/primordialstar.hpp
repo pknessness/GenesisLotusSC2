@@ -569,7 +569,25 @@ namespace PrimordialStar {
 		printf("MAX CONNECTIONS OF A NODE: %d\t MAX DISTANCE OF A CONNECTION: %.2f\n", maxConnections, sqrt(maxDistanceConnectionSquared));
 	}
 
-	std::vector<Point2D> getPathAStar(Point2D start, Point2D end, float radius, Agent* agent) {
+	PathNode* startNode;
+
+	void setupTerminalNode(PathNode* terminalNode, Point2D selfPos, Point2D otherEndPos, Agent* const agent) {
+		if (terminalNode->connected.size() == 0) {
+			Point2D loc = allPathNodes[0]->rawPos();
+			float mindist = DistanceSquared2D(loc, selfPos);
+			for (int i = 1; i < allPathNodes.size() - 2; i++) {
+				float dist = DistanceSquared2D(allPathNodes[i]->rawPos(), selfPos);
+				if (dist < mindist || (dist == mindist && (DistanceSquared2D(loc, otherEndPos) > DistanceSquared2D(allPathNodes[i]->rawPos(), otherEndPos)))) {
+					mindist = dist;
+					loc = allPathNodes[i]->rawPos();
+				}
+			}
+			terminalNode->updatePos(loc);
+			calculateNewConnection(terminalNode, agent);
+		}
+	}
+
+	std::vector<Point2D> getPathAStar(Point2D start, Point2D end, float radius, Agent* const agent) {
 		Profiler profiler("getPathAStar");
 
 		if (checkWallDistanceSquared(start, (start - end)) >= DistanceSquared2D(start, end)) {
@@ -580,7 +598,7 @@ namespace PrimordialStar {
 			return p;
 		}
 
-		PathNode* startNode = new PathNode(start, INVALID, agent);
+		startNode = new PathNode(start, INVALID, agent);
 		profiler.midLog("getPathAStar.startN");
 
 		PathNode* operatingNode = startNode;
@@ -594,37 +612,14 @@ namespace PrimordialStar {
 		std::map<int, int> backpath;
 		profiler.midLog("getPath.init");
 
-		if (startNode->connected.size() == 0) {
-			Point2D loc = allPathNodes[0]->rawPos();
-			float mindist = DistanceSquared2D(loc, start);
-			for (int i = 1; i < allPathNodes.size() - 2; i++) {
-				float dist = DistanceSquared2D(allPathNodes[i]->rawPos(), start);
-				if (dist < mindist || (dist == mindist && (DistanceSquared2D(loc, end) > DistanceSquared2D(allPathNodes[i]->rawPos(), end)))) {
-					mindist = dist;
-					loc = allPathNodes[i]->rawPos();
-				}
-			}
-			startNode->updatePos(loc);
-			calculateNewConnection(startNode, agent);
-		}
-		if (endNode->connected.size() == 0) {
-			Point2D loc = allPathNodes[0]->rawPos();
-			float mindist = DistanceSquared2D(loc, end);
-			for (int i = 1; i < allPathNodes.size() - 2; i++) {
-				float dist = DistanceSquared2D(allPathNodes[i]->rawPos(), end);
-				if (dist < mindist || (dist == mindist && (DistanceSquared2D(loc, start) > DistanceSquared2D(allPathNodes[i]->rawPos(), start)))) {
-					mindist = dist;
-					loc = allPathNodes[i]->rawPos();
-				}
-			}
-			endNode->updatePos(loc);
-			calculateNewConnection(endNode, agent);
-		}
+		setupTerminalNode(startNode, start, end, agent);
+		setupTerminalNode(endNode, end, start, agent);
+
 		profiler.midLog("getPath.correction");
 
-		if (std::find_if(startNode->connected.begin(), startNode->connected.end(), 
-			[&cm = endNode->id]
-			(const Connected& m) -> bool { return cm == m.pathNodeID; }
+		if (std::find_if(startNode->connected.begin(), startNode->connected.end(),
+			[&node = endNode->id]
+			(const Connected& m) -> bool { return node == m.pathNodeID; }
 		) != startNode->connected.end()) {
 			profiler.subScope();
 			points.push_back(startNode->rawPos());
@@ -684,17 +679,53 @@ namespace PrimordialStar {
 		allPathNodes.pop_back();
 
 		delete startNode;
+		startNode = nullptr;
 		delete endNode;
+		startNode = nullptr;
 
 		//printf("SOMETHING WENT WRONG\n");
 		profiler.midLog("getPath.end");
 		return points;
 	}
 
+	void doDijkstra(std::priority_queue<DijkStarNode, std::vector<DijkStarNode>, DijkstraCompare> &Q, std::vector<float> &dist, std::vector<int> &parent, std::vector<Cardinal> &incoming) {
+		dist.reserve(allPathNodes.size());
+		parent.reserve(allPathNodes.size());
+		incoming.reserve(allPathNodes.size());
+		for (int i = 0; i < allPathNodes.size(); i++) {
+			dist.push_back(FLT_MAX);
+			parent.push_back(-1);
+			incoming.push_back(INVALID);
+		}
+
+		Q.push(DijkStarNode(startNode->id, 0));
+		dist[startNode->id] = 0;
+
+		while (Q.size() > 0) {
+			DijkStarNode u = Q.top(); Q.pop();
+
+			PathNode* operatingNode = allPathNodes[u.pathNode];
+			Point2D rawPosOp = operatingNode->rawPos();
+			for (int i = 0; i < operatingNode->connected.size(); i++) {
+				PathNode* adjacentNode = allPathNodes[operatingNode->connected[i].pathNodeID];
+				Point2D rawPosAdj = adjacentNode->rawPos();
+
+				float weight = operatingNode->connected[i].distance;//Distance2D(rawPosOp, rawPosAdj);
+
+				if (dist[adjacentNode->id] > dist[u.pathNode] + weight) {
+
+					parent[adjacentNode->id] = u.pathNode;
+					dist[adjacentNode->id] = dist[u.pathNode] + weight;
+
+					Q.push(DijkStarNode(adjacentNode->id, dist[adjacentNode->id]));
+				}
+			}
+		}
+	}
+
 	std::vector<Point2D> getPathDijkstra(Point2D start, Point2D end, float radius, Agent* agent) {
 		Profiler profiler("getDijkstra");
-		//float wallDist = checkWallDistanceSquared(start, (start - end));
-		//if (wallDist >= DistanceSquared2D(start, end)) {
+
 		if(checkLinearPath(start, end)){
 			std::vector<Point2D> p;
 			p.push_back(start);
@@ -703,42 +734,16 @@ namespace PrimordialStar {
 			return p;
 		}
 
-		PathNode* startNode = new PathNode(start, INVALID, agent);
+		startNode = new PathNode(start, INVALID, agent);
 
 		PathNode* endNode = new PathNode(end, INVALID, agent);
-
-		//bool* visited = new bool[allPathNodes.size()];
-		//memset(visited, 0, allPathNodes.size() * sizeof(bool));
 
 		std::vector<Point2D> points;
 		profiler.midLog("getDijkstra.init");
 
-		if (startNode->connected.size() == 0) {
-			Point2D loc = allPathNodes[0]->rawPos();
-			float mindist = DistanceSquared2D(loc, start);
-			for (int i = 1; i < allPathNodes.size() - 2; i++) {
-				float dist = DistanceSquared2D(allPathNodes[i]->rawPos(), start);
-				if (dist < mindist || (dist == mindist && (DistanceSquared2D(loc, end) > DistanceSquared2D(allPathNodes[i]->rawPos(), end)))) {
-					mindist = dist;
-					loc = allPathNodes[i]->rawPos();
-				}
-			}
-			startNode->updatePos(loc);
-			calculateNewConnection(startNode, agent);
-		}
-		if (endNode->connected.size() == 0) {
-			Point2D loc = allPathNodes[0]->rawPos();
-			float mindist = DistanceSquared2D(loc, end);
-			for (int i = 1; i < allPathNodes.size() - 2; i++) {
-				float dist = DistanceSquared2D(allPathNodes[i]->rawPos(), end);
-				if (dist < mindist || (dist == mindist && (DistanceSquared2D(loc, start) > DistanceSquared2D(allPathNodes[i]->rawPos(), start)))) {
-					mindist = dist;
-					loc = allPathNodes[i]->rawPos();
-				}
-			}
-			endNode->updatePos(loc);
-			calculateNewConnection(endNode, agent);
-		}
+		setupTerminalNode(startNode, start, end, agent);
+		setupTerminalNode(endNode, end, start, agent);
+
 		profiler.midLog("getDijkstra.correction");
 
 		if (startNode->connected.size() == 0 || endNode->connected.size() == 0) {
@@ -750,74 +755,8 @@ namespace PrimordialStar {
 			std::vector<float> dist;
 			std::vector<int> parent;
 			std::vector<Cardinal> incoming;
-			dist.reserve(allPathNodes.size());
-			parent.reserve(allPathNodes.size());
-			incoming.reserve(allPathNodes.size());
-			for (int i = 0; i < allPathNodes.size(); i++) {
-				dist.push_back(FLT_MAX);
-				parent.push_back(-1);
-				incoming.push_back(INVALID);
-			}
-
-			Q.push(DijkStarNode(startNode->id, 0));
-			dist[startNode->id] = 0;
-
-			while (Q.size() > 0) {
-				DijkStarNode u = Q.top(); Q.pop();
-
-				PathNode* operatingNode = allPathNodes[u.pathNode];
-				Point2D rawPosOp = operatingNode->rawPos();
-				for (int i = 0; i < operatingNode->connected.size(); i++) {
-					PathNode* adjacentNode = allPathNodes[operatingNode->connected[i].pathNodeID];
-					Point2D rawPosAdj = adjacentNode->rawPos();
-
-					//if (0 && parent[u.pathNode] != -1) {
-					//	Point2D direction = Aux::normalize(rawPosAdj - rawPosOp);
-					//	Point2D incomingDirection = rawPosOp - allPathNodes[parent[u.pathNode]]->rawPos();
-
-					//	Point2D incomingRot = { -incomingDirection.y,incomingDirection.x };
-
-					//	Point2D normal = -1 * cardinalToNormDirection(operatingNode->wall);
-
-					//	float dotSign = incomingRot.x * normal.x + incomingRot.y * normal.y;
-					//	//float sign = 0;
-					//	//if (dotSign > 0) {
-					//	//	sign = 1;
-					//	//}
-					//	//else if (dotSign < 0) {
-					//	//	sign = -1;
-					//	//}
-					//	float sign = copysign(1, dotSign);
-
-					//	Point2D b = Aux::normalize(incomingRot * sign);
-					//	if ((b.x * direction.x + b.y * direction.y) > MICHAEL_VISIBILE_EPSILON) {
-					//		printf(";");
-					//		continue;
-					//	}
-					//}
-
-					//if (0 && parent[u.pathNode] != -1) {
-					//	Point2D direction = rawPosAdj - rawPosOp;
-					//	Point2D incomingDirection = rawPosOp - allPathNodes[parent[u.pathNode]]->rawPos();
-					//	if (direction.x * incomingDirection.x > 0 && direction.y * incomingDirection.y > 0) {
-					//		//printf(";");
-					//		continue;
-					//	}
-					//}
-
-					float weight = operatingNode->connected[i].distance;//Distance2D(rawPosOp, rawPosAdj);
-
-					if (dist[adjacentNode->id] > dist[u.pathNode] + weight) {
-
-						parent[adjacentNode->id] = u.pathNode;
-						dist[adjacentNode->id] = dist[u.pathNode] + weight;
-
-						parent[adjacentNode->id] = u.pathNode;
-
-						Q.push(DijkStarNode(adjacentNode->id, dist[adjacentNode->id]));
-					}
-				}
-			}
+			
+			doDijkstra(Q, dist, parent, incoming);
 
 			int node = endNode->id;
 			for (int cycles = 0; cycles < 10000; cycles++) {
@@ -833,17 +772,83 @@ namespace PrimordialStar {
 			}
 		}
 
-
-
-
-		//delete[] visited;
 		allPathNodes.pop_back();
 		allPathNodes.pop_back();
 
 		delete startNode;
+		startNode = nullptr;
 		delete endNode;
+		endNode = nullptr;
 
-		//printf("SOMETHING WENT WRONG\n");
+		return points;
+	}
+
+	std::vector<std::vector<Point2D>> getPathDijkstra(Point2D start, std::vector<Point2D> ends, float radius, Agent* agent) {
+		Profiler profiler("getDijkstraBatch");
+
+		std::vector<std::vector<Point2D>> points;
+
+		std::vector<PathNode*> endNodes;
+		for (Point2D end : ends) {
+			PathNode* singleEnd = new PathNode(end, INVALID, agent);
+			endNodes.push_back(singleEnd);
+		}
+
+		startNode = new PathNode(start, INVALID, agent);
+		
+		profiler.midLog("getDijkstraBatch.init");
+
+		setupTerminalNode(startNode, start, start, agent);
+
+		for (PathNode* singleEnd : endNodes) {
+			setupTerminalNode(singleEnd, singleEnd->rawPos(), start, agent);
+		}
+
+		profiler.midLog("getDijkstraBatch.correction");
+
+		if (startNode->connected.size() == 0) {
+
+		}
+		else {
+			std::priority_queue<DijkStarNode, std::vector<DijkStarNode>, DijkstraCompare> Q;
+
+			std::vector<float> dist;
+			std::vector<int> parent;
+			std::vector<Cardinal> incoming;
+
+			doDijkstra(Q, dist, parent, incoming);
+
+			profiler.midLog("getDijkstraBatch.flow");
+
+			for (PathNode* singleEnd : endNodes) {
+				std::vector<Point2D> p;
+				int node = singleEnd->id;
+				for (int cycles = 0; cycles < 10000; cycles++) {
+					if (node == -1) {
+						p.clear();
+						break;
+					}
+					p.insert(p.begin(), allPathNodes[node]->position(radius));
+					if (node == startNode->id) {
+						break;
+					}
+					node = parent[node];
+				}
+				points.push_back(p);
+			}
+			profiler.midLog("getDijkstraBatch.backtrack");
+		}
+		profiler.subScope();
+
+		allPathNodes.pop_back();
+		delete startNode;
+		startNode = nullptr;
+		for (int i = 0; i < endNodes.size(); i++) {
+			allPathNodes.pop_back();
+			delete endNodes[i];
+			endNodes[i] = nullptr;
+		}
+		profiler.midLog("getDijkstraBatch.delete");
 		return points;
 	}
 
@@ -898,7 +903,7 @@ namespace PrimordialStar {
 	}
 
 	void pathVerification(Agent* const agent) {
-#define NUM_PTS_RT 40
+#define NUM_PTS_RT 80
 		std::vector<Point2D> pts;
 		pts.reserve(NUM_PTS_RT);
 
@@ -909,15 +914,76 @@ namespace PrimordialStar {
 		std::vector<float> differenceInDistance;
 		differenceInDistance.reserve(NUM_PTS_RT * NUM_PTS_RT);
 
-		timeus startTime = std::chrono::steady_clock::now();
+		timeus startTime;
+		timeus endTime;
+		long long dt;
+		float mean;
+		float min;
+		float max;
+
+		//startTime = std::chrono::steady_clock::now();
+		//for (int a = 0; a < NUM_PTS_RT; a++) {
+		//	Point2D from = pts[a];
+		//	DebugSphere(agent, Aux::P3D(agent, from), 0.25, { 61,102,220 });
+		//	for (int b = 0; b < NUM_PTS_RT; b++) {
+		//		Point2D to = pts[b];
+		//		auto path = getPathDijkstra(from, to, 0, agent);
+		//		float dist = getPathLength(path);
+		//		float sc2dist = agent->Query()->PathingDistance(from, to);
+		//		float diff = dist - sc2dist;
+		//		//if (diff < 0) {
+		//		//    printf("S{%.1f,%.1f} E{%.1f,%.1f} D[%.1f]\n", from.x, from.y, to.x, to.y, diff);
+		//		//}
+		//		if (diff > 2 || diff < -2) {
+		//			Color c = Aux::randomColor();
+		//			if (diff < 0) {
+		//				c.r = 0;
+		//			}
+		//			else if (diff > 0) {
+		//				c.g = 0;
+		//			}
+		//			float z = std::rand() * 2.0F / RAND_MAX;
+		//			if (path.size() > 0) {
+		//				for (int i = 0; i < path.size() - 1; i++) {
+		//					DebugLine(agent, Aux::P3D(agent, path[i]) + Point3D{ 0,0,1.5F + z }, Aux::P3D(agent, path[i + 1]) + Point3D{ 0,0,1.5F + z }, c);
+		//				}
+		//			}
+		//			else {
+		//				DebugLine(agent, Aux::P3D(agent, from) + Point3D{ 0,0,1.5F + z }, Aux::P3D(agent, to) + Point3D{ 0,0,1.5F + z }, c);
+		//			}
+		//		}
+		//		differenceInDistance.push_back(diff);
+		//	}
+		//}
+
+		//endTime = std::chrono::steady_clock::now();
+		//dt = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+		//mean = 0;
+		//min = 400;
+		//max = 0;
+		//for (float f : differenceInDistance) {
+		//	if (f < min) {
+		//		min = f;
+		//	}
+		//	if (f > max) {
+		//		max = f;
+		//	}
+		//	mean += f;
+		//	//printf("%.1f\n", f);
+		//}
+		//mean /= differenceInDistance.size();
+		//printf("PATH VERIFICATION SINGLE [%d^2] %.1fs MEAN:%.1f MIN:%.1f MAX:%.1f\n", NUM_PTS_RT, dt / 1000000.0, mean, min, max);
+		//SendDebug(agent);
+
+		startTime = std::chrono::steady_clock::now();
 		for (int a = 0; a < NUM_PTS_RT; a++) {
 			Point2D from = pts[a];
 			DebugSphere(agent, Aux::P3D(agent, from), 0.25, { 61,102,220 });
-			for (int b = 0; b < NUM_PTS_RT; b++) {
-				Point2D to = pts[b];
-				auto path = getPathDijkstra(from, to, 0, agent);
+			std::vector<std::vector<Point2D>> paths = getPathDijkstra(from, pts, 0, agent);
+			for (int b = 0; b < paths.size(); b++) {
+				auto path = paths[b];
 				float dist = getPathLength(path);
-				float sc2dist = agent->Query()->PathingDistance(from, to);
+				float sc2dist = agent->Query()->PathingDistance(from, pts[b]);
 				float diff = dist - sc2dist;
 				//if (diff < 0) {
 				//    printf("S{%.1f,%.1f} E{%.1f,%.1f} D[%.1f]\n", from.x, from.y, to.x, to.y, diff);
@@ -937,18 +1003,19 @@ namespace PrimordialStar {
 						}
 					}
 					else {
-						DebugLine(agent, Aux::P3D(agent, from) + Point3D{ 0,0,1.5F + z }, Aux::P3D(agent, to) + Point3D{ 0,0,1.5F + z }, c);
+						DebugLine(agent, Aux::P3D(agent, from) + Point3D{ 0,0,1.5F + z }, Aux::P3D(agent, pts[b]) + Point3D{ 0,0,1.5F + z }, c);
 					}
 
 				}
 				differenceInDistance.push_back(diff);
 			}
 		}
-		timeus endTime = std::chrono::steady_clock::now();
-		long long dt = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-		float mean = 0;
-		float min = 400;
-		float max = 0;
+
+		endTime = std::chrono::steady_clock::now();
+		dt = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+		mean = 0;
+		min = 400;
+		max = 0;
 		for (float f : differenceInDistance) {
 			if (f < min) {
 				min = f;
@@ -960,7 +1027,7 @@ namespace PrimordialStar {
 			//printf("%.1f\n", f);
 		}
 		mean /= differenceInDistance.size();
-		printf("PATH VERIFICATION [%d^2] %.1fs MEAN:%.1f MIN:%.1f MAX:%.1f\n", NUM_PTS_RT, dt / 1000000.0, mean, min, max);
+		printf("PATH VERIFICATION BATCH [%d^2] %.1fs MEAN:%.1f MIN:%.1f MAX:%.1f\n", NUM_PTS_RT, dt / 1000000.0, mean, min, max);
 		SendDebug(agent);
 	}
 
