@@ -16,11 +16,13 @@ using namespace sc2;
 
 namespace PrimordialStar {
 	
-	constexpr int DISTANCENODE_DIVISIONS = 4;
+	constexpr int DISTANCENODE_DIVISIONS = 16;
 	constexpr int MAX_CONN_DIST_SQRD = 65025;
 
 	constexpr float CORNER_DISPLACEMENT_EPSILON = 0.1F;
 	constexpr float MICHAEL_VISIBILE_EPSILON = 0.1F;
+
+#define DEBUG_SPECIAL 0
 
 	enum Cardinal {
 		INVALID,
@@ -160,9 +162,15 @@ namespace PrimordialStar {
 		}
 	}
 
+	int numberPreExit = 0;
+	int numberSpecial = 0;
+	float maxDiff = 0;
+	float minDiff = MAX_CONN_DIST_SQRD;
+
 	struct Connected {
 		int pathNodeID;
 		float distance;
+		bool special;
 
 		bool operator==(const Connected& conn) const {
 			return pathNodeID == conn.pathNodeID;
@@ -363,9 +371,10 @@ namespace PrimordialStar {
 				bool center = Aux::isPathable(i, j);
 				if (center) {
 					float max = 0;
-					constexpr int angleChecks = 32;
+					constexpr int perQuad = 8;
+					constexpr int angleChecks = perQuad * DISTANCENODE_DIVISIONS;
 					int steps = 255;
-					constexpr int perQuad = angleChecks / DISTANCENODE_DIVISIONS;
+					
 
 					FurthestWallDistanceNode maximums;
 					//float maxes[perQuad] = { 0 };
@@ -421,23 +430,19 @@ namespace PrimordialStar {
 			float distSqrd = DistanceSquared2D(pos, testPos);
 			float dist = sqrt(distSqrd);
 
-			//float innerMax = 255; //imRef(maxDistanceGrid, int(pos.x), int(pos.y)).distance;
-			//
-			//Point2D direction = testPos - pos;
+			float innerMax = 255; //imRef(maxDistanceGrid, int(pos.x), int(pos.y)).distance;
+			
+			Point2D direction = testPos - pos;
 
-			//float angle = atan2f(direction.y, direction.x);
-			//float angleSections = 2 * MY_PI / DISTANCENODE_DIVISIONS;
+			float angle = atan2f(direction.y, direction.x);
+			float angleSections = MY_2PI / DISTANCENODE_DIVISIONS;
 
-			//while (angle < 0) {
-			//	angle += angleSections;
-			//}
-			//while (angle >= 2 * MY_PI) {
-			//	angle -= angleSections;
-			//}
+			if (angle < 0) angle += MY_2PI;
 
-			//int index = (angle == 0) ? 0 : (int)(angle * DISTANCENODE_DIVISIONS / 2 / MY_PI);
+			int index1 = (int)(angle * DISTANCENODE_DIVISIONS / MY_2PI);
+			int index2 = (int)(Aux::floatmod(angle + MY_PI, MY_2PI) * DISTANCENODE_DIVISIONS / MY_2PI);
 
-			//innerMax = imRef(furthestWallGrid, intX, intY).distances[index ];
+			innerMax = std::max(imRef(furthestWallGrid, intX, intY).distances[index1], imRef(furthestWallGrid, intX, intY).distances[index2]);
 
 			//if (testPos.x > pos.x && testPos.y >= pos.y) {
 			//	innerMax = imRef(furthestWallGrid, intX, intY).distancePP;
@@ -451,14 +456,34 @@ namespace PrimordialStar {
 			//else if (testPos.x >= pos.x && testPos.y < pos.y) {
 			//	innerMax = imRef(furthestWallGrid, intX, intY).distancePN;
 			//}
-			//if (distSqrd > (innerMax * innerMax + 2)) {
-			//	continue;
-			//}
+
+			bool special = false;
+
+			if (distSqrd > ((innerMax + 2) * (innerMax + 2))) {
+				numberPreExit++;
+#if DEBUG_SPECIAL
+				special = true; 
+#else
+				continue;
+#endif
+			}
 			if (checkLinearPath(pos, testPos)) {
 
 				if (distSqrd > MAX_CONN_DIST_SQRD) {
 					continue;
 				}
+#if DEBUG_SPECIAL
+				if (special) {
+					numberSpecial++;
+					float diff = sqrt(distSqrd) - innerMax;
+					if (diff < minDiff){
+						minDiff = diff;
+					}
+					if (diff > maxDiff) {
+						maxDiff = diff;
+					}
+				}
+#endif
 				if (maxDistanceConnectionSquared < distSqrd) {
 					maxDistanceConnectionSquared = distSqrd;
 				}
@@ -466,8 +491,8 @@ namespace PrimordialStar {
 				if (maxConnections < m) {
 					maxConnections = m;
 				}
-				p->connected.push_back( { i, dist } );
-				node->connected.push_back( { p->id, dist } );
+				p->connected.push_back( { i, dist, special } );
+				node->connected.push_back( { p->id, dist, special } );
 			}
 		}
 	}
@@ -789,20 +814,25 @@ namespace PrimordialStar {
 		std::vector<std::vector<Point2D>> points;
 
 		std::vector<PathNode*> endNodes;
+		endNodes.reserve(ends.size());
+		points.reserve(ends.size());
+		profiler.midLog("getDijkstraBatch.reserve");
 		for (Point2D end : ends) {
 			PathNode* singleEnd = new PathNode(end, INVALID, agent);
+			setupTerminalNode(singleEnd, end, start, agent);
 			endNodes.push_back(singleEnd);
 		}
 
+		profiler.midLog("getDijkstraBatch.initEnds");
 		startNode = new PathNode(start, INVALID, agent);
 		
-		profiler.midLog("getDijkstraBatch.init");
+		profiler.midLog("getDijkstraBatch.initStart");
 
 		setupTerminalNode(startNode, start, start, agent);
 
-		for (PathNode* singleEnd : endNodes) {
-			setupTerminalNode(singleEnd, singleEnd->rawPos(), start, agent);
-		}
+		//for (PathNode* singleEnd : endNodes) {
+		//	setupTerminalNode(singleEnd, singleEnd->rawPos(), start, agent);
+		//}
 
 		profiler.midLog("getDijkstraBatch.correction");
 
@@ -1049,9 +1079,14 @@ namespace PrimordialStar {
 			numConnections += (int)(node->connected.size());
 		}
 
-		printf("with %d connections\n", numConnections);
+		
+#if DEBUG_SPECIAL
+		printf("with %d connections and %d quick bypasses and %d specials [%.1f, %.1f]\n", numConnections, numberPreExit, numberSpecial, minDiff, maxDiff);
+#else
+		printf("with %d connections and %d quick bypasses\n", numConnections, numberPreExit);
+#endif
 
-#if 1
+#if 0
 		for (int i = 0; i < PrimordialStar::allPathNodes.size(); i++) {
 			PrimordialStar::PathNode* node = PrimordialStar::allPathNodes[i];
 			if (Distance2D(node->rawPos(), agent->Observation()->GetCameraPos()) > 300) {
@@ -1060,7 +1095,13 @@ namespace PrimordialStar {
 			DebugSphere(agent, Aux::P3D(agent, node->rawPos()), 0.5, { 250,50,100 });
 			for (int c = 0; c < node->connected.size(); c++) {
 				PrimordialStar::PathNode* node2 = PrimordialStar::allPathNodes[node->connected[c].pathNodeID];
-				DebugLine(agent, Aux::P3D(agent, node->rawPos()) + Point3D{ 0,0,1 }, Aux::P3D(agent, node2->rawPos()) + Point3D{ 0,0,1 }, Colors::Blue);
+				if (node->connected[c].special) {
+					DebugLine(agent, Aux::P3D(agent, node->rawPos()) + Point3D{ 0,0,1 }, Aux::P3D(agent, node2->rawPos()) + Point3D{ 0,0,1 }, Colors::Red);
+				}
+				else {
+					DebugLine(agent, Aux::P3D(agent, node->rawPos()) + Point3D{ 0,0,1 }, Aux::P3D(agent, node2->rawPos()) + Point3D{ 0,0,1 }, Colors::Blue);
+				}
+				
 			}
 		}
 		SendDebug(agent);

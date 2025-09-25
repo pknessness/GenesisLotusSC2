@@ -215,9 +215,14 @@ struct Bot: sc2::Agent
 
         int numWeapons = 0;
 
+        FILE* fpa;
+        fpa = fopen("data/unitData_all.txt", "w");
+
         for (int f = 0; f < 3; f++) {
             FILE* fp;
             fp = fopen(strprintf("data/unitData_%s.txt", races[f]).c_str(), "w");
+            fprintf(fpa, "%s:\n", races[f]);
+
             fprintf(fp, "Unit Data:\n");
 
             //int numU = sizeof(unitLists[f]) / sizeof(UnitTypeID);
@@ -258,7 +263,7 @@ struct Bot: sc2::Agent
                         d.weapons[w].range,
                         d.weapons[w].speed / timeSpeed,
                         dps, 
-                        dpspsp, 
+                        dpspsp,
                         maxdps,
                         maxdpspsp);
                     if (maxDPSPSp < maxdpspsp && d.food_required != 0) {
@@ -289,7 +294,15 @@ struct Bot: sc2::Agent
                     (d.require_attached ? 'Y' : 'N'));
             }
             fclose(fp);
+            fp = fopen(strprintf("data/unitData_%s.txt", races[f]).c_str(), "r");
+            char c = fgetc(fp);
+            while (c != EOF) {
+                fwrite(&c, 1, 1, fpa);
+                c = fgetc(fp);
+            }
+            fclose(fp);
         }
+        fclose(fpa);
         printf("TECHNICALLY MOST EFFECTIVE UNIT: %s @ %.3fdpspsp\nNUMWEAPONS: %d\n", maxDPSPSpName.c_str(), maxDPSPSp, numWeapons);
 
 #endif

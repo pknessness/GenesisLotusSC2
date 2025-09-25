@@ -6,8 +6,10 @@
 #include "debugging.hpp"
 #include "map2d.hpp"
 #include "bitmap.hpp"
+#include "profiler.hpp"
 
 using namespace sc2;
+using CompositionAsTarget = sc2::Weapon::TargetType;
 
 template< typename... Args >
 std::string strprintf(const char* format, Args... args) {
@@ -37,6 +39,8 @@ constexpr float PYLON_RADIUS_SQUARED = PYLON_RADIUS*PYLON_RADIUS;
 constexpr float EPSILON = 0.1; //time between attacks for one time attacks
 
 constexpr float MY_PI = 3.141592653589;
+constexpr float MY_2PI = MY_PI * 2;
+constexpr float MY_PI2 = MY_PI / 2;
 
 namespace Aux {
 	GameInfo gameInfo_cache;
@@ -1427,27 +1431,27 @@ namespace Aux {
 		"CloakedAllied"
 	};
 
-	const char* AttributeToName(Attribute a) {
+	inline const char* AttributeToName(Attribute a) {
 		return attributeNames[(int)a];
 	}
 
-	const char* TargetTypeToName(Weapon::TargetType t) {
+	inline const char* TargetTypeToName(Weapon::TargetType t) {
 		return targetTypeNames[(int)t];
 	}
 
-	const char* DisplayTypeToName(Unit::DisplayType d) {
+	inline const char* DisplayTypeToName(Unit::DisplayType d) {
 		return displayTypeNames[(int)d];
 	}
 
-	const char* AllianceToName(Unit::Alliance a) {
+	inline const char* AllianceToName(Unit::Alliance a) {
 		return allianceNames[(int)a];
 	}
 
-	const char* CloakStateToName(Unit::CloakState c) {
+	inline const char* CloakStateToName(Unit::CloakState c) {
 		return cloakStateNames[(int)c];
 	}
 
-	int damageExtraPerUpgrade(float baseDamage) {
+	inline int damageExtraPerUpgrade(float baseDamage) {
 		if (baseDamage >= 45) {
 			return 5;
 		} else if (baseDamage >= 36) {
@@ -1460,32 +1464,86 @@ namespace Aux {
 		return 1;
 	}
 
-	static Color randomColor() {
+	inline static Color randomColor() {
 		return Color{ uint8_t(255 * rand() / RAND_MAX) , uint8_t(255 * rand() / RAND_MAX) , uint8_t(255 * rand() / RAND_MAX) };
 	}
 
-	Point3D P3D(Agent* const agent, const Point2D& p) {
+	inline Point3D P3D(Agent* const agent, const Point2D& p) {
 		return Point3D(p.x, p.y, agent->Observation()->TerrainHeight(p));
 	}
 
-	Point2D P2D(const Point2DI& p) {
+	inline Point2D P2D(const Point2DI& p) {
 		return Point2D((float)p.x, (float)p.y);
 	}
 
-	Point2D P2D(const Point3D& p) {
+	inline Point2D P2D(const Point3D& p) {
 		return Point2D(p.x, p.y);
 	}
 
-	Point2DI P2DI(const Point3D& p) {
+	inline Point2DI P2DI(const Point3D& p) {
 		return Point2DI((int)p.x, (int)p.y);
 	}
 
-	Point2DI P2DI(const Point2D& p) {
+	inline Point2DI P2DI(const Point2D& p) {
 		return Point2DI((int)p.x, (int)p.y);
 	}
 
-	Point2D normalize(const Point2D& p) {
+	inline Point2D normalize(const Point2D& p) {
 		return p / (std::sqrt(p.x * p.x + p.y * p.y));
 
+	}
+
+	float floatmod(float number, float mod) {
+		while (number < 0) {
+			number += mod;
+		}
+		while (number >= mod) {
+			number -= mod;
+		}
+		return number;
+	}
+
+	inline float atan_scalar_approximation(float x) {
+		float a1 = 0.99997726f;
+		float a3 = -0.33262347f;
+		float a5 = 0.19354346f;
+		float a7 = -0.11643287f;
+		float a9 = 0.05265332f;
+		float a11 = -0.01172120f;
+
+		float x_sq = x * x;
+
+		float result = x * (a1 + x_sq * (a3 + x_sq * (a5 + x_sq * (a7 + x_sq * (a9 + x_sq * a11)))));
+		float ata = atanf(x);
+		if (abs(result - ata) > 0.0001) {
+			printf("{%.4f, %.4f, %.4f}", x, result, ata);
+			printf("");
+		}
+		return result;
+
+	}
+
+	float atan2f_auto1(float y, float x) {
+		bool swap = fabs(x) < fabs(y);
+		float atan_input = (swap ? x : y) / (swap ? y : x);
+
+		// Approximate atan
+		float res = atan_scalar_approximation(atan_input);
+
+		// If swapped, adjust atan output
+		res = swap ? (atan_input >= 0.0f ? MY_PI2 : -MY_PI2) - res : res;
+		// Adjust quadrants
+		if (x >= 0.0f && y >= 0.0f) {}                     // 1st quadrant
+		else if (x < 0.0f && y >= 0.0f) { res = MY_PI + res; } // 2nd quadrant
+		else if (x < 0.0f && y < 0.0f) { res = -MY_PI + res; } // 3rd quadrant
+		else if (x >= 0.0f && y < 0.0f) {}                     // 4th quadrant
+
+		// Store result
+		return res;
+	}
+
+	inline float atan2f_prim(float y, float x) {
+		return atan2f(y, x);
+		//return atan2f_auto1(y, x);
 	}
 }
