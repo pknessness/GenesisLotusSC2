@@ -20,13 +20,15 @@
 #include "unitwrappers/armyunit.hpp"
 #include "auxiliary/spatialhashgrid.hpp"
 #include "auxiliary/visiblemap.hpp"
-#include "auxiliary/damagegrid.hpp"
+#include "auxiliary/weapongrid.hpp"
 #include "auxiliary/primordialstar.hpp"
 
 #define DEBUG
 
 #define ADEPT_RUSH
 //#define STALKER_COLOSSUS_TIMING
+
+constexpr int16_t maxDamageOnGrid = 32;
 
 namespace UnitManager {
     void encode(UnitWrapperPtr wrap, const Unit* unit_) {
@@ -153,6 +155,8 @@ namespace UnitManager {
     }
 }
 
+//float prevMax = 0;
+
 // The main bot class.
 struct Bot: sc2::Agent
 {
@@ -173,6 +177,11 @@ struct Bot: sc2::Agent
         Aux::gameInfo_cache = Observation()->GetGameInfo();
         Aux::mapWidth_cache = Aux::gameInfo_cache.width;
         Aux::mapHeight_cache = Aux::gameInfo_cache.height;
+        Aux::opponent = Aux::gameInfo_cache.player_info[1].race_requested;
+
+        //printf("0: %s / %s; ", Aux::RaceToName(Aux::gameInfo_cache.player_info[0].race_actual), Aux::RaceToName(Aux::gameInfo_cache.player_info[0].race_requested));
+        printf("1: %s / %s\n", Aux::RaceToName(Aux::gameInfo_cache.player_info[1].race_actual), Aux::RaceToName(Aux::gameInfo_cache.player_info[1].race_requested));
+
 
         Aux::setupExpansions(this);
 
@@ -187,7 +196,7 @@ struct Bot: sc2::Agent
 
         SpatialHashGrid::init();
         VisibleMap2D::init();
-        DamageGrid::init();
+        WeaponGrid::init(this);
 
         strat = StrategyManager::glaive_adept_rush_hupsaiya;//StrategyManager::test_plusone_atk;//
 
@@ -248,9 +257,9 @@ struct Bot: sc2::Agent
                 for (int w = 0; w < d.weapons.size(); w++) {
                     float atkcd = d.weapons[w].speed / timeSpeed;
                     if (unitLists[f][i] == UNIT_TYPEID::ZERG_ZERGLING) {
-                        atkcd -= 0.15;
+                        atkcd -= 0.15; //crack lings
                     }else if (unitLists[f][i] == UNIT_TYPEID::TERRAN_MARINE) {
-                        atkcd *= 0.666667;
+                        atkcd *= 0.666667; //stim
                     }
                     float dps = (d.weapons[w].damage_ * d.weapons[w].attacks) / (d.weapons[w].speed / timeSpeed);                    
                     float maxdps = ((d.weapons[w].damage_ + 3 * Aux::damageExtraPerUpgrade(d.weapons[w].damage_)) * d.weapons[w].attacks) / atkcd;
@@ -413,9 +422,9 @@ struct Bot: sc2::Agent
 
         onStepProfiler.midLog("oS-visMap");
 
-        DamageGrid::update(this);
+        WeaponGrid::update(this);
 
-        onStepProfiler.midLog("oS-damageGrid");
+        onStepProfiler.midLog("oS-weaponGrid");
 
 #ifndef BUILD_FOR_LADDER
         std::vector<ChatMessage> chats = Observation()->GetChatMessages();
@@ -456,8 +465,8 @@ struct Bot: sc2::Agent
 
                 if (command == "s") { //spawn
                     if (spawnCommandMap.find(arguments[0]) != spawnCommandMap.end()) {
-                        DebugCreateUnit(this, spawnCommandMap[arguments[0]], Observation()->GetCameraPos(), 1);
                         Actions()->SendChat("Spawning Ally " + spawnCommandMap[arguments[0]]);
+                        DebugCreateUnit(this, spawnCommandMap[arguments[0]], Observation()->GetCameraPos(), 1);
                     }
                     else {
                         Actions()->SendChat("Invalid Unit " + spawnCommandMap[arguments[0]]);
@@ -465,14 +474,15 @@ struct Bot: sc2::Agent
                 }
                 else if (command == "se") { //spawn enemy
                     if (spawnCommandMap.find(arguments[0]) != spawnCommandMap.end()) {
-                        DebugCreateUnit(this, spawnCommandMap[arguments[0]], Observation()->GetCameraPos(), 2);
                         Actions()->SendChat("Spawning Enemy " + spawnCommandMap[arguments[0]]);
+                        DebugCreateUnit(this, spawnCommandMap[arguments[0]], Observation()->GetCameraPos(), 2);
                     }
                     else {
                         Actions()->SendChat("Invalid Unit " + spawnCommandMap[arguments[0]]);
                     }
                 }
                 else if (command == "v") { //show entire map
+                    Actions()->SendChat("Showing map");
                     Debug()->DebugShowMap();
                 }
                 else if (command == "kn") { //kill all neutral
@@ -480,12 +490,15 @@ struct Bot: sc2::Agent
                     for (const Unit* unit : units) {
                         Debug()->DebugKillUnit(unit);
                     }
+                    Actions()->SendChat("Killing all neutral");
                 }
                 else if (command == "m") { //save master bitmap
+                    Actions()->SendChat("Saving master bitmap");
                     Aux::saveMasterBitmap("command.bmp");
                 }
                 else if (command == "dm") { //save main damage bitmap
-                    DamageGrid::saveDamageMapEnemyBitmap("damage");
+                    Actions()->SendChat("Saving damage bitmap");
+                    WeaponGrid::saveDamageMapEnemyBitmap("damage");
                 }
                 else {
                     Actions()->SendChat("Invalid Command " + command);
@@ -521,6 +534,7 @@ struct Bot: sc2::Agent
         std::string selected = "";
         int8_t found = 0;
         std::vector< UnitWrapperMap* > maps = { &UnitManager::self_units, &UnitManager::neutral_units, &UnitManager::enemy_units};
+        UnitWrapperPtr select = nullptr;
         for (int i = 0; i < 3; i++) {
             for (auto typeIt = maps[i]->begin(); typeIt != maps[i]->end(); typeIt++) {
                 for (auto it = typeIt->second.begin(); it != typeIt->second.end(); it++) {
@@ -530,6 +544,7 @@ struct Bot: sc2::Agent
                         if (found > 1) {
                             break;
                         }
+                        select = *it;
                         selected = strprintf("%s %llx:\n%s %s\n{%.1f,%.1f,%.1f} H:%.2f\nR:%.1f Radar:%.1f Detect:%.1f\nOnScreen:%c isBlip:%c\n%.1f/%.1fHP %.1f/%.1fSH\n%.1f/%.1fEN\nFLY:%c BUR:%c\nWeaponCD:%.1f\nATK:%x AMR:%x SHIELD:%x",
                             UnitTypeToName(selectedUnit->unit_type), selectedUnit->tag,
                             Aux::DisplayTypeToName(selectedUnit->display_type), Aux::CloakStateToName(selectedUnit->cloak),
@@ -557,11 +572,64 @@ struct Bot: sc2::Agent
         else {
             MacroManager::displayEncodingStack(this);
         }
+        if (select != nullptr) {
+            Point2D center = select->pos(this); //Observation()->GetCameraPos();
+            float wS = center.x - 8;
+            if (wS < 0)
+                wS = 0;
+            float hS = center.y - 8;
+            if (hS < 0)
+                hS = 0;
+            float wE = center.x + 8;
+            if (wE > Aux::mapWidth_cache)
+                wE = Aux::mapWidth_cache;
+            float hE = center.y + 8;
+            if (hE > Aux::mapHeight_cache)
+                hE = Aux::mapHeight_cache;
+
+            constexpr float BOX_BORDER_S = 0.002F;
+            constexpr float BOX_SIZE = (1.0F / WeaponGrid::DAMAGENET_PRECISION);
+
+            for (float w = (int)(wS * WeaponGrid::DAMAGENET_PRECISION) / WeaponGrid::DAMAGENET_PRECISION; w < wE; w += BOX_SIZE) {
+                for (float h = (int)(hS * WeaponGrid::DAMAGENET_PRECISION) / WeaponGrid::DAMAGENET_PRECISION; h < hE; h += BOX_SIZE) {
+                    Point2D p(w, h);
+                    Color c(0, 0, 0);
+
+                    float damage = WeaponGrid::getCellDPS(p, select, this);
+
+                    if (damage != 0) {
+                        int dmg = (int)damage;
+
+                        int mult = 255 / maxDamageOnGrid;
+
+                        if (damage < maxDamageOnGrid) {
+                            c = { 255, (uint8_t)(dmg * mult), (uint8_t)(dmg * mult) };
+                        }
+                        else if (damage < (maxDamageOnGrid * 2)) {
+                            c = { (uint8_t)(255 - (uint8_t)(dmg * mult)), (uint8_t)(255 - (uint8_t)(dmg * mult)), 255 };
+                        }
+                        else {
+                            c = { 0, 0, 255 };
+                        }
+
+
+                        if (!(c.r == 0 && c.g == 0 && c.b == 0)) {
+                            float height = Observation()->TerrainHeight(Point2D{ w + 0.5F, h + 0.5F });
+
+                            DebugBox(this, Point3D(w + BOX_BORDER_S, h + BOX_BORDER_S, height + 0.1F),
+                                Point3D(w + BOX_SIZE - BOX_BORDER_S, h + BOX_SIZE - BOX_BORDER_S, height - 0.01F), c);
+                        }
+                    }
+
+                }
+            }
+        }
+        
         
 
         //SpatialHashGrid::debug(this);
 
-        VisibleMap2D::debug(this);
+        //VisibleMap2D::debug(this);
 
         onStepProfiler.midLog("oS-Debug");
 

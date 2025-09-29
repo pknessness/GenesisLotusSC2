@@ -6,6 +6,7 @@
 
 #include <unordered_set>
 #include <map>
+#include "../auxiliary/helpers.hpp"
 
 using namespace sc2;
 
@@ -35,6 +36,7 @@ private:
     UnitTypeID storageType;
     Unit::Alliance team;
     bool isBuilding_;
+    CompositionAsTarget comp;
 
     //cache data
     UnitTypeID recentType_cache;
@@ -59,7 +61,7 @@ private:
     bool isHallucination_; //is hallucination?
 
     int finished_frames; //what is this?
-    
+
 public:
     Tag self;
     MacroActionData creationData;
@@ -123,6 +125,22 @@ public:
     inline UnitTypeID getActualType(Agent* const agent) {
         get(agent);
         return recentType_cache;
+    }
+
+    CompositionAsTarget getCompositionAsTarget(Agent* agent) {
+        const Unit* selfUnit = get(agent);
+        if (selfUnit != nullptr) {
+            if (selfUnit->unit_type == UNIT_TYPEID::PROTOSS_COLOSSUS) {
+                comp = CompositionAsTarget::Any;
+            }
+            else if (selfUnit->is_flying) {
+                comp = CompositionAsTarget::Air;
+            }
+            else {
+                comp = CompositionAsTarget::Ground;
+            }
+        }
+        return comp;
     }
 
     inline float radius(Agent* const agent) {

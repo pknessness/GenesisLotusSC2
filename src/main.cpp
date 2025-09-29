@@ -110,8 +110,8 @@ int main(int argc, char* argv[])
     ParseArguments(argc, argv, &Options);
 
     printf("PARSED OPTIONS: GamePort:%d StartPort:%d OppID:%s Server:%s\n", Options.GamePort, Options.StartPort, Options.OpponentId.c_str(), Options.ServerAddress.c_str());
-    //srand(clock());
-    srand(0);
+    srand(clock());
+    //srand(0);
     if (Options.GamePort == 0 && Options.StartPort == 0) {
         sc2::Coordinator coordinator;
         coordinator.LoadSettings(argc, argv);
@@ -124,7 +124,7 @@ int main(int argc, char* argv[])
 
         Bot bot;
         sc2::Difficulty diff = sc2::Difficulty::HardVeryHard;
-        sc2::Race race = (sc2::Race)(std::rand() % 4);  // Race::Random;
+        sc2::Race race = Race::Random; //(sc2::Race)(std::rand() % 4);  //
         sc2::AIBuild build = sc2::AIBuild::RandomBuild;
         coordinator.SetParticipants({ CreateParticipant(sc2::Race::Protoss, &bot), CreateComputer(race, diff, build) });
 

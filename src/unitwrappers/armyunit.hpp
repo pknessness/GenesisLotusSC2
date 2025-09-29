@@ -4,6 +4,7 @@
 #include "unitwrapper.hpp"
 #include "../auxiliary/squadmanager.hpp"
 #include "../auxiliary/visiblemap.hpp"
+#include "../auxiliary/weapongrid.hpp"
 
 class ArmyUnit : public UnitWrapper {
 private:
@@ -39,9 +40,63 @@ public:
         agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, point);
     }
 
-    void damageAtPoint(Point2D point) {
+    //void damageAtCell(DamageGrid::DamageCell cell, Agent* const agent) {
+    //    CompositionAsTarget comp = getCompositionAsTarget(agent);
+    //    float damage = 0;
+    //    if (comp == CompositionAsTarget::Ground || comp == CompositionAsTarget::Any) {
+    //        damage += cell.normal_gnd;
+    //        for (Attribute a : Aux::getStats(getActualType(agent), agent).attributes) {
+    //            switch (a) {
+    //            case(Attribute::Light): {
+    //                damage += pointDamage.ground.light;
+    //            } break;
+    //            case(Attribute::Armored): {
+    //                damage += pointDamage.ground.armored;
+    //            } break;
+    //            case(Attribute::Biological): {
+    //                damage += pointDamage.ground.biological;
+    //            } break;
+    //            case(Attribute::Mechanical): {
+    //                damage += pointDamage.ground.mechanical;
+    //            } break;
+    //            case(Attribute::Massive): {
+    //                damage += pointDamage.ground.massive;
+    //            } break;
+    //            case(Attribute::Psionic): {
+    //                damage += pointDamage.ground.psionic;
+    //            } break;
+    //            }
+    //        }
 
-    }
+    //    }
+    //    if (comp == Composition::Air || comp == Composition::Any) {
+    //        damage += pointDamage.air.normal;
+    //        for (Attribute a : Aux::getStats(unitWrap->getType(agent), agent).attributes) {
+    //            switch (a) {
+    //            case(Attribute::Light): {
+    //                damage += pointDamage.air.light;
+    //            } break;
+    //            case(Attribute::Armored): {
+    //                damage += pointDamage.air.armored;
+    //            } break;
+    //            case(Attribute::Biological): {
+    //                damage += pointDamage.air.biological;
+    //            } break;
+    //            case(Attribute::Mechanical): {
+    //                damage += pointDamage.air.mechanical;
+    //            } break;
+    //            case(Attribute::Massive): {
+    //                damage += pointDamage.air.massive;
+    //            } break;
+    //            case(Attribute::Psionic): {
+    //                damage += pointDamage.air.psionic;
+    //            } break;
+    //            }
+    //        }
+
+    //    }
+    //    return damage;
+    //}
 
     virtual void executeAttack(Agent* const agent) {
         FUNCTION_LOG();

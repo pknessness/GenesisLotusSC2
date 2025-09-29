@@ -47,6 +47,8 @@ namespace Aux {
 	int mapWidth_cache;
 	int mapHeight_cache;
 
+	Race opponent = Race::Random;
+
 	std::map<UnitTypeID, UnitTypeData> statsMap = std::map<UnitTypeID, UnitTypeData>();
 	bool init_data = false;
 	UnitTypes cached_data;
@@ -163,25 +165,47 @@ namespace Aux {
 		int psi = 0;
 	};
 
+	struct EnergyCost {
+		float energyCostStatic;
+		float energyCostPerFrame;
+	};
+
+	//Weapon::TargetType type_, float damage_, uint32_t attacks_, float range_, float speed_, EnergyCost energyCost_ = { static, per frame }, bool spell_ = false
 	struct ExtraWeapon : Weapon {
-		ExtraWeapon(){
+		EnergyCost energyCost;
+		bool spell;
+		ExtraWeapon() : energyCost{ 0, 0 } {
 
 		}
 
-		ExtraWeapon(Weapon::TargetType type_, float damage_, uint32_t attacks_, float range_, float speed_) {
+		ExtraWeapon(Weapon::TargetType type_, float damage_, uint32_t attacks_, float range_, float speed_, EnergyCost energyCost_ = { 0, 0 }, bool spell_ = false) {
 			type = type_;
 			damage_ = damage_;
 			attacks = attacks_;
 			range = range_;
 			speed = speed_;
+			energyCost = energyCost_;
+			spell = spell_;
 		}
 
-		void setWeapon(Weapon::TargetType type_, float damage_, uint32_t attacks_, float range_, float speed_) {
+		ExtraWeapon(Weapon w) {
+			type = w.type;
+			damage_ = w.damage_;
+			attacks = w.attacks;
+			range = w.range;
+			speed = w.speed;
+			energyCost = { 0, 0 };
+			spell = false;
+		}
+
+		void setWeapon(Weapon::TargetType type_, float damage_, uint32_t attacks_, float range_, float speed_, EnergyCost energyCost_ = { 0, 0 }, bool spell_ = false) {
 			type = type_;
 			damage_ = damage_;
 			attacks = attacks_;
 			range = range_;
 			speed = speed_;
+			energyCost = energyCost_;
+			spell = spell_;
 		}
 
 		void addDamageBonus(Attribute a, float bonus) {
@@ -190,11 +214,6 @@ namespace Aux {
 			b.bonus = bonus;
 			damage_bonus.push_back(b);
 		}
-	};
-
-	struct EnergyCost {
-		float energyCostStatic;
-		float energyCostPerFrame;
 	};
 
 	struct PointArea {
@@ -1431,6 +1450,13 @@ namespace Aux {
 		"CloakedAllied"
 	};
 
+	const char* raceNames[] = {
+		"Terran",
+		"Zerg",
+		"Protoss",
+		"Random"
+	};
+
 	inline const char* AttributeToName(Attribute a) {
 		return attributeNames[(int)a];
 	}
@@ -1449,6 +1475,10 @@ namespace Aux {
 
 	inline const char* CloakStateToName(Unit::CloakState c) {
 		return cloakStateNames[(int)c];
+	}
+
+	inline const char* RaceToName(Race r) {
+		return raceNames[(int)r];
 	}
 
 	inline int damageExtraPerUpgrade(float baseDamage) {
