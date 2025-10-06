@@ -27,7 +27,7 @@ namespace ArmyManager {
                         if (wrap->pos(agent) == Point2D{ 0,0 }) {
                             continue;
                         }
-                        float dist = UnitWrapper::getPathLengthGround(agent, mainAttackSquad.getCorePosition(agent), wrap->pos(agent));
+                        float dist = UnitWrapper::getPathLengthGroundAStar(mainAttackSquad.getCorePosition(agent), wrap->pos(agent), 2, agent);
                         if (dist < mindist) {
                             min = wrap;
                             mindist = dist;

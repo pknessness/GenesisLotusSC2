@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <map>
 #include "../auxiliary/helpers.hpp"
+#include "../auxiliary/primordialstar.hpp"
 
 using namespace sc2;
 
@@ -14,11 +15,10 @@ struct MacroActionData {
     int index;
 
     std::string name;
-    int32_t data1;
-    int32_t data2;
+    char dependencyFlag;
     UnitTypeID type;
 
-    MacroActionData() : index(0), name(""), data1(0), data2(0), type(UNIT_TYPEID::INVALID) {
+    MacroActionData() : index(0), name(""), dependencyFlag(0), type(UNIT_TYPEID::INVALID) {
 
     }
 
@@ -26,13 +26,15 @@ struct MacroActionData {
 
     //}
 
-    MacroActionData(std::string name_, int32_t data1_ = 0, int32_t data2_ = 0) : index(-1), name(name_), data1(data1_), data2(data2_), type(UNIT_TYPEID::INVALID) {
+    MacroActionData(std::string name_, char dependencyFlag_ = 0) : index(-1), name(name_), dependencyFlag(dependencyFlag_), type(UNIT_TYPEID::INVALID) {
 
     }
 };
 
-class UnitWrapper {
+class UnitWrapper : public std::enable_shared_from_this<UnitWrapper> {
 private:
+    std::string name;
+
     UnitTypeID storageType;
     Unit::Alliance team;
     bool isBuilding_;
@@ -41,6 +43,7 @@ private:
     //cache data
     UnitTypeID recentType_cache;
     float radius_cache;
+    bool flying_cache;
 
     float health_cache;
     float healthMax_cache;
@@ -73,8 +76,9 @@ public:
         shields_cache(unit_->shield), shieldsMax_cache(unit_->shield_max),
         energy_cache(unit_->energy), energyMax_cache(unit_->energy_max), pos_cache(unit_->pos), dead(false),
         attackUpgradeLevel_cache(0), armorUpgradeLevel_cache(0), shieldUpgradeLevel_cache(0),
-        finished_frames(0), isBuilding_(unit_->is_building), creationData(){
+        finished_frames(0), isBuilding_(unit_->is_building), flying_cache(unit_->is_flying), creationData(){
         //self = unit_->tag;
+        name = "";
     }
     ~UnitWrapper() {
         abilities_cache.clear();
@@ -86,6 +90,7 @@ public:
         if (unit != nullptr) {
             recentType_cache = unit->unit_type;
             radius_cache = unit->radius;
+            flying_cache = unit->is_flying;
 
             health_cache = unit->health;
             healthMax_cache = unit->health_max;
@@ -101,6 +106,23 @@ public:
             pos_cache = unit->pos;
 
             isHallucination_ = unit->is_hallucination;
+
+            name = UnitTypeToName(recentType_cache);
+
+            if (unit->unit_type == UNIT_TYPEID::PROTOSS_COLOSSUS) {
+                comp = CompositionAsTarget::Any;
+            }
+            else if (unit->is_flying) {
+                comp = CompositionAsTarget::Air;
+            }
+            else {
+                comp = CompositionAsTarget::Ground;
+            }
+        }
+        else {
+            if (agent->Observation()->GetVisibility(pos_cache) == Visibility::Visible) {
+                pos_cache = { 0.0F, 0.0F, 0.0F };
+            }
         }
         return unit;
     }
@@ -122,6 +144,11 @@ public:
         return pos_cache;
     }
 
+    inline bool isFlying(Agent* const agent) {
+        get(agent);
+        return flying_cache;
+    }
+
     inline UnitTypeID getActualType(Agent* const agent) {
         get(agent);
         return recentType_cache;
@@ -129,17 +156,6 @@ public:
 
     CompositionAsTarget getCompositionAsTarget(Agent* agent) {
         const Unit* selfUnit = get(agent);
-        if (selfUnit != nullptr) {
-            if (selfUnit->unit_type == UNIT_TYPEID::PROTOSS_COLOSSUS) {
-                comp = CompositionAsTarget::Any;
-            }
-            else if (selfUnit->is_flying) {
-                comp = CompositionAsTarget::Air;
-            }
-            else {
-                comp = CompositionAsTarget::Ground;
-            }
-        }
         return comp;
     }
 
@@ -164,26 +180,49 @@ public:
 
     }
 
-    virtual std::vector<Point2D> getPath(Agent* const agent, Point2D point) {
-        return std::vector<Point2D>();
-    }
-
     UnitTypeID getStorageType() {
         return storageType;
     }
 
-    static float getPathLengthGround(Agent* const agent, Point2D start, Point2D end) {
-        return agent->Query()->PathingDistance(start, end);
+    static inline float getPathLengthGroundAStar(Point2D start, Point2D end, float radius_, Agent* const agent) {
+        //return agent->Query()->PathingDistance(start, end);
+        return PrimordialStar::getPathLengthAStar(start, end, radius_, agent);
     }
 
-    static float getPathLengthAir(Agent* const agent, Point2D start, Point2D end) {
+    static inline float getPathLengthAir(Point2D start, Point2D end) {
         return Distance2D(start, end);
     }
+
+    static inline float getPathLengthGroundDijkstra(Point2D start, Point2D end, float radius_, Agent* const agent) {
+        //return agent->Query()->PathingDistance(start, end);
+        return PrimordialStar::getPathLengthDijkstra(start, end, radius_, agent);
+    }
+
+    //virtual std::vector<Point2D> getPath(Agent* const agent, Point2D point) {
+    //    const Unit* unit = get(agent);
+    //    if (unit == nullptr) return std::vector<Point2D>();
+    //    if (unit->is_flying) {
+    //        return { unit->pos, point };
+    //    }
+    //    return UnitWrapper::getPathLengthGroundAStar(unit->pos, point, unit->radius, agent);//->Query()->PathingDistance(unit, point);
+    //}
 
     virtual float getPathLength(Agent* const agent, Point2D point) {
         const Unit* unit = get(agent);
         if (unit == nullptr) return -1;
-        return agent->Query()->PathingDistance(unit, point);
+        if (unit->is_flying) {
+            return getPathLengthAir(unit->pos, point);
+        }
+        return UnitWrapper::getPathLengthGroundAStar(unit->pos, point, unit->radius, agent);//->Query()->PathingDistance(unit, point);
+    }
+
+    virtual std::vector<Point2D> getPathUniversal(Agent* const agent, Point2D point) {
+        const Unit* unit = get(agent);
+        if (unit == nullptr) return std::vector<Point2D>();
+        if (unit->is_flying) {
+            return { unit->pos, point};
+        }
+        return PrimordialStar::getPathAStar(unit->pos, point, unit->radius, agent);//->Query()->PathingDistance(unit, point);
     }
 
     void setDead() {

@@ -13,7 +13,7 @@ struct Circle {
 	float radius;
 };
 
-using Circles = std::unordered_set<Circle>;
+using Circles = std::vector<Circle>;
 
 namespace SpatialHashGrid {
 

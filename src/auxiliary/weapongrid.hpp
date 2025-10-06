@@ -218,7 +218,7 @@ namespace WeaponGrid {
     }
 
     //Only if Aux::opponent != Race::Random
-    Aux::ExtraWeapon getWeaponFromIndex(uint8_t weaponIndex) {
+    Aux::ExtraWeapon getEnemyWeaponFromIndex(uint8_t weaponIndex) {
         if (Aux::opponent == Race::Protoss) {
             return allWeaponsProtoss[weaponIndex];
         }
@@ -232,6 +232,74 @@ namespace WeaponGrid {
             throw 52;
             //return Aux::ExtraWeapon();
         }
+    }
+
+    Aux::ExtraWeapon getSelfWeaponFromIndex(uint8_t weaponIndex) {
+        return allWeaponsProtoss[weaponIndex];
+    }
+
+    //https://liquipedia.net/starcraft2/Damage_Calculation
+    float DamageCalculation(Aux::ExtraWeapon w, UnitWrapperPtr target, Agent* const agent) {
+        CompositionAsTarget c = target->getCompositionAsTarget(agent);
+        if (w.type != CompositionAsTarget::Any && c != CompositionAsTarget::Any && w.type != c) {
+            return 0;
+        }
+        float damage = w.damage_;
+        float shields = target->getShields(agent);
+        UnitTypeData stats = Aux::getStats(target->getActualType(agent), agent);
+        std::vector<Attribute> attributes = stats.attributes;
+        std::vector<DamageBonus> bonuses = w.damage_bonus;
+        for (int b = 0; b < bonuses.size(); b++) {
+            if (bonuses[b].attribute == Attribute::Invalid) {
+                if (bonuses[b].bonus == 0) {
+                    damage += std::max(4.0F, shields);
+                }
+                else if (bonuses[b].bonus == 1) {
+                    damage += 0.5 * target->getEnergy(agent);
+                }
+                else if (bonuses[b].bonus == 2) {
+                    bool bio = false;
+                    bool psionic = false;
+                    for (int a = 0; a < attributes.size(); a++) {
+                        if (attributes[a] == Attribute::Biological) {
+                            bio = true;
+                        }
+                        else if (attributes[a] == Attribute::Psionic) {
+                            psionic = true;
+                        }
+                    }
+                    if (bio) {
+                        damage += 130;
+                        if (psionic) {
+                            damage += 40;
+                        }
+                    }
+                }
+                else if (bonuses[b].bonus == 3) {
+                    damage += std::max(100.0F, shields);
+                }
+            }
+            else {
+                for (int a = 0; a < attributes.size(); a++) {
+                    if (bonuses[b].attribute == attributes[a]) {
+                        damage += bonuses[b].bonus;
+                    }
+                }
+            }
+        }
+        //TODO: add attack upgrades
+        float damage_recieved = damage - (shields > 0 ? target->getShieldsUpgradeLevel(agent) : stats.armor); //TODO: add defense upgrades
+
+        //TODO: add guardian and hardened shield;
+        float hardened = 900;
+        float guardian = 0; //see if there is a sentry with guardian within range of this tile
+        damage_recieved = std::min(damage_recieved, hardened * (target->isHallucination() + 1) + 900 * (w.spell));
+
+        float damage_inflicted = std::max(damage_recieved - (guardian * !w.spell * (w.range > 0.1)), 0.5F);
+
+        float total_damage = (damage_inflicted > shields) ? std::max(0.0F, damage_inflicted - shields - stats.armor) : damage_inflicted;
+
+        return total_damage * w.attacks;
     }
 
     struct DamageCell {
@@ -258,70 +326,18 @@ namespace WeaponGrid {
             return c;
         }
 
-        //https://liquipedia.net/starcraft2/Damage_Calculation
         float getDPS(UnitWrapperPtr unitWrap, Agent* const agent) {
             float DPS = 0;
             if (Aux::opponent != Race::Random) {
                 int size = getAllWeapons()->size();
                 for (int i = 0; i < size; i++) {
                     if (weaponCount[i] != 0) {
-                        Aux::ExtraWeapon w = getWeaponFromIndex(i);
-                        float damage = w.damage_;
-                        float shields = unitWrap->getShields(agent);
-                        UnitTypeData stats = Aux::getStats(unitWrap->getActualType(agent), agent);
-                        std::vector<Attribute> attributes = stats.attributes;
-                        std::vector<DamageBonus> bonuses = w.damage_bonus;
-                        for (int b = 0; b < bonuses.size(); b++) {
-                            if (bonuses[b].attribute == Attribute::Invalid) {
-                                if (bonuses[b].bonus == 0) {
-                                    damage += std::max(4.0F, shields);
-                                }
-                                else if (bonuses[b].bonus == 1) {
-                                    damage += 0.5 * unitWrap->getEnergy(agent);
-                                }
-                                else if (bonuses[b].bonus == 2) {
-                                    bool bio = false;
-                                    bool psionic = false;
-                                    for (int a = 0; a < attributes.size(); a++) {
-                                        if (attributes[a] == Attribute::Biological) {
-                                            bio = true;
-                                        }else if (attributes[a] == Attribute::Psionic) {
-                                            psionic = true;
-                                        }
-                                    }
-                                    if (bio) {
-                                        damage += 130;
-                                        if (psionic) {
-                                            damage += 40;
-                                        }
-                                    }
-                                }
-                                else if (bonuses[b].bonus == 3) {
-                                    damage += std::max(100.0F, shields);
-                                }
-                            }
-                            else {
-                                for (int a = 0; a < attributes.size(); a++) {
-                                    if (bonuses[b].attribute == attributes[a]) {
-                                        damage += bonuses[b].bonus;
-                                    }
-                                }
-                            }
-                        }
-                        //TODO: add attack upgrades
-                        float damage_recieved = damage - (shields > 0 ? unitWrap->getShieldsUpgradeLevel(agent) : stats.armor); //TODO: add defense upgrades
+                        //TODO: ONLY COUNT WEAPON WHEN HAS ENERGY REQUIRED
+                        Aux::ExtraWeapon w = getEnemyWeaponFromIndex(i);
 
-                        //TODO: add guardian and hardened shield;
-                        float hardened = 900;
-                        float guardian = 0; //see if there is a sentry with guardian within range of this tile
-                        damage_recieved = std::min(damage_recieved, hardened * (unitWrap->isHallucination() + 1) + 900 * (w.spell));
+                        float total_damage = DamageCalculation(w, unitWrap, agent);
 
-                        float damage_inflicted = std::max(damage_recieved - (guardian * !w.spell * (w.range > 0.1)), 0.5F);
-
-                        float total_damage = (damage_inflicted > shields) ? std::max(0.0F, damage_inflicted - shields - stats.armor) : damage_inflicted;
-
-                        DPS += (total_damage * w.attacks / w.speed);
-                        //DPS += 1;
+                        DPS += (total_damage / w.speed);
                     }
                 }
             }
@@ -467,57 +483,6 @@ namespace WeaponGrid {
         return getCell(point).getDPS(unitWrap, agent);
     }
 
-    float getRadiusMaxDPS(Point2D pos, float radius, UnitWrapperPtr unitWrap, Agent* const agent) {
-        //Profiler profiler("DamageGridF");
-        damageMap_modify->clear();
-
-        int xmin = std::max(int((pos.x - radius) * DAMAGENET_PRECISION), 0);
-        int ymin = std::max(int((pos.y - radius) * DAMAGENET_PRECISION), 0);
-        int xmax = std::min(int((pos.x + radius) * DAMAGENET_PRECISION), damageMap_modify->width());
-        int ymax = std::min(int((pos.y + radius) * DAMAGENET_PRECISION), damageMap_modify->height());
-
-        fillDamageModify(pos, radius);
-
-        float dps;
-
-        for (int i = xmin; i <= xmax; i++) {
-            for (int j = ymin; j <= ymax; j++) {
-                //DebugLine(agent,Point3D{ (float)(i) / damageNetPrecision, (float)(j) / damageNetPrecision, 0.0F }, Point3D{ (float)(i) / damageNetPrecision, (float)(j) / damageNetPrecision, 13.0F });
-                if (imRef(damageMap_modify, i, j)) {
-                    //DamageLocation pointDmag = imRef(enemyDamageNet, i, j);
-                    dps = std::max(dps, getRawCellDPS(i, j, unitWrap, agent));
-                }
-            }
-        }
-        return dps;
-    }
-
-    float getRadiusAvgDPS(Point2D pos, float radius, UnitWrapperPtr unitWrap, Agent* const agent) {
-        //Profiler profiler("DamageGridF");
-        damageMap_modify->clear();
-
-        int xmin = std::max(int((pos.x - radius) * DAMAGENET_PRECISION), 0);
-        int ymin = std::max(int((pos.y - radius) * DAMAGENET_PRECISION), 0);
-        int xmax = std::min(int((pos.x + radius) * DAMAGENET_PRECISION), damageMap_modify->width());
-        int ymax = std::min(int((pos.y + radius) * DAMAGENET_PRECISION), damageMap_modify->height());
-
-        fillDamageModify(pos, radius);
-
-        float dps;
-        int count = 0;
-        for (int i = xmin; i <= xmax; i++) {
-            for (int j = ymin; j <= ymax; j++) {
-                //DebugLine(agent,Point3D{ (float)(i) / damageNetPrecision, (float)(j) / damageNetPrecision, 0.0F }, Point3D{ (float)(i) / damageNetPrecision, (float)(j) / damageNetPrecision, 13.0F });
-                if (imRef(damageMap_modify, i, j)) {
-                    //DamageLocation pointDmag = imRef(enemyDamageNet, i, j);
-                    dps += getRawCellDPS(i, j, unitWrap, agent);
-                    count++;
-                }
-            }
-        }
-        return dps/count;
-    }
-
     void addWeaponToRawCell(int x, int y, uint8_t weaponIndex) {
         if (imRef(damageMap_valid, x, y)) {
             imRef(damageMap_enemy, x, y).add(weaponIndex);
@@ -661,7 +626,7 @@ namespace WeaponGrid {
         //Profiler profiler("DamageGridF");
         damageMap_modify->clear();
 
-        Weapon w = getWeaponFromIndex(weaponIndex);
+        Weapon w = getEnemyWeaponFromIndex(weaponIndex);
 
         int xmin = std::max(int((pos.x - w.range) * DAMAGENET_PRECISION), 0);
         int ymin = std::max(int((pos.y - w.range) * DAMAGENET_PRECISION), 0);
@@ -678,6 +643,57 @@ namespace WeaponGrid {
                 }
             }
         }
+    }
+
+    float getRadiusMaxDPS(Point2D pos, float radius, UnitWrapperPtr unitWrap, Agent* const agent) {
+        //Profiler profiler("DamageGridF");
+        damageMap_modify->clear();
+
+        int xmin = std::max(int((pos.x - radius) * DAMAGENET_PRECISION), 0);
+        int ymin = std::max(int((pos.y - radius) * DAMAGENET_PRECISION), 0);
+        int xmax = std::min(int((pos.x + radius) * DAMAGENET_PRECISION), damageMap_modify->width());
+        int ymax = std::min(int((pos.y + radius) * DAMAGENET_PRECISION), damageMap_modify->height());
+
+        fillDamageModify(pos, radius);
+
+        float dps;
+
+        for (int i = xmin; i <= xmax; i++) {
+            for (int j = ymin; j <= ymax; j++) {
+                //DebugLine(agent,Point3D{ (float)(i) / damageNetPrecision, (float)(j) / damageNetPrecision, 0.0F }, Point3D{ (float)(i) / damageNetPrecision, (float)(j) / damageNetPrecision, 13.0F });
+                if (imRef(damageMap_modify, i, j)) {
+                    //DamageLocation pointDmag = imRef(enemyDamageNet, i, j);
+                    dps = std::max(dps, getRawCellDPS(i, j, unitWrap, agent));
+                }
+            }
+        }
+        return dps;
+    }
+
+    float getRadiusAvgDPS(Point2D pos, float radius, UnitWrapperPtr unitWrap, Agent* const agent) {
+        //Profiler profiler("DamageGridF");
+        damageMap_modify->clear();
+
+        int xmin = std::max(int((pos.x - radius) * DAMAGENET_PRECISION), 0);
+        int ymin = std::max(int((pos.y - radius) * DAMAGENET_PRECISION), 0);
+        int xmax = std::min(int((pos.x + radius) * DAMAGENET_PRECISION), damageMap_modify->width());
+        int ymax = std::min(int((pos.y + radius) * DAMAGENET_PRECISION), damageMap_modify->height());
+
+        fillDamageModify(pos, radius);
+
+        float dps = 0;
+        int count = 0;
+        for (int i = xmin; i <= xmax; i++) {
+            for (int j = ymin; j <= ymax; j++) {
+                //DebugLine(agent,Point3D{ (float)(i) / damageNetPrecision, (float)(j) / damageNetPrecision, 0.0F }, Point3D{ (float)(i) / damageNetPrecision, (float)(j) / damageNetPrecision, 13.0F });
+                if (imRef(damageMap_modify, i, j)) {
+                    //DamageLocation pointDmag = imRef(enemyDamageNet, i, j);
+                    dps += getRawCellDPS(i, j, unitWrap, agent);
+                    count++;
+                }
+            }
+        }
+        return dps / count;
     }
 
     void update(Agent* agent) {

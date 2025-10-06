@@ -24,6 +24,8 @@
 #include "auxiliary/primordialstar.hpp"
 
 #define DEBUG
+//#define DAMAGEGRID_DEBUG
+//#define PROBE_DEBUG
 
 #define ADEPT_RUSH
 //#define STALKER_COLOSSUS_TIMING
@@ -198,7 +200,9 @@ struct Bot: sc2::Agent
         VisibleMap2D::init();
         WeaponGrid::init(this);
 
-        strat = StrategyManager::glaive_adept_rush_hupsaiya;//StrategyManager::test_plusone_atk;//
+        SquadManager::init();
+
+        strat = StrategyManager::shit_stalker_colossus;//StrategyManager::glaive_adept_rush_hupsaiya;//StrategyManager::test_plusone_atk;//
 
         for (int i = 0; i < strat.build_order.size(); i++) {
             MacroManager::addAction(strat.build_order[i]);
@@ -341,7 +345,7 @@ struct Bot: sc2::Agent
             UnitWrapperPtr p = *it;
             ProbePtr probe = std::static_pointer_cast<Probe>(p);
             probe->execute(this);
-#ifdef DEBUG
+#ifdef PROBE_DEBUG
             UnitWrapperPtr target = probe->getTargetTag(this);
             if (target != nullptr) {
                 DebugLine(this, target->pos3D(this) + Point3D{ 0,0,1 }, probe->pos3D(this) + Point3D{ 0,0,1 });
@@ -386,6 +390,7 @@ struct Bot: sc2::Agent
                         numProbesN += probeTargetting[nexus->minerals[i]->self];
                         Point3D po = nexus->minerals[i]->pos3D(this);
                         //Color mineralCapacity
+#ifdef PROBE_DEBUG
                         DebugBox(this, po + Point3D{ -0.125, -0.125, 3 }, po + Point3D{ 0.125, 0.125, 3.125 }, Colors::Blue);
                         if (probeTargetting[nexus->minerals[i]->self] > 0) {
                             DebugBox(this, po + Point3D{ -0.125, -0.125, 3.125 }, po + Point3D{ 0.125, 0.125, 3.375 }, Colors::Teal);
@@ -396,16 +401,19 @@ struct Bot: sc2::Agent
                         if (probeTargetting[nexus->minerals[i]->self] > 2) {
                             DebugBox(this, po + Point3D{ -0.13, -0.13, 3 }, po + Point3D{ 0.13, 0.13, 3.5 }, Colors::Red);
                         }
+#endif
                     }
                 }
             }
+#ifdef PROBE_DEBUG
             DebugText(this, strprintf("%d/%d", numProbesN, numProbesMaxN), nexusWrap->pos3D(this) + Point3D{ 0,0, 5.5 });
+#endif
             numProbes += numProbesN;
             numProbesMax += numProbesMaxN;
         }
 
         if ((numProbes) < numProbesMax && MacroManager::allActions[UNIT_TYPEID::PROTOSS_NEXUS].size() == 0) {
-            MacroManager::addAction(MacroAction(UNIT_TYPEID::PROTOSS_NEXUS, ABILITY_ID::TRAIN_PROBE, false, MacroActionData(), -1, 0));
+            MacroManager::addAction(MacroAction(UNIT_TYPEID::PROTOSS_NEXUS, ABILITY_ID::TRAIN_PROBE, false, MacroActionData(), 0, 0));
         }
 
         onStepProfiler.midLog("oS-probe");
@@ -425,6 +433,67 @@ struct Bot: sc2::Agent
         WeaponGrid::update(this);
 
         onStepProfiler.midLog("oS-weaponGrid");
+
+        if (Observation()->GetGameLoop() > 20) { //TODO: improve for a better ratio on units
+            StrategyManager::UnitRatio numUnits;
+            StrategyManager::UnitRatioFloat percentageUnits;
+
+            StrategyManager::UnitRatioFloat percentageUnitsStrategy;
+
+            numUnits.zealot = (int8_t)(UnitManager::getSelf(UNIT_TYPEID::PROTOSS_ZEALOT).size());
+            numUnits.stalker = (int8_t)(UnitManager::getSelf(UNIT_TYPEID::PROTOSS_STALKER).size());
+            numUnits.sentry = (int8_t)(UnitManager::getSelf(UNIT_TYPEID::PROTOSS_SENTRY).size());
+            numUnits.adept = (int8_t)(UnitManager::getSelf(UNIT_TYPEID::PROTOSS_ADEPT).size());
+            numUnits.darktemplar = (int8_t)(UnitManager::getSelf(UNIT_TYPEID::PROTOSS_DARKTEMPLAR).size());
+            numUnits.hightemplar = (int8_t)(UnitManager::getSelf(UNIT_TYPEID::PROTOSS_HIGHTEMPLAR).size());
+            numUnits.archon = (int8_t)(UnitManager::getSelf(UNIT_TYPEID::PROTOSS_ARCHON).size());
+
+            numUnits.observer = (int8_t)(UnitManager::getSelf(UNIT_TYPEID::PROTOSS_OBSERVER).size());
+            numUnits.immortal = (int8_t)(UnitManager::getSelf(UNIT_TYPEID::PROTOSS_IMMORTAL).size());
+            numUnits.warpprism = (int8_t)(UnitManager::getSelf(UNIT_TYPEID::PROTOSS_WARPPRISM).size());
+            numUnits.colossus = (int8_t)(UnitManager::getSelf(UNIT_TYPEID::PROTOSS_COLOSSUS).size());
+            numUnits.disruptor = (int8_t)(UnitManager::getSelf(UNIT_TYPEID::PROTOSS_DISRUPTOR).size());
+
+            numUnits.pheonix = (int8_t)(UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PHOENIX).size());
+            numUnits.oracle = (int8_t)(UnitManager::getSelf(UNIT_TYPEID::PROTOSS_ORACLE).size());
+            numUnits.voidray = (int8_t)(UnitManager::getSelf(UNIT_TYPEID::PROTOSS_VOIDRAY).size());
+            numUnits.tempest = (int8_t)(UnitManager::getSelf(UNIT_TYPEID::PROTOSS_TEMPEST).size());
+            numUnits.carrier = (int8_t)(UnitManager::getSelf(UNIT_TYPEID::PROTOSS_CARRIER).size());
+            numUnits.mothership = (int8_t)(UnitManager::getSelf(UNIT_TYPEID::PROTOSS_MOTHERSHIP).size());
+
+            int8_t* numPtr = (int8_t*)&numUnits;
+            int8_t* numPtrStrategy = (int8_t*)&(strat.unitRatio);
+            float* percentPtr = (float*)&percentageUnits;
+            float* percentPtrStrategy = (float*)&percentageUnitsStrategy;
+
+            int totalUnits = 0;
+            int totalUnitsStrategy = 0;
+            for (int i = 0; i < 18; i++) {
+                totalUnits += numPtr[i];
+                totalUnitsStrategy += numPtrStrategy[i];
+            }
+
+            for (int i = 0; i < 18; i++) {
+                percentPtr[i] = ((float)numPtr[i]) / totalUnits;
+                percentPtrStrategy[i] = ((float)numPtrStrategy[i]) / totalUnitsStrategy;
+            }
+
+            int mindex = -1;
+            for (int i = 0; i < 18; i++) {
+                if (percentPtrStrategy[i] != 0.0 && ((percentPtrStrategy[i] - percentPtr[i]) > (percentPtrStrategy[mindex] - percentPtr[mindex]) || mindex == -1) && MacroManager::allActions[Aux::UnitCreators[i]].size() == 0) {
+                    mindex = i;
+                }
+            }
+
+            if (mindex != -1 && MacroManager::allActions[Aux::UnitCreators[mindex]].size() == 0) {
+                printf("Strategy Profile:\n");
+                for (int i = 0; i < 18; i++) {
+                    printf("%s   \t%.1f\t%.1f\n", UnitTypeToName(Aux::BuildUnitOrder[i]), percentPtrStrategy[i] * 100, percentPtr[i] * 100);
+                }
+                printf("%s\n", AbilityTypeToName(Aux::UnitCreationAbility[mindex]));
+                MacroManager::addAction( MacroAction( Aux::UnitCreators[mindex], Aux::UnitCreationAbility[mindex] ) );
+            }
+        }
 
 #ifndef BUILD_FOR_LADDER
         std::vector<ChatMessage> chats = Observation()->GetChatMessages();
@@ -527,7 +596,7 @@ struct Bot: sc2::Agent
 
         DebugText(this, strprintf("%.3fms", lastDT / 1000.0));
 
-        Aux::displayExpansions(this);
+        //Aux::displayExpansions(this);
 
         MacroManager::displayMacroActions(this);
 
@@ -572,6 +641,7 @@ struct Bot: sc2::Agent
         else {
             MacroManager::displayEncodingStack(this);
         }
+#ifdef DAMAGEGRID_DEBUG
         if (select != nullptr) {
             Point2D center = select->pos(this); //Observation()->GetCameraPos();
             float wS = center.x - 8;
@@ -624,7 +694,7 @@ struct Bot: sc2::Agent
                 }
             }
         }
-        
+#endif
         
 
         //SpatialHashGrid::debug(this);

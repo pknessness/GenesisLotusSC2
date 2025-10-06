@@ -42,7 +42,7 @@ struct MacroAction {
 
 	mutable int readyInFrames;
 
-	MacroAction(UnitTypeID unit_type_, AbilityID ability_, Aux::PointArea pos_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1)
+	MacroAction(UnitTypeID unit_type_, AbilityID ability_, Aux::PointArea pos_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), char dependency_ = 0, int index_ = -1)
 		: executor( unit_type_), ability(ability_), position(pos_), 
 		chronoBoost(chronoBoost_), target(nullptr), index(globalIndex),
 		dependency(dependency_), executorPtr(nullptr), readyInFrames(-1), extraData(extraData_) {
@@ -56,7 +56,7 @@ struct MacroAction {
 		extraData.type = Aux::buildAbilityToUnit(ability_);
 	}
 
-	MacroAction(UnitTypeID unit_type_, AbilityID ability_, UnitWrapperPtr target_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1)
+	MacroAction(UnitTypeID unit_type_, AbilityID ability_, UnitWrapperPtr target_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), char dependency_ = 0, int index_ = -1)
 		: executor(unit_type_), ability(ability_), position(),
 		chronoBoost(chronoBoost_), target(target_), index(globalIndex),
 		dependency(dependency_), executorPtr(nullptr), readyInFrames(-1), extraData(extraData_) {
@@ -70,7 +70,7 @@ struct MacroAction {
 		extraData.type = Aux::buildAbilityToUnit(ability_);
 	}
 
-	MacroAction(UnitTypeID unit_type_, AbilityID ability_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1)
+	MacroAction(UnitTypeID unit_type_, AbilityID ability_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), char dependency_ = 0, int index_ = -1)
 		: executor(unit_type_), ability(ability_), position(),
 		chronoBoost(chronoBoost_), target(nullptr), index(globalIndex),
 		dependency(dependency_), executorPtr(nullptr), readyInFrames(-1), extraData(extraData_) {
@@ -91,25 +91,25 @@ struct MacroAction {
 };
 
 struct MacroBuilding : MacroAction {
-	MacroBuilding(AbilityID ability_, Aux::PointArea pos_ = Aux::PointDefault(), MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1) : MacroAction(UNIT_TYPEID::PROTOSS_PROBE, ability_, pos_, false, extraData_, dependency_, index_){
+	MacroBuilding(AbilityID ability_, Aux::PointArea pos_ = Aux::PointDefault(), MacroActionData extraData_ = MacroActionData(), char dependency_ = 0, int index_ = -1) : MacroAction(UNIT_TYPEID::PROTOSS_PROBE, ability_, pos_, false, extraData_, dependency_, index_){
 		
 	}
 };
 
 struct MacroGateway : MacroAction {
-	MacroGateway(AbilityID ability_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1) : MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ability_, chronoBoost_, extraData_, dependency_, index_) {
+	MacroGateway(AbilityID ability_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), char dependency_ = 0, int index_ = -1) : MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ability_, chronoBoost_, extraData_, dependency_, index_) {
 
 	}
 };
 
 struct MacroRobo : MacroAction {
-	MacroRobo(AbilityID ability_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1) : MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ability_, chronoBoost_, extraData_, dependency_, index_) {
+	MacroRobo(AbilityID ability_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), char dependency_ = 0, int index_ = -1) : MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ability_, chronoBoost_, extraData_, dependency_, index_) {
 
 	}
 };
 
 struct MacroStargate : MacroAction {
-	MacroStargate(AbilityID ability_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), int dependency_ = -1, int index_ = -1) : MacroAction(UNIT_TYPEID::PROTOSS_STARGATE, ability_, chronoBoost_, extraData_, dependency_, index_) {
+	MacroStargate(AbilityID ability_, bool chronoBoost_ = false, MacroActionData extraData_ = MacroActionData(), char dependency_ = 0, int index_ = -1) : MacroAction(UNIT_TYPEID::PROTOSS_STARGATE, ability_, chronoBoost_, extraData_, dependency_, index_) {
 
 	}
 };
@@ -117,6 +117,8 @@ struct MacroStargate : MacroAction {
 int MacroAction::globalIndex = 0;
 
 namespace MacroManager {
+
+	std::unordered_set<char> triggeredDependencyFlags;
 
 	Point2D getPylonLocation(Point2D pos = { 0,0 }, float radius = 0) {
 		FUNCTION_LOG();
@@ -253,6 +255,7 @@ namespace MacroManager {
 	void execute(Agent* const agent) {
 		FUNCTION_LOG();
 		Profiler macroProfiler("mac.exec");
+		macroProfiler.disable();
 		if (macroExecuteCooldown_frames > 0) {
 			macroExecuteCooldown_frames--;
 			return;
@@ -276,7 +279,10 @@ namespace MacroManager {
 
 		std::string diagnostics = "";
 
+		macroProfiler.midLog("macro.staticsetup");
+
 		for (auto it = topActions.begin(); it != topActions.end(); it++) {
+			macroProfiler.subScope();
 			const MacroAction* currentAction = *it;
 
 			if (currentAction->executor == UNIT_TYPEID::PROTOSS_GATEWAY &&
@@ -317,10 +323,17 @@ namespace MacroManager {
 				}
 			}
 
+			macroProfiler.midLog("macro.1");
+
 			Aux::Cost abilityCost = Aux::abilityToCost(currentAction->ability, agent);
 
 			diagnostics += AbilityTypeToName((*it)->ability);
 			diagnostics += ": ";
+
+			if (currentAction->dependency != 0 && triggeredDependencyFlags.find(currentAction->dependency) == triggeredDependencyFlags.end()) {
+				diagnostics += strprintf("DEPENDENCY %x|%d NOT MET\n\n", currentAction->dependency, currentAction->dependency);
+				continue;
+			}
 
 			int pylonInX = -1;
 
@@ -356,7 +369,7 @@ namespace MacroManager {
 					}
 				}
 				if (!pylonRequested && pylonInX == -1) {
-					addAction(MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::PointDefault(), MacroActionData(), -1, 0));
+					addAction(MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::PointDefault(), MacroActionData(), 0, 0));
 					diagnostics += "PYLON REQUESTED\n\n";
 					break;
 				}
@@ -371,6 +384,7 @@ namespace MacroManager {
 			else {
 				currentAction->readyInFrames = pylonInX;
 			}
+			macroProfiler.midLog("macro.2");
 
 			if (currentAction->readyInFrames != 0) {
 				diagnostics += strprintf("PYLON IN TRANSIT [%d]\n\n", currentAction->readyInFrames);
@@ -384,6 +398,8 @@ namespace MacroManager {
 				diagnostics += "NO EXISTING EXECUTOR\n\n";
 				continue;
 			}
+
+			macroProfiler.midLog("macro.3");
 
 			UnitTypeID unitToCreate = Aux::buildAbilityToUnit(currentAction->ability);
 			UnitTypeData ability_stats = Aux::getStats(unitToCreate, agent);
@@ -433,7 +449,7 @@ namespace MacroManager {
 			if (ticksToExecutorReady != -1 && currentAction->readyInFrames < ticksToExecutorReady) {
 				currentAction->readyInFrames = ticksToExecutorReady;
 			}
-
+			macroProfiler.midLog("macro.4");
 			//Check if there are any units post-filtering
 			if (possibleUnits.size() == 0) {
 				diagnostics += strprintf("NO READY EXECUTOR [%d]\n\n", currentAction->readyInFrames);
@@ -500,7 +516,7 @@ namespace MacroManager {
 				diagnostics += "DEFAULT_FINDOUT LOCATION\n\n";
 				continue;
 			}
-
+			macroProfiler.midLog("macro.5");
 			UnitTypeID prerequisite = ability_stats.tech_requirement;
 
 			int theoryMin = Aux::effectiveMinerals;
@@ -525,9 +541,10 @@ namespace MacroManager {
 				//	theoryVesp -= g.vespene;
 				//}
 			}
-
+			macroProfiler.midLog("macro.6");
 			if (currentAction->executor == UNIT_TYPEID::PROTOSS_PROBE && currentAction->ability != ABILITY_ID::MOVE_MOVE &&
 				currentAction->ability != ABILITY_ID::MOVE_MOVEPATROL && currentAction->ability != ABILITY_ID::GENERAL_MOVE) {
+				macroProfiler.subScope();
 				if (prerequisite != UNIT_TYPEID::INVALID && UnitManager::getSelf(prerequisite).size() == 0) {
 					//TODO: CHECK PROBE BUILDINGS FOR PREREQ CHECKS
 					diagnostics += strprintf("PREREQUISITE REQUIRED: %s\n\n", UnitTypeToName(prerequisite));
@@ -537,7 +554,7 @@ namespace MacroManager {
 				if (currentAction->executorPtr == nullptr) {
 					currentAction->executorPtr = *possibleUnits.begin();
 				}
-
+				macroProfiler.midLog("macro.6.1");
 				UnitWrapperPtr probeTarget = std::static_pointer_cast<Probe>(currentAction->executorPtr)->getTargetTag(agent);
 				UnitTypeID oldProbeTarget = UNIT_TYPEID::INVALID;
 				if (probeTarget != nullptr) {
@@ -545,35 +562,39 @@ namespace MacroManager {
 				}
 				
 				float distToTravel = currentAction->executorPtr->getPathLength(agent, currentAction->position.pos);
-
-				for (int i = 0; i < 10; i++) {
+				macroProfiler.midLog("macro.6.2");
+				for (int i = 0; i < 2; i++) {
 					UnitWrapperPtr potentialNewProbe = UnitManager::getRandomSelf(UNIT_TYPEID::PROTOSS_PROBE);
 					UnitTypeID newProbeTarget = std::static_pointer_cast<Probe>(potentialNewProbe)->getTargetTag(agent)->getStorageType(); //TODO: MAKE SURE TARGET TAG ISNT NULL
 					if (oldProbeTarget == UNIT_TYPEID::NEUTRAL_MINERALFIELD && newProbeTarget == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER) {
 						continue;
 					}
-
+					macroProfiler.midLog("macro.6.2.1");
 					float newDist = potentialNewProbe->getPathLength(agent, currentAction->position.pos);
-
+					macroProfiler.midLog("macro.6.2.2");
 					if (distToTravel == 0) {
 						distToTravel = Distance2D(currentAction->executorPtr->pos(agent), currentAction->position.pos);
 					}
 					if (newDist == 0) {
 						newDist = Distance2D(potentialNewProbe->pos(agent), currentAction->position.pos);
 					}
-
+					macroProfiler.midLog("macro.6.2.3");
 					if (newDist <= distToTravel || (newProbeTarget == UNIT_TYPEID::NEUTRAL_MINERALFIELD && oldProbeTarget == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER)) {
 						currentAction->executorPtr = potentialNewProbe;
 						distToTravel = newDist;
 						break;
 					}
+					macroProfiler.midLog("macro.6.2.4");
 				}
+				macroProfiler.midLog("macro.6.3");
 
 				DebugSphere(agent, AP3D(currentAction->position.pos), 1);
 
 				UnitTypeData probeStats = Aux::getStats(UNIT_TYPEID::PROTOSS_PROBE, agent);
 
 				float dtTravel = (distToTravel - 2) / (probeStats.movement_speed * timeSpeed);
+
+				macroProfiler.midLog("macro.6.4");
 
 				if (prerequisite != UNIT_TYPEID::INVALID) {
 					UnitTypeData prereqStats = Aux::getStats(prerequisite, agent);
@@ -594,6 +615,7 @@ namespace MacroManager {
 						currentAction->readyInFrames = ticksToPrereq;
 					}
 				}
+				macroProfiler.midLog("macro.6.5");
 
 				if (currentAction->ability != ABILITY_ID::BUILD_NEXUS &&
 					currentAction->ability != ABILITY_ID::BUILD_PYLON &&
@@ -621,6 +643,7 @@ namespace MacroManager {
 						currentAction->readyInFrames = ticksToPrereq;
 					}
 				}
+				macroProfiler.midLog("macro.6.6");
 
 				int numMineralMiners = 0, numVespeneMiners = 0;
 				for (auto it = probes.begin(); it != probes.end(); it++) {
@@ -634,6 +657,7 @@ namespace MacroManager {
 						numVespeneMiners++;
 					}
 				}
+				macroProfiler.midLog("macro.6.7");
 
 				float dtPrerequisites = currentAction->readyInFrames / fps;
 				if (dtPrerequisites > dtTravel) {
@@ -644,8 +668,12 @@ namespace MacroManager {
 
 				theoryMin += (int)(dt * MINERALS_PER_PROBE_PER_SEC * numMineralMiners);
 				theoryVesp += (int)(dt * VESPENE_PER_PROBE_PER_SEC * numVespeneMiners);
+				macroProfiler.midLog("macro.6.8");
+
 			}
 			else {
+				macroProfiler.subScope();
+
 				if (prerequisite != UNIT_TYPEID::INVALID) {
 					if (UnitManager::getSelf(prerequisite).size() == 0) {
 						diagnostics += strprintf("PREREQUISITE REQUIRED: %s\n\n", UnitTypeToName(prerequisite));
@@ -668,8 +696,9 @@ namespace MacroManager {
 					}
 				}
 				currentAction->executorPtr = *possibleUnits.begin();
+				macroProfiler.midLog("macro.6.9");
 			}
-
+			macroProfiler.midLog("macro.7");
 			if (currentAction->executorPtr == nullptr) {
 				diagnostics += "NO EXECUTOR\n\n";
 				continue;
@@ -677,7 +706,7 @@ namespace MacroManager {
 
 			if (theoryMin >= int(abilityCost.minerals) && theoryVesp >= int(abilityCost.vespene)) {
 				const Unit* unit = currentAction->executorPtr->get(agent);
-
+				macroProfiler.midLog("macro.8");
 				if (currentAction->executor != UNIT_TYPEID::PROTOSS_PROBE) {
 					AvailableAbilities unitAbilities = agent->Query()->GetAbilitiesForUnit(unit);
 					bool hasAbility = false;
@@ -693,6 +722,7 @@ namespace MacroManager {
 						continue;
 					}
 				}
+				macroProfiler.midLog("macro.9");
 				//if (currentAction->executorPtr->get(agent)->unit_type == UNIT_TYPEID::PROTOSS_WARPGATE) {
 				if(currentAction->executor == UNIT_TYPEID::PROTOSS_GATEWAY){
 					//printf("asdas\n");
@@ -713,6 +743,7 @@ namespace MacroManager {
 						printf("");
 					}
 				}
+				macroProfiler.midLog("macro.10");
 				if (currentAction->position.pos != Point2D{ 0, 0 }) {
 					if (currentAction->position.pos == Point2D{ -1, -1 }) {
 						diagnostics += "POS NOT DEFINED EARLIER\n\n";
@@ -748,19 +779,22 @@ namespace MacroManager {
 					}
 					dataEncoding[encodingPoint] = currentAction->extraData;
 				}
+				macroProfiler.midLog("macro.11");
 				if (currentAction->chronoBoost) {
 					Nexus::addChrono(currentAction->executorPtr);
 				}
 				macroExecuteCooldown_frames = 3;
 				allActions[currentAction->executor].erase(allActions[currentAction->executor].begin());
+				triggeredDependencyFlags.insert(currentAction->extraData.dependencyFlag);
 				diagnostics += "SUCCESS\n\n";
+				macroProfiler.midLog("macro.12");
 				break;
 			}
 			else {
 				diagnostics += "NOT ENOUGH RESOURCES\n\n";
 				break;
 			}
-
+			macroProfiler.midLog("macro.8");
 			diagnostics += "SEMI SUCCESS\n\n";
 		}
 		
@@ -774,12 +808,18 @@ namespace MacroManager {
 			auto all = it->second;
 			std::string type = UnitTypeToName(it->first);
 			tot += ("\n" + type + ":\n");
+			int cnt = 0;
 			for (auto it2 = all.begin(); it2 != all.end(); it2++) {
+				if (cnt > 5) {
+					tot += "...\n";
+					break;
+				}
 				tot += strprintf("%s %d %.1f,%.1f", AbilityTypeToName(it2->ability), it2->index, it2->position.pos.x, it2->position.pos.y);
 				if (it2->chronoBoost) {
 					tot += " CHRONO";
 				}
 				tot += "\n";
+				cnt++;
 			}
 		}
 		DebugText(agent, tot, Point2D(0.81F, 0.11F), Color(250, 50, 15), 8);
@@ -791,7 +831,7 @@ namespace MacroManager {
 		for (auto it = dataEncoding.begin(); it != dataEncoding.end(); it++) {
 			auto all = it->second;
 			std::string type = UnitTypeToName(it->second.type);
-			tot += strprintf("[%.1f, %.1f] %d %s: %s %d %d\n", it->first.x, it->first.y, it->second.index, UnitTypeToName(it->second.type), it->second.name.c_str(), it->second.data1, it->second.data2);
+			tot += strprintf("[%.1f, %.1f] %d %s: %s %x|%d\n", it->first.x, it->first.y, it->second.index, UnitTypeToName(it->second.type), it->second.name.c_str(), it->second.dependencyFlag, it->second.dependencyFlag);
 		}
 		DebugText(agent, tot, Point2D(0.01F, 0.21F), Color(132, 67, 135), 8);
 	}

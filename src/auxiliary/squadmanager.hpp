@@ -10,14 +10,95 @@ namespace SquadManager {
 		HARASS,
 	};
 
+	std::map<UnitTypeID, uint32_t> priorityMap;
+
+	void init() {
+		// Terran
+		priorityMap[UNIT_TYPEID::TERRAN_WIDOWMINE] = 8;
+		priorityMap[UNIT_TYPEID::TERRAN_WIDOWMINEBURROWED] = 10;
+		priorityMap[UNIT_TYPEID::TERRAN_SIEGETANK] = 8;
+		priorityMap[UNIT_TYPEID::TERRAN_SIEGETANKSIEGED] = 10;
+		priorityMap[UNIT_TYPEID::TERRAN_MULE] = 3;
+		priorityMap[UNIT_TYPEID::TERRAN_SCV] = 3;
+		priorityMap[UNIT_TYPEID::TERRAN_GHOST] = 7;
+		priorityMap[UNIT_TYPEID::TERRAN_REAPER] = 4;
+		priorityMap[UNIT_TYPEID::TERRAN_MARAUDER] = 4;
+		priorityMap[UNIT_TYPEID::TERRAN_MARINE] = 3;
+		priorityMap[UNIT_TYPEID::TERRAN_CYCLONE] = 5;
+		priorityMap[UNIT_TYPEID::TERRAN_HELLION] = 2;
+		priorityMap[UNIT_TYPEID::TERRAN_HELLIONTANK] = 3;
+		priorityMap[UNIT_TYPEID::TERRAN_THOR] = 7;
+		priorityMap[UNIT_TYPEID::TERRAN_MEDIVAC] = 6;
+		priorityMap[UNIT_TYPEID::TERRAN_VIKINGFIGHTER] = 5;
+		priorityMap[UNIT_TYPEID::TERRAN_VIKINGASSAULT] = 5;
+		priorityMap[UNIT_TYPEID::TERRAN_LIBERATORAG] = 7;
+		priorityMap[UNIT_TYPEID::TERRAN_LIBERATOR] = 5;
+		priorityMap[UNIT_TYPEID::TERRAN_RAVEN] = 7;
+		priorityMap[UNIT_TYPEID::TERRAN_BATTLECRUISER] = 8;
+		priorityMap[UNIT_TYPEID::TERRAN_MISSILETURRET] = 1;
+		priorityMap[UNIT_TYPEID::TERRAN_BUNKER] = 2;
+
+		// Zerg
+		priorityMap[UNIT_TYPEID::ZERG_DRONE] = 4;
+		priorityMap[UNIT_TYPEID::ZERG_ZERGLING] = 3;
+		priorityMap[UNIT_TYPEID::ZERG_BANELING] = 6;
+		priorityMap[UNIT_TYPEID::ZERG_BANELINGCOCOON] = 6;
+		priorityMap[UNIT_TYPEID::ZERG_ULTRALISK] = 6;
+		priorityMap[UNIT_TYPEID::ZERG_QUEEN] = 5;
+		priorityMap[UNIT_TYPEID::ZERG_ROACH] = 6;
+		priorityMap[UNIT_TYPEID::ZERG_RAVAGER] = 8;
+		priorityMap[UNIT_TYPEID::ZERG_RAVAGERCOCOON] = 8;
+		priorityMap[UNIT_TYPEID::ZERG_HYDRALISK] = 7;
+		priorityMap[UNIT_TYPEID::ZERG_HYDRALISKBURROWED] = 7;
+		priorityMap[UNIT_TYPEID::ZERG_LURKERMP] = 9;
+		priorityMap[UNIT_TYPEID::ZERG_LURKERMPEGG] = 9;
+		priorityMap[UNIT_TYPEID::ZERG_LURKERMPBURROWED] = 9;
+		priorityMap[UNIT_TYPEID::ZERG_INFESTOR] = 10;
+		priorityMap[UNIT_TYPEID::ZERG_BROODLORD] = 10;
+		priorityMap[UNIT_TYPEID::ZERG_BROODLORDCOCOON] = 10;
+		priorityMap[UNIT_TYPEID::ZERG_MUTALISK] = 6;
+		priorityMap[UNIT_TYPEID::ZERG_CORRUPTOR] = 8;
+		priorityMap[UNIT_TYPEID::ZERG_OVERLORD] = 2;
+		priorityMap[UNIT_TYPEID::ZERG_OVERSEER] = 1;
+		priorityMap[UNIT_TYPEID::ZERG_VIPER] = 3;
+		priorityMap[UNIT_TYPEID::ZERG_LARVA] = -1;
+		priorityMap[UNIT_TYPEID::ZERG_EGG] = -1;
+		priorityMap[UNIT_TYPEID::ZERG_LOCUSTMP] = -1;
+
+		// Protoss
+		priorityMap[UNIT_TYPEID::PROTOSS_SENTRY] = 8;
+		priorityMap[UNIT_TYPEID::PROTOSS_PROBE] = 4;
+		priorityMap[UNIT_TYPEID::PROTOSS_HIGHTEMPLAR] = 10;
+		priorityMap[UNIT_TYPEID::PROTOSS_DARKTEMPLAR] = 9;
+		priorityMap[UNIT_TYPEID::PROTOSS_ADEPT] = 4;
+		priorityMap[UNIT_TYPEID::PROTOSS_ZEALOT] = 4;
+		priorityMap[UNIT_TYPEID::PROTOSS_STALKER] = 5;
+		priorityMap[UNIT_TYPEID::PROTOSS_IMMORTAL] = 8;
+		priorityMap[UNIT_TYPEID::PROTOSS_COLOSSUS] = 10;
+		priorityMap[UNIT_TYPEID::PROTOSS_WARPPRISM] = 8;
+		priorityMap[UNIT_TYPEID::PROTOSS_OBSERVER] = 7;
+		priorityMap[UNIT_TYPEID::PROTOSS_DISRUPTOR] = 9;
+		priorityMap[UNIT_TYPEID::PROTOSS_PHOENIX] = 5;
+		priorityMap[UNIT_TYPEID::PROTOSS_VOIDRAY] = 5;
+		priorityMap[UNIT_TYPEID::PROTOSS_CARRIER] = 7;
+		priorityMap[UNIT_TYPEID::PROTOSS_TEMPEST] = 6;
+		priorityMap[UNIT_TYPEID::PROTOSS_MOTHERSHIP] = 9;
+		priorityMap[UNIT_TYPEID::PROTOSS_ARCHON] = 6;
+		priorityMap[UNIT_TYPEID::PROTOSS_SHIELDBATTERY] = 1;
+		priorityMap[UNIT_TYPEID::PROTOSS_PHOTONCANNON] = 1;
+		priorityMap[UNIT_TYPEID::PROTOSS_PYLON] = 2;
+	}
+
 	class Squad {
 		UnitWrapperPtr core;
 		StrategyManager::UnitRatio unitComp;
 
 		UnitWrappers armyContents;
-		UnitWrappers squadTargets;
 
 	public:
+		UnitWrappers squadTargets;
+		std::map<Tag, float> squadTargetDamage;
+
 		/*
 		* ' ' is without state
 		* 'u' is unjoined squad
@@ -55,7 +136,26 @@ namespace SquadManager {
 			FUNCTION_LOG();
 			if (core == nullptr || core->get(agent) == nullptr) {
 				if (armyContents.size() > 0) {
-					core = *armyContents.begin();
+					bool hasGND = false;
+					Point2D center;
+					int cnt = 0;
+					for (auto it = armyContents.begin(); it != armyContents.end(); it++){
+						if (!(*it)->isFlying(agent)) {
+							hasGND = true;
+							center += (*it)->pos(agent);
+							cnt++;
+						}
+					}
+					center /= cnt;
+					float dist2 = FLT_MAX;
+					for (auto it = armyContents.begin(); it != armyContents.end(); it++) {
+						float distance2 = DistanceSquared2D((*it)->pos(agent), center);
+						if (distance2 < dist2) {
+							dist2 = distance2;
+							core = *it;
+						}
+					}
+					//core = *armyContents.begin();
 				}
 			}
 			return core;
@@ -77,6 +177,14 @@ namespace SquadManager {
 		inline float armyballRadius() {
 			FUNCTION_LOG();
 			return  std::sqrt(armyballSquaredRadius());
+		}
+
+		inline bool isWithinRadius(Point2D p, Agent* const agent) {
+			return DistanceSquared2D(getCorePosition(agent), p) < armyballSquaredRadius();
+		}
+
+		inline bool isWithinRadius(UnitWrapperPtr unit, Agent* const agent) {
+			return DistanceSquared2D(getCorePosition(agent), unit->pos(agent)) < armyballSquaredRadius();
 		}
 
 		void doAttack(Point2D location_) {
@@ -101,6 +209,16 @@ namespace SquadManager {
 
 		void execute(Agent* const agent) {
 			FUNCTION_LOG();
+
+			squadTargets.clear();
+			Circles c = {};
+			for (auto it = armyContents.begin(); it != armyContents.end(); it++) {
+				float radius = Aux::getStats((*it)->getActualType(agent), agent).sight_range + 1;
+				c.push_back({ (*it)->pos(agent), radius });
+			}
+			UnitWrappers wraps = SpatialHashGrid::findInRadiiEnemyLoose(c);
+			squadTargets.insert(wraps.begin(), wraps.end());
+
 			if (squadMode == INVALID) {
 				
 			}
@@ -143,6 +261,14 @@ namespace SquadManager {
 				}
 			}
 			return count;
+		}
+
+		float getEnemyUnitPriority(UnitWrapperPtr enemyUnit, Agent* const agent) {
+			UnitTypeID id = enemyUnit->getActualType(agent);
+			if (priorityMap.find(id) != priorityMap.end()) {
+				return priorityMap[id];
+			}
+			return 0;
 		}
 	};
 }

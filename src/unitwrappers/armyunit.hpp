@@ -6,13 +6,25 @@
 #include "../auxiliary/visiblemap.hpp"
 #include "../auxiliary/weapongrid.hpp"
 
-class ArmyUnit : public UnitWrapper {
+//#define MOVSAFELY_DEBUG
+#define TARGET_DEBUG
+
+constexpr int SECOND_DIVISION_MOVSAFELY = 4;
+
+class ArmyUnit : public UnitWrapper{
 private:
 public:
 
     SquadManager::Squad* squad;
 
+    float moveLocationDPS = 0.0F;
     Point2D moveLocation;
+
+    float localDPS = 0.0F;
+
+    UnitWrapperPtr target;
+
+    int8_t cooldownFrames = 0;
 
     ArmyUnit(const Unit* unit, UnitTypeID sType, SquadManager::Squad* squad_) : UnitWrapper(unit, sType), squad(squad_){
         squad->squadMainStates[unit->tag] = 'u';
@@ -20,87 +32,178 @@ public:
     }
 
     virtual void atk(Agent* const agent, Point2D point) {
-        agent->Actions()->UnitCommand(self, ABILITY_ID::ATTACK, point);
-    }
-
-    virtual void atk(Agent* const agent, UnitWrapper* target) {
-        agent->Actions()->UnitCommand(self, ABILITY_ID::ATTACK, target->self);
-    }
-
-    virtual void atkmov(Agent* const agent, Point2D point) {
-        if (get(agent)->weapon_cooldown > 0) {
-            agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, point);
-        }
-        else {
+        const Unit* unit = get(agent);
+        if (unit->orders.size() == 0 || unit->orders[0].ability_id != ABILITY_ID::ATTACK || unit->orders[0].target_pos != point) {
             agent->Actions()->UnitCommand(self, ABILITY_ID::ATTACK, point);
         }
     }
 
-    virtual void mov(Agent* const agent, Point2D point) {
-        agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, point);
+    virtual void atk(Agent* const agent, UnitWrapperPtr target) {
+        const Unit* unit = get(agent);
+        if (unit->orders.size() == 0 || unit->orders[0].ability_id != ABILITY_ID::ATTACK || unit->orders[0].target_unit_tag != target->self) {
+            agent->Actions()->UnitCommand(self, ABILITY_ID::ATTACK, target->self);
+        }
     }
 
-    //void damageAtCell(DamageGrid::DamageCell cell, Agent* const agent) {
-    //    CompositionAsTarget comp = getCompositionAsTarget(agent);
-    //    float damage = 0;
-    //    if (comp == CompositionAsTarget::Ground || comp == CompositionAsTarget::Any) {
-    //        damage += cell.normal_gnd;
-    //        for (Attribute a : Aux::getStats(getActualType(agent), agent).attributes) {
-    //            switch (a) {
-    //            case(Attribute::Light): {
-    //                damage += pointDamage.ground.light;
-    //            } break;
-    //            case(Attribute::Armored): {
-    //                damage += pointDamage.ground.armored;
-    //            } break;
-    //            case(Attribute::Biological): {
-    //                damage += pointDamage.ground.biological;
-    //            } break;
-    //            case(Attribute::Mechanical): {
-    //                damage += pointDamage.ground.mechanical;
-    //            } break;
-    //            case(Attribute::Massive): {
-    //                damage += pointDamage.ground.massive;
-    //            } break;
-    //            case(Attribute::Psionic): {
-    //                damage += pointDamage.ground.psionic;
-    //            } break;
-    //            }
-    //        }
+    virtual void atkmov(Agent* const agent, Point2D point) {
+        if (get(agent)->weapon_cooldown > 0) {
+            mov(agent, point);
+        }
+        else {
+            atk(agent, point);
+        }
+    }
 
-    //    }
-    //    if (comp == Composition::Air || comp == Composition::Any) {
-    //        damage += pointDamage.air.normal;
-    //        for (Attribute a : Aux::getStats(unitWrap->getType(agent), agent).attributes) {
-    //            switch (a) {
-    //            case(Attribute::Light): {
-    //                damage += pointDamage.air.light;
-    //            } break;
-    //            case(Attribute::Armored): {
-    //                damage += pointDamage.air.armored;
-    //            } break;
-    //            case(Attribute::Biological): {
-    //                damage += pointDamage.air.biological;
-    //            } break;
-    //            case(Attribute::Mechanical): {
-    //                damage += pointDamage.air.mechanical;
-    //            } break;
-    //            case(Attribute::Massive): {
-    //                damage += pointDamage.air.massive;
-    //            } break;
-    //            case(Attribute::Psionic): {
-    //                damage += pointDamage.air.psionic;
-    //            } break;
-    //            }
-    //        }
+    virtual void mov(Agent* const agent, Point2D point) {
+        const Unit* unit = get(agent);
+        if (unit->orders.size() == 0 || unit->orders[0].ability_id != ABILITY_ID::GENERAL_MOVE || unit->orders[0].target_pos != point) {
+            agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, point);
+        }
+    }
 
-    //    }
-    //    return damage;
-    //}
+    float getPathDamage(Point2D p, Agent* const agent) {
+        std::vector<Point2D> path = getPathUniversal(agent, p);
+        std::vector<Point2D> checks = PrimordialStar::stepPointsAlongPath(path, Aux::getStats(getActualType(agent), agent).movement_speed / SECOND_DIVISION_MOVSAFELY);
+        float dps = 0;
+        for (int i = 0; i < checks.size(); i++) {
+            float addDps = WeaponGrid::getRadiusAvgDPS(checks[i], radius(agent) + 0.5, shared_from_this(), agent) * SECOND_DIVISION_MOVSAFELY;
+            dps += addDps;
+#ifdef MOVSAFELY_DEBUG
+            Color c;
+
+            constexpr int maxDam = 32;
+            constexpr int mult = 255 / maxDam;
+
+            if (addDps < maxDam) {
+                c = { 255, (uint8_t)(addDps * mult), 255 };
+            }
+            else {
+                c = { 255, 255, 255 };
+            }
+            DebugSphere(agent, AP3D(checks[i]), radius(agent) + 0.5, c);
+#endif
+        }
+        dps += WeaponGrid::getRadiusAvgDPS(p, radius(agent) + 3.5, shared_from_this(), agent) * 2 * SECOND_DIVISION_MOVSAFELY;
+#ifdef MOVSAFELY_DEBUG
+        if (path.size() > 0) {
+            for (int i = 0; i < path.size() - 1; i++) {
+                DebugLine(agent, AP3D(path[i]) + Point3D{ 0, 0, 1 }, AP3D(path[i + 1]) + Point3D{ 0, 0, 1 });
+            }
+        }
+        else {
+            printf("");
+            DebugSphere(agent, AP3D(p), 1, Colors::Red);
+        }
+#endif
+        return dps;
+    }
+
+    virtual void movSafely(Agent* const agent, Point2D point, int attempts, float searchRadius) {
+        //agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, point);
+        Profiler movProfiler("movSafely");
+        Point2D solution;
+        float damage = FLT_MAX;
+        float distance2 = FLT_MAX;
+        if (get(agent)->orders.size() > 0 && get(agent)->orders[0].target_pos != Point2D()) {
+            //solution = get(agent)->orders[0].target_pos;
+            damage = getPathDamage(get(agent)->orders[0].target_pos, agent);//WeaponGrid::getRadiusAvgDPS(get(agent)->orders[0].target_pos, radius(agent)+3.5, shared_from_this(), agent);
+            distance2 = PrimordialStar::getPathLengthAStar(get(agent)->orders[0].target_pos, point, radius(agent), agent);
+        }
+        movProfiler.midLog("movSafely.setup");
+        std::vector<Point2D> path = PrimordialStar::getPathAStar(pos(agent), point, radius(agent), agent);
+        float l = PrimordialStar::getPathLength(path);
+        std::vector<Point2D> ptsToCheck;
+        if (l != 0) {
+            ptsToCheck = { PrimordialStar::distanceAlongPath(path, l / 2), point };
+        }
+        else {
+            ptsToCheck = { point };
+        }
+        
+        for (int i = 0; i < attempts + ptsToCheck.size(); i++) {
+            Point2D p;
+            if (i < ptsToCheck.size()) {
+                p = ptsToCheck[i];
+            }
+            else {
+                p = Aux::getRandomPointRadius(pos(agent), searchRadius);
+                if (!Aux::isPathable(p)) {
+                    i--;
+                    continue;
+                }
+            }
+            float dmg = getPathDamage(p, agent);
+            //WeaponGrid::getRadiusAvgDPS(p, radius(agent) + 3.5, shared_from_this(), agent);
+            float dist2 = PrimordialStar::getPathLengthAStar(p, point, radius(agent), agent);
+            if (damage > dmg || (damage == dmg && dist2 < distance2)) {
+                damage = dmg;
+                distance2 = dist2;
+                solution = p;
+            }
+        }
+        movProfiler.midLog("movSafely.findSpot");
+        if (solution != Point2D()) {
+            mov(agent, solution);
+        }
+        movProfiler.midLog("movSafely.mov");
+        //TODO: add path itself as a weight
+    }
 
     virtual void executeAttack(Agent* const agent) {
         FUNCTION_LOG();
+        Profiler armyUnitProfiler("armyu(atk)");
+
+        float moveDPS = WeaponGrid::getRadiusAvgDPS(moveLocation, radius(agent) + 3.5, shared_from_this(), agent);
+
+        if (cooldownFrames > 0) {
+            if ((target != nullptr && target->isDead()) || get(agent)->orders.size() == 0) {
+                cooldownFrames = 0;
+            }
+            else if (moveDPS > moveLocationDPS) {
+                cooldownFrames /= 2;
+            }
+            else {
+                cooldownFrames --;
+                return;
+            }
+        }
+
+        moveLocationDPS = moveDPS;
+
         moveLocation = Point2D{ -1, -1 };
+        target = nullptr;
+        //float damageToTarget = 0.0F;
+        Aux::ExtraWeapon weapon;
+
+        float priority = 0; //fine because condition is also target == nullptr
+        for (auto it = squad->squadTargets.begin(); it != squad->squadTargets.end(); it++) {
+            if (squad->squadTargetDamage[(*it)->self] < (*it)->getHealth(agent)) {
+                float p = squad->getEnemyUnitPriority(*it, agent);
+                float damagePerHit = 0;
+                UnitTypeID selfType = getActualType(agent);
+                for (int i = 0; i < WeaponGrid::unitDamageSources[selfType].size(); i++) {
+                    int index = WeaponGrid::unitDamageSources[selfType][i].weaponIndex;
+                    float damage = WeaponGrid::DamageCalculation(WeaponGrid::getSelfWeaponFromIndex(index), *it, agent);
+                    if (damage > damagePerHit) {
+                        damagePerHit = damage;
+                        weapon = WeaponGrid::getSelfWeaponFromIndex(index);
+                    }
+                }
+                float distanceToEnemy = Distance2D((*it)->pos(agent), pos(agent));
+                //float damageLost = (distanceToEnemy > weapon.range) ? (((distanceToEnemy - weapon.range) / Aux::getStats(getActualType(agent), agent).movement_speed) * (damagePerHit / weapon.speed)) : 0.0F;
+                //p -= damageLost / 50; //every 50 damage lost takes a unit down one priority peg;
+                float range = (weapon.range + (*it)->radius(agent));
+                if (distanceToEnemy > range) {
+                    p -= 2*(distanceToEnemy - range); //every one unit outside of range a unit is, it gets taken down two priority pegs
+                }
+                p += damagePerHit / weapon.speed; //each DPS, up one peg of priority
+                if (target == nullptr || p > priority) {
+                    priority = p;
+                    target = *it;
+                }
+            }
+        }
+        armyUnitProfiler.midLog("armyu(atk).findTarget");
         if (squad->squadMainStates[self] == 'u') {
             moveLocation = squad->targetPosition;
             if (get(agent)->weapon_cooldown > 0) {
@@ -111,20 +214,68 @@ public:
             }
         }
         if (squad->squadMainStates[self] == 'u') {
-            if (squad->unitStates[self] = 'n') {
+            if (squad->unitStates[self] == 'n') {
                 mov(agent, squad->getCorePosition(agent));
+                cooldownFrames = 10;
             }
             else if (squad->unitStates[self] == 'k') {
                 atk(agent, squad->getCorePosition(agent));
+                cooldownFrames = 10;
             }
             else {
                 atk(agent, squad->getCorePosition(agent));
+                cooldownFrames = 10;
             }
             
         }
         else if (squad->squadMainStates[self] == 'j') {
-            atk(agent, squad->targetPosition);
+            //atk(agent, squad->targetPosition);
+            if (target != nullptr) {
+#ifdef TARGET_DEBUG
+                if (target != nullptr) {
+                    DebugLine(agent, pos3D(agent) + Point3D{0,0,1}, target->pos3D(agent) + Point3D{ 0,0,1 }, Colors::Teal);
+                }
+#endif
+                if (target->get(agent) == nullptr) {
+                    atk(agent, target->pos(agent));
+                    cooldownFrames = 10;
+                }
+                else {
+                    float dTtoEnemy = abs(Distance2D(pos(agent), target->pos(agent)) - (weapon.range + target->radius(agent))) / Aux::getStats(getActualType(agent), agent).movement_speed;
+                    if (dTtoEnemy >= get(agent)->weapon_cooldown) { //TODO: add walkup for target (weapon cooldown < time to walk)
+                        //if (get(agent)->is_selected) {
+                        //    printf("");
+                        //}
+                        atk(agent, target);
+                        cooldownFrames = 10;
+                        if (getStorageType() == UNIT_TYPEID::PROTOSS_COLOSSUS) {
+                            cooldownFrames = 0;
+                        }
+                    }
+                    else {
+                        if (0 && squad->isWithinRadius(pos(agent), agent)) {
+                            movSafely(agent, target->pos(agent), 10, 7);
+                        }
+                        else {
+                            movSafely(agent, squad->getCorePosition(agent), 10, 7);
+                        }
+                        
+                        cooldownFrames = 10;
+                    }
+                }
+            }
+            else {
+                if (squad->isWithinRadius(pos(agent), agent)) {
+                    movSafely(agent, squad->targetPosition, 10, 7);
+                }
+                else {
+                    movSafely(agent, squad->getCorePosition(agent), 10, 7);
+                }
+                cooldownFrames = 10;
+            }
+            
         }
+        armyUnitProfiler.midLog("armyu(atk).executeAction");
     }
 
     virtual void executeHarass(Agent* const agent) {

@@ -62,6 +62,8 @@ namespace StrategyManager {
 
     Strategy test_plusone_atk;
 
+    Strategy shit_stalker_colossus;
+
     void load(){
         FUNCTION_LOG();
         glaive_adept_rush_lightwisdom.build_order = {
@@ -230,6 +232,59 @@ namespace StrategyManager {
             MacroGateway(ABILITY_ID::TRAIN_ADEPT),
             MacroGateway(ABILITY_ID::TRAIN_ADEPT),
         };
+
+        shit_stalker_colossus.build_order = {
+            MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::criticalPoints[Aux::SELF_FIRSTPYLON_POINT]),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::GENERAL_MOVE, Aux::criticalPoints[Aux::ENEMY_STARTLOC_POINT]),
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
+            MacroBuilding(ABILITY_ID::BUILD_CYBERNETICSCORE),
+            MacroBuilding(ABILITY_ID::BUILD_NEXUS),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
+            MacroAction(UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, ABILITY_ID::RESEARCH_WARPGATE),
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
+            MacroBuilding(ABILITY_ID::BUILD_ROBOTICSFACILITY),
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_OBSERVER),
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_IMMORTAL),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_ROBOTICSBAY),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
+            MacroAction(UNIT_TYPEID::PROTOSS_TWILIGHTCOUNCIL, ABILITY_ID::RESEARCH_BLINK),
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
+            MacroBuilding(ABILITY_ID::BUILD_TWILIGHTCOUNCIL),
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_COLOSSUS),
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSBAY, ABILITY_ID::RESEARCH_EXTENDEDTHERMALLANCE),
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_COLOSSUS),
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_IMMORTAL),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_WARPPRISM, Aux::PointDefault(), false, MacroActionData("Prism", 'p')),
+            MacroBuilding(ABILITY_ID::BUILD_NEXUS, Aux::PointDefault(), MacroActionData(), 'p'),
+        };
+        shit_stalker_colossus.unitRatio.stalker = 8;
+        shit_stalker_colossus.unitRatio.immortal = 4;
+        shit_stalker_colossus.unitRatio.colossus = 2;
+        shit_stalker_colossus.unitRatio.observer = 1;
+        shit_stalker_colossus.unitRatio.warpprism = 1;
+        shit_stalker_colossus.armyAttackNum = 10;
+        shit_stalker_colossus.commit = true;
+
     }
 
 }

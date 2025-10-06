@@ -11,3 +11,5 @@ build/
 .vscode/
 
 GenesisLotusSC2.code-workspace
+
+.vs/

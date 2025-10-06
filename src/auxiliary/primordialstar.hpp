@@ -614,6 +614,7 @@ namespace PrimordialStar {
 
 	std::vector<Point2D> getPathAStar(Point2D start, Point2D end, float radius, Agent* const agent) {
 		Profiler profiler("getPathAStar");
+		profiler.disable();
 
 		if (checkWallDistanceSquared(start, (start - end)) >= DistanceSquared2D(start, end)) {
 			std::vector<Point2D> p;
@@ -635,12 +636,12 @@ namespace PrimordialStar {
 
 		std::vector<Point2D> points;
 		std::map<int, int> backpath;
-		profiler.midLog("getPath.init");
+		profiler.midLog("getPathAStar.init");
 
 		setupTerminalNode(startNode, start, end, agent);
 		setupTerminalNode(endNode, end, start, agent);
 
-		profiler.midLog("getPath.correction");
+		profiler.midLog("getPathAStar.correction");
 
 		if (std::find_if(startNode->connected.begin(), startNode->connected.end(),
 			[&node = endNode->id]
@@ -649,7 +650,7 @@ namespace PrimordialStar {
 			profiler.subScope();
 			points.push_back(startNode->rawPos());
 			points.push_back(endNode->rawPos());
-			profiler.midLog("getPath.skip");
+			profiler.midLog("getPathAStar.skip");
 		}
 		else {
 			profiler.subScope();
@@ -686,7 +687,7 @@ namespace PrimordialStar {
 					break;
 				}
 			}
-			profiler.midLog("getPath.source");
+			profiler.midLog("getPathAStar.source");
 			operatingNode = endNode;
 			points.push_back(allPathNodes[operatingNode->id]->rawPos());
 			for (int i = 0; i < starNodes.size(); i++) {
@@ -696,7 +697,7 @@ namespace PrimordialStar {
 					break;
 				}
 			}
-			profiler.midLog("getPath.backtrack");
+			profiler.midLog("getPathAStar.backtrack");
 		}
 
 		delete[] visited;
