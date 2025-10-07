@@ -23,6 +23,10 @@
 #include "auxiliary/weapongrid.hpp"
 #include "auxiliary/primordialstar.hpp"
 
+#ifndef FLT_MAX
+#define FLT_MAX 3.402823466e+38F
+#endif
+
 #define DEBUG
 //#define DAMAGEGRID_DEBUG
 //#define PROBE_DEBUG
