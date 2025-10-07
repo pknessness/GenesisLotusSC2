@@ -114,10 +114,10 @@ public:
         float l = PrimordialStar::getPathLength(path);
         std::vector<Point2D> ptsToCheck;
         if (l != 0) {
-            ptsToCheck = { PrimordialStar::distanceAlongPath(path, l / 2), point };
+            ptsToCheck = { PrimordialStar::distanceAlongPath(path, l / 2), point, pos(agent)};
         }
         else {
-            ptsToCheck = { point };
+            ptsToCheck = { point, pos(agent) };
         }
         
         for (int i = 0; i < attempts + ptsToCheck.size(); i++) {
@@ -253,7 +253,7 @@ public:
                         }
                     }
                     else {
-                        if (0 && squad->isWithinRadius(pos(agent), agent)) {
+                        if (squad->isWithinRadius(pos(agent), agent)) {
                             movSafely(agent, target->pos(agent), 10, 7);
                         }
                         else {
