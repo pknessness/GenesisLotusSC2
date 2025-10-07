@@ -410,7 +410,7 @@ namespace WeaponGrid {
         Aux::ExtraWeapon stormAura(Weapon::TargetType::Any, 10 * 0.8, 1, 9 + 1.5, 0.41, { 75, 0 }, true); //downgrade by 0.8 to make aura less powerful than the actual
         Aux::ExtraWeapon psiStorm(Weapon::TargetType::Any, 10, 1, 1.5, 0.41, { 0, 0 }, true); 
         addDamageSource(UNIT_TYPEID::PROTOSS_HIGHTEMPLAR, Race::Protoss, stormAura);
-        addDamageSource(EFFECT_ID::PSISTORM, Race::Protoss, psiStorm);
+        //addDamageSource(EFFECT_ID::PSISTORM, Race::Protoss, psiStorm); //TODO: UNCOMMENT WHEN FIGURE OUT THE WIERD NONCOMPILE ON LINUX BUG
 
         Aux::ExtraWeapon steadyTargetting(Weapon::TargetType::Any, 0, 1, 10, EPSILON, { 50, 0 }, true);
         steadyTargetting.addDamageBonus(Attribute::Invalid, 2); //INVALID 2 IS +130 ON BIO AND +40 ON PSIONIC
@@ -431,19 +431,19 @@ namespace WeaponGrid {
         //addDamageSource(UNIT_TYPEID::ZERG_INFESTOR, Race::Zerg, fungalGrowth);
 
         Aux::ExtraWeapon corrosiveBile(Weapon::TargetType::Any, 60, 1, 1.5, EPSILON);
-        addDamageSource(EFFECT_ID::CORROSIVEBILE, Race::Zerg, corrosiveBile);
+        //addDamageSource(EFFECT_ID::CORROSIVEBILE, Race::Zerg, corrosiveBile);//TODO: UNCOMMENT WHEN FIGURE OUT THE WIERD NONCOMPILE ON LINUX BUG
 
         Aux::ExtraWeapon liberatorDefenderSetup(Weapon::TargetType::Any, 75 * 1.5, 1, 10, 1.14); //upgrade by 1.5 to make aura more powerful than the actual
-        addDamageSource(EFFECT_ID::LIBERATORDEFENDERZONESETUP, Race::Terran, liberatorDefenderSetup);
+        //addDamageSource(EFFECT_ID::LIBERATORDEFENDERZONESETUP, Race::Terran, liberatorDefenderSetup);//TODO: UNCOMMENT WHEN FIGURE OUT THE WIERD NONCOMPILE ON LINUX BUG
         Aux::ExtraWeapon liberatorDefender(Weapon::TargetType::Any, 75, 1, 10, 1.14);
-        addDamageSource(EFFECT_ID::LIBERATORDEFENDERZONE, Race::Terran, liberatorDefender);
+        //addDamageSource(EFFECT_ID::LIBERATORDEFENDERZONE, Race::Terran, liberatorDefender);//TODO: UNCOMMENT WHEN FIGURE OUT THE WIERD NONCOMPILE ON LINUX BUG
 
         Aux::ExtraWeapon nukeIN(Weapon::TargetType::Any, 300 * 0.5, 1, 4, EPSILON);
         Aux::ExtraWeapon nukeMID(Weapon::TargetType::Any, 300 * 0.25, 1, 6, EPSILON);
         Aux::ExtraWeapon nukeOUT(Weapon::TargetType::Any, 300 * 0.25, 1, 8, EPSILON);
-        addDamageSource(EFFECT_ID::NUKEDOT, Race::Terran, nukeIN);
-        addDamageSource(EFFECT_ID::NUKEDOT, Race::Terran, nukeMID);
-        addDamageSource(EFFECT_ID::NUKEDOT, Race::Terran, nukeOUT);
+        //addDamageSource(EFFECT_ID::NUKEDOT, Race::Terran, nukeIN);//TODO: UNCOMMENT WHEN FIGURE OUT THE WIERD NONCOMPILE ON LINUX BUG
+        //addDamageSource(EFFECT_ID::NUKEDOT, Race::Terran, nukeMID);//TODO: UNCOMMENT WHEN FIGURE OUT THE WIERD NONCOMPILE ON LINUX BUG
+        //addDamageSource(EFFECT_ID::NUKEDOT, Race::Terran, nukeOUT);//TODO: UNCOMMENT WHEN FIGURE OUT THE WIERD NONCOMPILE ON LINUX BUG
 
         //have i added all other effects,
         //BLINDINGCLOUD = 10,
