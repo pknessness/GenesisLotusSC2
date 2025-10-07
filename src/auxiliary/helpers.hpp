@@ -8,6 +8,10 @@
 #include "bitmap.hpp"
 #include "profiler.hpp"
 
+#ifndef FLT_MAX
+#define FLT_MAX 3.402823466e+38F
+#endif
+
 using namespace sc2;
 using CompositionAsTarget = sc2::Weapon::TargetType;
 

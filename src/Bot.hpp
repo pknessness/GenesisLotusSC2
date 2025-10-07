@@ -9,6 +9,10 @@
 #include <sc2api/sc2_unit.h>
 #include <iostream>
 
+#ifndef FLT_MAX
+#define FLT_MAX 3.402823466e+38F
+#endif
+
 #include "auxiliary/helpers.hpp"
 #include "auxiliary/profiler.hpp"
 #include "auxiliary/debugging.hpp"
@@ -22,10 +26,6 @@
 #include "auxiliary/visiblemap.hpp"
 #include "auxiliary/weapongrid.hpp"
 #include "auxiliary/primordialstar.hpp"
-
-#ifndef FLT_MAX
-#define FLT_MAX 3.402823466e+38F
-#endif
 
 #define DEBUG
 //#define DAMAGEGRID_DEBUG
