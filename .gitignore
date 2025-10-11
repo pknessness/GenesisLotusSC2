@@ -13,3 +13,5 @@ build/
 GenesisLotusSC2.code-workspace
 
 .vs/
+
+*.diagsession
