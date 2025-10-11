@@ -8,6 +8,7 @@
 #include <sc2api/sc2_common.h>
 #include <sc2api/sc2_unit.h>
 #include <iostream>
+#include <vector>
 
 #ifndef FLT_MAX
 #define FLT_MAX 3.402823466e+38F
@@ -600,7 +601,7 @@ struct Bot: sc2::Agent
 
         DebugText(this, strprintf("%.3fms", lastDT / 1000.0));
 
-        //Aux::displayExpansions(this);
+        Aux::displayExpansions(this);
 
         MacroManager::displayMacroActions(this);
 

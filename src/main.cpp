@@ -139,14 +139,19 @@ int main(int argc, char* argv[])
         //                       "5_13/GoldenAura513AIE.SC2Map", "5_13/Gresvan513AIE.SC2Map",
         //                       "5_13/HardLead513AIE.SC2Map",   "5_13/SiteDelta513AIE.SC2Map" };
 
-        std::string maps[6] = { "AbyssalReefAIE.SC2Map",  "AcropolisAIE.SC2Map",
+        /*std::string maps[6] = { "AbyssalReefAIE.SC2Map",  "AcropolisAIE.SC2Map",
                                 "AutomatonAIE.SC2Map", "EphemeronAIE.SC2Map",
-                                "InterloperAIE.SC2Map",   "ThunderbirdAIE.SC2Map" };
+                                "InterloperAIE.SC2Map",   "ThunderbirdAIE.SC2Map" };*/
 
-        int r = std::rand() % 6;
-        r = 1;
-        printf("rand %d [%d %d %d %d %d %d] %d\n", r, std::rand(), std::rand(), std::rand(), std::rand(), std::rand(),
-            std::rand(), RAND_MAX);
+        std::string maps[7] = { "IncorporealAIE_v4.SC2Map",  "LeyLinesAIE_v3.SC2Map",
+                                "PersephoneAIE_v4.SC2Map", "PylonAIE_v4.SC2Map",
+                                "TorchesAIE_v4.SC2Map",   "UltraloveAIE_v2.SC2Map",   
+                                "MagannathaAIE_v2.SC2Map" };
+
+        int r = std::rand() % 7;
+        r = 4;
+        //printf("rand %d [%d %d %d %d %d %d] %d\n", r, std::rand(), std::rand(), std::rand(), std::rand(), std::rand(),
+        //    std::rand(), RAND_MAX);
 
         //printf("fmod");
 
