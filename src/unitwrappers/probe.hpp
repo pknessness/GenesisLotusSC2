@@ -153,8 +153,8 @@ public:
                 if (buildingCost.minerals > agent->Observation()->GetMinerals() || buildingCost.vespene > agent->Observation()->GetVespene())
                     return;
 
-                UnitTypeData ability_stats = Aux::getStats(Aux::buildAbilityToUnit(top.build), agent);
-                UnitTypeID prerequisite = ability_stats.tech_requirement;
+                UnitTypeData* ability_stats = Aux::getStats(Aux::buildAbilityToUnit(top.build), agent);
+                UnitTypeID prerequisite = ability_stats->tech_requirement;
                 if (prerequisite != UNIT_TYPEID::INVALID) {
                     UnitWrappers prereqs = UnitManager::getSelf(prerequisite);
 

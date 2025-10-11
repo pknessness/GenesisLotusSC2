@@ -428,46 +428,52 @@ namespace PrimordialStar {
 				continue;
 			}
 			float distSqrd = DistanceSquared2D(pos, testPos);
-			float dist = sqrt(distSqrd);
+			//
 
 			float innerMax = 255; //imRef(maxDistanceGrid, int(pos.x), int(pos.y)).distance;
 			
 			Point2D direction = testPos - pos;
 
-			float angle = atan2f(direction.y, direction.x);
-			float angleSections = MY_2PI / DISTANCENODE_DIVISIONS;
-
-			if (angle < 0) angle += MY_2PI;
-
-			int index1 = (int)(angle * DISTANCENODE_DIVISIONS / MY_2PI);
-			int index2 = (int)(Aux::floatmod(angle + MY_PI, MY_2PI) * DISTANCENODE_DIVISIONS / MY_2PI);
-
-			innerMax = std::max(imRef(furthestWallGrid, intX, intY).distances[index1], imRef(furthestWallGrid, intX, intY).distances[index2]);
-
-			//if (testPos.x > pos.x && testPos.y >= pos.y) {
-			//	innerMax = imRef(furthestWallGrid, intX, intY).distancePP;
-			//}
-			//else if (testPos.x <= pos.x && testPos.y > pos.y) {
-			//	innerMax = imRef(furthestWallGrid, intX, intY).distanceNP;
-			//}
-			//else if (testPos.x < pos.x && testPos.y <= pos.y) {
-			//	innerMax = imRef(furthestWallGrid, intX, intY).distanceNN;
-			//}
-			//else if (testPos.x >= pos.x && testPos.y < pos.y) {
-			//	innerMax = imRef(furthestWallGrid, intX, intY).distancePN;
-			//}
-
+			bool bypass = false;
 			bool special = false;
 
-			if (distSqrd > ((innerMax + 2) * (innerMax + 2))) {
-				numberPreExit++;
-#if DEBUG_SPECIAL
-				special = true; 
-#else
-				continue;
-#endif
+			if (direction.x == 0 && direction.y == 0) {
+				bypass = true;
 			}
-			if (checkLinearPath(pos, testPos)) {
+			else {
+				float angle = Aux::atan2f_prim(direction.y, direction.x);
+				float angleSections = MY_2PI / DISTANCENODE_DIVISIONS;
+
+				if (angle < 0) angle += MY_2PI;
+
+				int index1 = (int)(angle * DISTANCENODE_DIVISIONS / MY_2PI);
+				int index2 = (int)(Aux::floatmod(angle + MY_PI, MY_2PI) * DISTANCENODE_DIVISIONS / MY_2PI);
+
+				innerMax = std::max(imRef(furthestWallGrid, intX, intY).distances[index1], imRef(furthestWallGrid, intX, intY).distances[index2]);
+
+				//if (testPos.x > pos.x && testPos.y >= pos.y) {
+				//	innerMax = imRef(furthestWallGrid, intX, intY).distancePP;
+				//}
+				//else if (testPos.x <= pos.x && testPos.y > pos.y) {
+				//	innerMax = imRef(furthestWallGrid, intX, intY).distanceNP;
+				//}
+				//else if (testPos.x < pos.x && testPos.y <= pos.y) {
+				//	innerMax = imRef(furthestWallGrid, intX, intY).distanceNN;
+				//}
+				//else if (testPos.x >= pos.x && testPos.y < pos.y) {
+				//	innerMax = imRef(furthestWallGrid, intX, intY).distancePN;
+				//}
+
+				if (distSqrd > ((innerMax + 2) * (innerMax + 2))) {
+					numberPreExit++;
+#if DEBUG_SPECIAL
+					special = true;
+#else
+					continue;
+#endif
+				}
+			}
+			if (bypass || checkLinearPath(pos, testPos)) {
 
 				if (distSqrd > MAX_CONN_DIST_SQRD) {
 					continue;
@@ -491,6 +497,7 @@ namespace PrimordialStar {
 				if (maxConnections < m) {
 					maxConnections = m;
 				}
+				float dist = sqrt(distSqrd);
 				p->connected.push_back( { i, dist, special } );
 				node->connected.push_back( { p->id, dist, special } );
 			}

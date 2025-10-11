@@ -537,7 +537,7 @@ namespace Aux {
 		return cached_data;
 	}
 
-	UnitTypeData getStats(UnitTypeID type, Agent* agent) {
+	UnitTypeData* getStats(UnitTypeID type, Agent* agent) {
 		FUNCTION_LOG();
 		if (statsMap.find(type) == statsMap.end()) {
 			try {
@@ -580,7 +580,7 @@ namespace Aux {
 				statsMap[UNIT_TYPEID::TERRAN_BATTLECRUISER].weapons.push_back(ATALaserBattery);
 			}
 		}
-		return statsMap[type];
+		return &(statsMap[type]);
 	}
 
 	static UpgradeID researchAbilityToUpgrade(AbilityID build_ability) {
@@ -749,7 +749,8 @@ namespace Aux {
 		FUNCTION_LOG();
 		//sc2::UnitTypeData unit_stats =
 		//    agent->Observation()->GetUnitTypeData().at(static_cast<uint32_t>(buildAbilityToUnit(build_ability)));
-		return { getStats(buildAbilityToUnit(build_ability), agent).mineral_cost, getStats(buildAbilityToUnit(build_ability), agent).vespene_cost, 0, int(getStats(buildAbilityToUnit(build_ability), agent).food_required) };
+		UnitTypeData* stats = getStats(buildAbilityToUnit(build_ability), agent);
+		return { stats->mineral_cost, stats->vespene_cost, 0, int(stats->food_required) };
 	}
 
 	static Cost unitAbilityToCost(AbilityID build_ability, Agent* agent) {
@@ -1547,17 +1548,14 @@ namespace Aux {
 
 		float x_sq = x * x;
 
-		float result = x * (a1 + x_sq * (a3 + x_sq * (a5 + x_sq * (a7 + x_sq * (a9 + x_sq * a11)))));
-		float ata = atanf(x);
-		if (abs(result - ata) > 0.0001) {
-			printf("{%.4f, %.4f, %.4f}", x, result, ata);
-			printf("");
-		}
-		return result;
+		return x * fmaf(x_sq, fmaf(x_sq, fmaf(x_sq, fmaf(x_sq, fmaf(x_sq, a11, a9), a7), a5), a3), a1);
 
 	}
 
-	float atan2f_auto1(float y, float x) {
+	float atan2f_auto(float y, float x) {
+		//if (x == 0.0F && y == 0.0F) {
+		//	return 0;
+		//}
 		bool swap = fabs(x) < fabs(y);
 		float atan_input = (swap ? x : y) / (swap ? y : x);
 
@@ -1567,17 +1565,49 @@ namespace Aux {
 		// If swapped, adjust atan output
 		res = swap ? (atan_input >= 0.0f ? MY_PI2 : -MY_PI2) - res : res;
 		// Adjust quadrants
-		if (x >= 0.0f && y >= 0.0f) {}                     // 1st quadrant
-		else if (x < 0.0f && y >= 0.0f) { res = MY_PI + res; } // 2nd quadrant
-		else if (x < 0.0f && y < 0.0f) { res = -MY_PI + res; } // 3rd quadrant
-		else if (x >= 0.0f && y < 0.0f) {}                     // 4th quadrant
+		if (x < 0.0f) {
+			if (y >= 0.0f) {
+				res = MY_PI + res;
+			}
+			else {
+				res = -MY_PI + res;
+			}
+		}
 
 		// Store result
 		return res;
 	}
 
 	inline float atan2f_prim(float y, float x) {
-		return atan2f(y, x);
-		//return atan2f_auto1(y, x);
+		//return atan2f(y, x);
+		return atan2f_auto(y, x);
+	}
+
+	constexpr int ATAN2_TEST_NUM = 100000;
+	void atanTest() {
+		float deviance = 0.0F;
+		long long timebuiltin = 0;
+		long long timecustom = 0;
+		FILE* fp = fopen("data/atanTests.csv", "w+");
+		fprintf(fp, "X, Y, builtin, custom, deviance, builtin_ms, custom_ms\n");
+		for (int i = 0; i < ATAN2_TEST_NUM; i++) {
+			float x = rand() * 3.0 / RAND_MAX - 1.5; 
+			float y = rand() * 3.0 / RAND_MAX - 1.5;
+			
+			timeus start = std::chrono::steady_clock::now();
+			float builtin = atan2f(y, x);
+			timeus mid = std::chrono::steady_clock::now();
+			float auto1 = atan2f_auto(y, x);
+			timeus end = std::chrono::steady_clock::now();
+			deviance += fabs(builtin - auto1);
+			long long b_ms = std::chrono::duration_cast<std::chrono::microseconds>(mid - start).count();
+			timebuiltin += b_ms;
+			long long c_ms = std::chrono::duration_cast<std::chrono::microseconds>(end - mid).count();
+			timecustom += c_ms;
+			//fwrite(&c, 1, 1, fp);
+			fprintf(fp, "%f, %f, %f, %f, %f, %lld, %lld\n", x, y, builtin, auto1, fabs(builtin - auto1), b_ms, c_ms);
+		}
+		printf("Time Builtin: %lldus Time Custom: %lldus Deviance: %f rad\n", timebuiltin, timecustom, deviance/ ATAN2_TEST_NUM);
+		fclose(fp);
 	}
 }

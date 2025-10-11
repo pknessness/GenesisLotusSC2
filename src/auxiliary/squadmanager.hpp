@@ -211,9 +211,10 @@ namespace SquadManager {
 			FUNCTION_LOG();
 
 			squadTargets.clear();
+			squadTargetDamage.clear();
 			Circles c = {};
 			for (auto it = armyContents.begin(); it != armyContents.end(); it++) {
-				float radius = Aux::getStats((*it)->getActualType(agent), agent).sight_range + 1;
+				float radius = Aux::getStats((*it)->getActualType(agent), agent)->sight_range + 1;
 				c.push_back({ (*it)->pos(agent), radius });
 			}
 			UnitWrappers wraps = SpatialHashGrid::findInRadiiEnemyLoose(c);

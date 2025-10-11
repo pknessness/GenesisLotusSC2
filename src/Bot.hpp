@@ -188,7 +188,6 @@ struct Bot: sc2::Agent
         //printf("0: %s / %s; ", Aux::RaceToName(Aux::gameInfo_cache.player_info[0].race_actual), Aux::RaceToName(Aux::gameInfo_cache.player_info[0].race_requested));
         printf("1: %s / %s\n", Aux::RaceToName(Aux::gameInfo_cache.player_info[1].race_actual), Aux::RaceToName(Aux::gameInfo_cache.player_info[1].race_requested));
 
-
         Aux::setupExpansions(this);
 
         Aux::masterMap = std::make_shared<map2d<uint8_t>>(Aux::mapWidth_cache, Aux::mapHeight_cache, true);
@@ -246,69 +245,69 @@ struct Bot: sc2::Agent
             int numU = unitLists[f].size();
             fprintf(fp, "%d Units\n\n---------------\n", numU);
             for (int i = 0; i < numU; i++) {
-                UnitTypeData d = Aux::getStats(unitLists[f][i], this);
+                UnitTypeData* d = Aux::getStats(unitLists[f][i], this);
                 fprintf(fp, "%s:\nAvailable: %c\nCargo: %d\nMineralCost: %d\nVespeneCost: %d\nAttributes: ",
                     UnitTypeToName(unitLists[f][i]),
-                    (d.available ? 'Y' : 'N'),
-                    d.cargo_size,
-                    d.mineral_cost,
-                    d.vespene_cost);
-                for (int a = 0; a < d.attributes.size(); a++) {
-                    fprintf(fp, "%s", Aux::AttributeToName(d.attributes[a]));
-                    if (a != d.attributes.size() - 1) {
+                    (d->available ? 'Y' : 'N'),
+                    d->cargo_size,
+                    d->mineral_cost,
+                    d->vespene_cost);
+                for (int a = 0; a < d->attributes.size(); a++) {
+                    fprintf(fp, "%s", Aux::AttributeToName(d->attributes[a]));
+                    if (a != d->attributes.size() - 1) {
                         fprintf(fp, ", ");
                     }
                 }
                 fprintf(fp, "\nMovementSpeed: %.2f\nArmor: %.1f\nWeapons:\n",
-                    d.movement_speed / timeSpeed,
-                    d.armor);
-                for (int w = 0; w < d.weapons.size(); w++) {
-                    float atkcd = d.weapons[w].speed / timeSpeed;
+                    d->movement_speed / timeSpeed,
+                    d->armor);
+                for (int w = 0; w < d->weapons.size(); w++) {
+                    float atkcd = d->weapons[w].speed / timeSpeed;
                     if (unitLists[f][i] == UNIT_TYPEID::ZERG_ZERGLING) {
                         atkcd -= 0.15; //crack lings
                     }else if (unitLists[f][i] == UNIT_TYPEID::TERRAN_MARINE) {
                         atkcd *= 0.666667; //stim
                     }
-                    float dps = (d.weapons[w].damage_ * d.weapons[w].attacks) / (d.weapons[w].speed / timeSpeed);                    
-                    float maxdps = ((d.weapons[w].damage_ + 3 * Aux::damageExtraPerUpgrade(d.weapons[w].damage_)) * d.weapons[w].attacks) / atkcd;
-                    float dpspsp = dps * 200 / d.food_required;
-                    float maxdpspsp = maxdps * 200 / d.food_required;
+                    float dps = (d->weapons[w].damage_ * d->weapons[w].attacks) / (d->weapons[w].speed / timeSpeed);                    
+                    float maxdps = ((d->weapons[w].damage_ + 3 * Aux::damageExtraPerUpgrade(d->weapons[w].damage_)) * d->weapons[w].attacks) / atkcd;
+                    float dpspsp = dps * 200 / d->food_required;
+                    float maxdpspsp = maxdps * 200 / d->food_required;
                     fprintf(fp, "-----\n%s\nDamage: %.2f\nAttacks: %d\nRange: %.2f\nCooldown: %.2fs\nDPS: %.2f\nDPSPSp: %.2f\nMAXDPS: %.2f\nMAXDPSPSp: %.2f\nBonuses: ",
-                        Aux::TargetTypeToName(d.weapons[w].type),
-                        d.weapons[w].damage_,
-                        d.weapons[w].attacks,
-                        d.weapons[w].range,
-                        d.weapons[w].speed / timeSpeed,
+                        Aux::TargetTypeToName(d->weapons[w].type),
+                        d->weapons[w].damage_,
+                        d->weapons[w].attacks,
+                        d->weapons[w].range,
+                        d->weapons[w].speed / timeSpeed,
                         dps, 
                         dpspsp,
                         maxdps,
                         maxdpspsp);
-                    if (maxDPSPSp < maxdpspsp && d.food_required != 0) {
+                    if (maxDPSPSp < maxdpspsp && d->food_required != 0) {
                         maxDPSPSp = maxdpspsp;
                         maxDPSPSpName = UnitTypeToName(unitLists[f][i]);
                     }
-                    for (int b = 0; b < d.weapons[w].damage_bonus.size(); b++) {
-                        fprintf(fp, "+%.1f %s", d.weapons[w].damage_bonus[b].bonus, Aux::AttributeToName(d.weapons[w].damage_bonus[b].attribute));
+                    for (int b = 0; b < d->weapons[w].damage_bonus.size(); b++) {
+                        fprintf(fp, "+%.1f %s", d->weapons[w].damage_bonus[b].bonus, Aux::AttributeToName(d->weapons[w].damage_bonus[b].attribute));
                     }
                     fprintf(fp, "\n-----");
                     numWeapons++;
                 }
                 fprintf(fp, "\nSupply: %.1f\nSupply+: %.1f\nRace: %d\nBuildTime: %.2f\nSightRange: %.1f\nTechAliases: ",
-                    d.food_required,
-                    d.food_provided,
-                    d.race,
-                    d.build_time,
-                    d.sight_range);
-                for (int a = 0; a < d.tech_alias.size(); a++) {
-                    fprintf(fp, "%s", UnitTypeToName(d.tech_alias[a]));
-                    if (a != d.tech_alias.size() - 1) {
+                    d->food_required,
+                    d->food_provided,
+                    d->race,
+                    d->build_time,
+                    d->sight_range);
+                for (int a = 0; a < d->tech_alias.size(); a++) {
+                    fprintf(fp, "%s", UnitTypeToName(d->tech_alias[a]));
+                    if (a != d->tech_alias.size() - 1) {
                         fprintf(fp, ", ");
                     }
                 }
                 fprintf(fp, "\nAlias: %s\nRequirement: %s\nRequireAttached: %c\n---------------\n",
-                    UnitTypeToName(d.unit_alias),
-                    UnitTypeToName(d.tech_requirement),
-                    (d.require_attached ? 'Y' : 'N'));
+                    UnitTypeToName(d->unit_alias),
+                    UnitTypeToName(d->tech_requirement),
+                    (d->require_attached ? 'Y' : 'N'));
             }
             fclose(fp);
             fp = fopen(strprintf("data/unitData_%s.txt", races[f]).c_str(), "r");
@@ -375,7 +374,8 @@ struct Bot: sc2::Agent
 
             int numProbesN = 0;
             int numProbesMaxN = 0;
-            float percentUntilViable = 1.0F - (Aux::getStats(UNIT_TYPEID::PROTOSS_PROBE, this).build_time / Aux::getStats(UNIT_TYPEID::PROTOSS_NEXUS, this).build_time);
+            UnitTypeData* stats = Aux::getStats(UNIT_TYPEID::PROTOSS_PROBE, this);
+            float percentUntilViable = 1.0F - (stats->build_time / stats->build_time);
             if (nexus->get(this)->build_progress < percentUntilViable) {
                 continue;
             }

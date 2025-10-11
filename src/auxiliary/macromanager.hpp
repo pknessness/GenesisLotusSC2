@@ -120,13 +120,13 @@ namespace MacroManager {
 
 	std::unordered_set<char> triggeredDependencyFlags;
 
-	Point2D getPylonLocation(Point2D pos = { 0,0 }, float radius = 0) {
+	Point2D getPylonLocation(Agent* const agent, Point2D pos = { 0,0 }, float radius = 0) {
 		FUNCTION_LOG();
 		if (pos == Point2D{ 0, 0 }) {
 			UnitWrappers pylons = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PYLON);
 			for (auto it = pylons.begin(); it != pylons.end(); it++) {
 				for (Point2D displaceMent : Aux::possibleNextPylons) {
-					Point2D loc = (*it)->posCache() + displaceMent;
+					Point2D loc = (*it)->pos(agent) + displaceMent;
 					if (Aux::checkStructurePlacement(loc, 2)) {
 						return loc;
 					}
@@ -145,13 +145,13 @@ namespace MacroManager {
 		return Point2D{ -1, -1 };
 	}
 
-	Point2D getBuildingLocation(Point2D pos = { 0,0 }, float radius = 0) { //TODO: ACCOUNT FOR HEIGHT, PYLONS CAN ONLY POWER DOWNWARDS NOT UPWARDS
+	Point2D getBuildingLocation(Agent* const agent, Point2D pos = { 0,0 }, float radius = 0) { //TODO: ACCOUNT FOR HEIGHT, PYLONS CAN ONLY POWER DOWNWARDS NOT UPWARDS
 		FUNCTION_LOG();
 		if (pos == Point2D{ 0, 0 }) {
 			UnitWrappers pylons = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PYLON);
 			for (auto it = pylons.begin(); it != pylons.end(); it++) {
 				for (Point2D displaceMent : Aux::possibleNextBuildings) {
-					Point2D loc = (*it)->posCache() + displaceMent;
+					Point2D loc = (*it)->pos(agent) + displaceMent;
 					if (Aux::checkStructurePlacement(loc, 3)) {
 						return loc;
 					}
@@ -198,7 +198,7 @@ namespace MacroManager {
 				if (pylon == nullptr || !pylon->get(agent)->IsBuildFinished()) {
 					return Point2D{ -1, -1 };
 				}
-				Point2D p = Aux::getRandomPointRadius(pylon->posCache(), 6);
+				Point2D p = Aux::getRandomPointRadius(pylon->pos(agent), 6);
 
 				if (checkWarpLocation(agent, p)) {
 					return p;
@@ -273,7 +273,7 @@ namespace MacroManager {
 			topActions.insert(&(*(it->second.begin())));
 		}
 
-		UnitTypeData pylon_stats = Aux::getStats(UNIT_TYPEID::PROTOSS_PYLON, agent);
+		UnitTypeData* pylon_stats = Aux::getStats(UNIT_TYPEID::PROTOSS_PYLON, agent);
 		int psi = agent->Observation()->GetFoodUsed();
 		int psiCap = agent->Observation()->GetFoodCap();
 
@@ -339,12 +339,12 @@ namespace MacroManager {
 
 			//Check PSI
 			if (abilityCost.psi + psi > psiCap && currentAction->readyInFrames != -1 && 
-				currentAction->readyInFrames < pylon_stats.build_time && 
+				currentAction->readyInFrames < pylon_stats->build_time && 
 				(allActions[UNIT_TYPEID::PROTOSS_PROBE].size() != 0 && allActions[UNIT_TYPEID::PROTOSS_PROBE].begin()->ability != ABILITY_ID::BUILD_PYLON)) {
 
 				UnitWrappers pylons = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PYLON);
 
-				float pylonBuildTime = pylon_stats.build_time;
+				float pylonBuildTime = pylon_stats->build_time;
 
 				for (auto it = pylons.begin(); it != pylons.end(); it++) {
 					const Unit* prereq = agent->Observation()->GetUnit((*it)->self);
@@ -402,7 +402,7 @@ namespace MacroManager {
 			macroProfiler.midLog("macro.3");
 
 			UnitTypeID unitToCreate = Aux::buildAbilityToUnit(currentAction->ability);
-			UnitTypeData ability_stats = Aux::getStats(unitToCreate, agent);
+			UnitTypeData* ability_stats = Aux::getStats(unitToCreate, agent);
 
 			//Filter units
 			UnitWrappers possibleUnits;
@@ -429,14 +429,14 @@ namespace MacroManager {
 						ticksToExecutorReady = 0;
 					}
 					else if (unwrapUnit != nullptr && unwrapUnit->orders.size() != 0) {
-						float ready = (1.0F - unwrapUnit->orders[0].progress) * ability_stats.build_time;
+						float ready = (1.0F - unwrapUnit->orders[0].progress) * ability_stats->build_time;
 						if (ticksToExecutorReady == -1 || ticksToExecutorReady > ready) {
 							ticksToExecutorReady = ready;
 						}
 					}
 					else if (unwrapUnit != nullptr && unwrapUnit->build_progress != 1.0F) {
-						UnitTypeData executor_stats = Aux::getStats(unwrapUnit->unit_type, agent);
-						float ready = (1.0F - unwrapUnit->build_progress) * executor_stats.build_time;
+						UnitTypeData* executor_stats = Aux::getStats(unwrapUnit->unit_type, agent);
+						float ready = (1.0F - unwrapUnit->build_progress) * executor_stats->build_time;
 						if (ticksToExecutorReady == -1 || ticksToExecutorReady > ready) {
 							ticksToExecutorReady = ready;
 						}
@@ -459,7 +459,7 @@ namespace MacroManager {
 			if (currentAction->position.pa_type == Aux::PointArea::DEFAULT_FINDOUT) {
 				Point2D p;
 				if (currentAction->ability == ABILITY_ID::BUILD_PYLON) {
-					p = getPylonLocation();
+					p = getPylonLocation(agent);
 
 				} else if (currentAction->ability == ABILITY_ID::BUILD_ASSIMILATOR) {
 					UnitWrappers vespenes = UnitManager::getVespene();
@@ -468,10 +468,15 @@ namespace MacroManager {
 					float minDist = -1;
 					UnitWrapperPtr nextTarget;
 
+					//if (vespenes.size() > 0) {
+						//TODO: IF NO VESPENE SEEN USE API UNIT GET
+					//}
 					for (UnitWrapperPtr vespeneW : vespenes) {
 						VespenePtr vespene = std::static_pointer_cast<Vespene>(vespeneW);
 
-						if (vespene->taken || (hasNexus && !vespene->nearNexus) || Aux::getObstacle((int)vespene->pos(agent).x, (int)vespene->pos(agent).y) != Aux::ObstacleInfo::VESPENE) {
+						Point2D pos = vespene->pos(agent);
+						Aux::ObstacleInfo obs = Aux::getObstacle((int)pos.x, (int)pos.y);
+						if (vespene->taken || (hasNexus && !vespene->nearNexus) || obs != Aux::ObstacleInfo::VESPENE) {
 							continue;
 						}
 
@@ -501,7 +506,7 @@ namespace MacroManager {
 					//DebugBox(agent, AP3D(p) + Point3D{ -0.5, -0.5, 0 }, AP3D(p) + Point3D{ 0.5, 0.5, 1 }, Colors::Green);
 					//SendDebug(agent);
 				} else{
-					p = getBuildingLocation();
+					p = getBuildingLocation(agent);
 				}
 				if (p != Point2D{ -1, -1 }) {
 					currentAction->position.pa_type = Aux::PointArea::SINGLE_POINT;
@@ -517,7 +522,7 @@ namespace MacroManager {
 				continue;
 			}
 			macroProfiler.midLog("macro.5");
-			UnitTypeID prerequisite = ability_stats.tech_requirement;
+			UnitTypeID prerequisite = ability_stats->tech_requirement;
 
 			int theoryMin = Aux::effectiveMinerals;
 			int theoryVesp = Aux::effectiveVespene;
@@ -590,14 +595,14 @@ namespace MacroManager {
 
 				DebugSphere(agent, AP3D(currentAction->position.pos), 1);
 
-				UnitTypeData probeStats = Aux::getStats(UNIT_TYPEID::PROTOSS_PROBE, agent);
+				UnitTypeData* probeStats = Aux::getStats(UNIT_TYPEID::PROTOSS_PROBE, agent);
 
-				float dtTravel = (distToTravel - 2) / (probeStats.movement_speed * timeSpeed);
+				float dtTravel = (distToTravel - 2) / (probeStats->movement_speed * timeSpeed);
 
 				macroProfiler.midLog("macro.6.4");
 
 				if (prerequisite != UNIT_TYPEID::INVALID) {
-					UnitTypeData prereqStats = Aux::getStats(prerequisite, agent);
+					UnitTypeData* prereqStats = Aux::getStats(prerequisite, agent);
 
 					UnitWrappers allPrereqs = UnitManager::getSelf(prerequisite);
 
@@ -605,7 +610,7 @@ namespace MacroManager {
 					for (auto it = allPrereqs.begin(); it != allPrereqs.end(); it++) {
 						const Unit* prereq = (*it)->get(agent);
 						if (prereq != nullptr) {
-							float ticks = (1.0 - prereq->build_progress) * prereqStats.build_time;
+							float ticks = (1.0 - prereq->build_progress) * prereqStats->build_time;
 							if (ticksToPrereq == -1 || ticksToPrereq > ticks) {
 								ticksToPrereq = ticks;
 							}
@@ -628,7 +633,7 @@ namespace MacroManager {
 					UnitWrappers pylons = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PYLON);
 					float ticksToPrereq = -1;
 
-					float pylonBuildTime = pylon_stats.build_time;
+					float pylonBuildTime = pylon_stats->build_time;
 
 					for (auto it = pylons.begin(); it != pylons.end(); it++) {
 						const Unit* prereq = agent->Observation()->GetUnit((*it)->self);

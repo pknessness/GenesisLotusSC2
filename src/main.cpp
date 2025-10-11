@@ -106,6 +106,10 @@ int main(int argc, char* argv[])
 {
     backward::SignalHandling sh;
 
+    Aux::atanTest();
+
+    printf("atan2f(0,0) = %f\n", atan2f(0, 0));
+
     Options Options;
     ParseArguments(argc, argv, &Options);
 

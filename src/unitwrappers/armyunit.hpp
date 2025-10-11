@@ -10,6 +10,7 @@
 #define TARGET_DEBUG
 
 constexpr int SECOND_DIVISION_MOVSAFELY = 4;
+constexpr int COOLDOWN_FRAMES = 10;
 
 class ArmyUnit : public UnitWrapper{
 private:
@@ -63,10 +64,11 @@ public:
 
     float getPathDamage(Point2D p, Agent* const agent) {
         std::vector<Point2D> path = getPathUniversal(agent, p);
-        std::vector<Point2D> checks = PrimordialStar::stepPointsAlongPath(path, Aux::getStats(getActualType(agent), agent).movement_speed / SECOND_DIVISION_MOVSAFELY);
+        std::vector<Point2D> checks = PrimordialStar::stepPointsAlongPath(path, Aux::getStats(getActualType(agent), agent)->movement_speed / SECOND_DIVISION_MOVSAFELY);
         float dps = 0;
+        WeaponGrid::relevantTargetDamageInfo selfTargetInfo = WeaponGrid::wrapToTargetInfo(shared_from_this(), agent);
         for (int i = 0; i < checks.size(); i++) {
-            float addDps = WeaponGrid::getRadiusAvgDPS(checks[i], radius(agent) + 0.5, shared_from_this(), agent) * SECOND_DIVISION_MOVSAFELY;
+            float addDps = WeaponGrid::getRadiusAvgDPS(checks[i], radius(agent) + 0.5, selfTargetInfo, agent) * SECOND_DIVISION_MOVSAFELY;
             dps += addDps;
 #ifdef MOVSAFELY_DEBUG
             Color c;
@@ -83,7 +85,7 @@ public:
             DebugSphere(agent, AP3D(checks[i]), radius(agent) + 0.5, c);
 #endif
         }
-        dps += WeaponGrid::getRadiusAvgDPS(p, radius(agent) + 3.5, shared_from_this(), agent) * 2 * SECOND_DIVISION_MOVSAFELY;
+        dps += WeaponGrid::getRadiusAvgDPS(p, radius(agent) + 3.5, selfTargetInfo, agent) * 2 * SECOND_DIVISION_MOVSAFELY;
 #ifdef MOVSAFELY_DEBUG
         if (path.size() > 0) {
             for (int i = 0; i < path.size() - 1; i++) {
@@ -134,11 +136,18 @@ public:
             }
             float dmg = getPathDamage(p, agent);
             //WeaponGrid::getRadiusAvgDPS(p, radius(agent) + 3.5, shared_from_this(), agent);
-            float dist2 = PrimordialStar::getPathLengthAStar(p, point, radius(agent), agent);
-            if (damage > dmg || (damage == dmg && dist2 < distance2)) {
+            if (damage > dmg) {
                 damage = dmg;
-                distance2 = dist2;
+                distance2 = PrimordialStar::getPathLengthAStar(p, point, radius(agent), agent);
                 solution = p;
+            }
+            else if (damage == dmg) {
+                float dist2 = PrimordialStar::getPathLengthAStar(p, point, radius(agent), agent);
+                if (dist2 < distance2) {
+                    damage = dmg;
+                    distance2 = dist2;
+                    solution = p;
+                }
             }
         }
         movProfiler.midLog("movSafely.findSpot");
@@ -153,7 +162,7 @@ public:
         FUNCTION_LOG();
         Profiler armyUnitProfiler("armyu(atk)");
 
-        float moveDPS = WeaponGrid::getRadiusAvgDPS(moveLocation, radius(agent) + 3.5, shared_from_this(), agent);
+        float moveDPS = WeaponGrid::getRadiusAvgDPS(moveLocation, radius(agent) + 3.5, WeaponGrid::wrapToTargetInfo(shared_from_this(), agent), agent);
 
         if (cooldownFrames > 0) {
             if ((target != nullptr && target->isDead()) || get(agent)->orders.size() == 0) {
@@ -173,9 +182,10 @@ public:
         moveLocation = Point2D{ -1, -1 };
         target = nullptr;
         //float damageToTarget = 0.0F;
-        Aux::ExtraWeapon weapon;
+        Aux::ExtraWeapon* weapon = WeaponGrid::emptyWeapon;
 
         float priority = 0; //fine because condition is also target == nullptr
+        float dmagToTarget = 0;
         for (auto it = squad->squadTargets.begin(); it != squad->squadTargets.end(); it++) {
             if (squad->squadTargetDamage[(*it)->self] < (*it)->getHealth(agent)) {
                 float p = squad->getEnemyUnitPriority(*it, agent);
@@ -192,18 +202,22 @@ public:
                 float distanceToEnemy = Distance2D((*it)->pos(agent), pos(agent));
                 //float damageLost = (distanceToEnemy > weapon.range) ? (((distanceToEnemy - weapon.range) / Aux::getStats(getActualType(agent), agent).movement_speed) * (damagePerHit / weapon.speed)) : 0.0F;
                 //p -= damageLost / 50; //every 50 damage lost takes a unit down one priority peg;
-                float range = (weapon.range + (*it)->radius(agent));
+                float range = (weapon->range + (*it)->radius(agent));
                 if (distanceToEnemy > range) {
                     p -= 2*(distanceToEnemy - range); //every one unit outside of range a unit is, it gets taken down two priority pegs
                 }
-                p += damagePerHit / weapon.speed; //each DPS, up one peg of priority
+                p += damagePerHit / weapon->speed; //each DPS, up one peg of priority
                 if (target == nullptr || p > priority) {
                     priority = p;
                     target = *it;
+                    dmagToTarget = damagePerHit;
                 }
             }
         }
         armyUnitProfiler.midLog("armyu(atk).findTarget");
+
+        bool attacking = false;
+
         if (squad->squadMainStates[self] == 'u') {
             moveLocation = squad->targetPosition;
             if (get(agent)->weapon_cooldown > 0) {
@@ -216,15 +230,15 @@ public:
         if (squad->squadMainStates[self] == 'u') {
             if (squad->unitStates[self] == 'n') {
                 mov(agent, squad->getCorePosition(agent));
-                cooldownFrames = 10;
+                cooldownFrames = COOLDOWN_FRAMES;
             }
             else if (squad->unitStates[self] == 'k') {
                 atk(agent, squad->getCorePosition(agent));
-                cooldownFrames = 10;
+                cooldownFrames = COOLDOWN_FRAMES;
             }
             else {
                 atk(agent, squad->getCorePosition(agent));
-                cooldownFrames = 10;
+                cooldownFrames = COOLDOWN_FRAMES;
             }
             
         }
@@ -238,19 +252,20 @@ public:
 #endif
                 if (target->get(agent) == nullptr) {
                     atk(agent, target->pos(agent));
-                    cooldownFrames = 10;
+                    cooldownFrames = COOLDOWN_FRAMES;
                 }
                 else {
-                    float dTtoEnemy = abs(Distance2D(pos(agent), target->pos(agent)) - (weapon.range + target->radius(agent))) / Aux::getStats(getActualType(agent), agent).movement_speed;
-                    if (dTtoEnemy >= get(agent)->weapon_cooldown) { //TODO: add walkup for target (weapon cooldown < time to walk)
+                    float dTtoEnemy = abs(Distance2D(pos(agent), target->pos(agent)) - (weapon->range + target->radius(agent))) / Aux::getStats(getActualType(agent), agent)->movement_speed;
+                    if (dTtoEnemy >= get(agent)->weapon_cooldown) {
                         //if (get(agent)->is_selected) {
                         //    printf("");
                         //}
                         atk(agent, target);
-                        cooldownFrames = 10;
+                        cooldownFrames = COOLDOWN_FRAMES;
                         if (getStorageType() == UNIT_TYPEID::PROTOSS_COLOSSUS) {
                             cooldownFrames = 0;
                         }
+                        attacking = true;
                     }
                     else {
                         if (squad->isWithinRadius(pos(agent), agent)) {
@@ -260,7 +275,10 @@ public:
                             movSafely(agent, squad->getCorePosition(agent), 10, 7);
                         }
                         
-                        cooldownFrames = 10;
+                        cooldownFrames = COOLDOWN_FRAMES;
+                        if (COOLDOWN_FRAMES * fps > get(agent)->weapon_cooldown) {
+                            cooldownFrames = get(agent)->weapon_cooldown / fps;
+                        }
                     }
                 }
             }
@@ -271,9 +289,17 @@ public:
                 else {
                     movSafely(agent, squad->getCorePosition(agent), 10, 7);
                 }
-                cooldownFrames = 10;
+                cooldownFrames = COOLDOWN_FRAMES;
             }
             
+        }
+        if (target != nullptr && attacking) {
+            if (squad->squadTargetDamage.find(target->self) != squad->squadTargetDamage.end()) {
+                squad->squadTargetDamage[target->self] += dmagToTarget;
+            }
+            else {
+                squad->squadTargetDamage[target->self] = dmagToTarget;
+            }
         }
         armyUnitProfiler.midLog("armyu(atk).executeAction");
     }

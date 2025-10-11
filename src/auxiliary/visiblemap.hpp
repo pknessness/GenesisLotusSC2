@@ -68,7 +68,7 @@ namespace VisibleMap2D {
         //DO I WANT TO USE UNITWRAPPER FOR THIS OR GETUNITS??
         for (auto it = UnitManager::self_units.begin(); it != UnitManager::self_units.end(); it++) {
             for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
-                fillVisibleMapRadius((*it2)->pos(agent), Aux::getStats((*it2)->getActualType(agent), agent).sight_range, 32767);
+                fillVisibleMapRadius((*it2)->pos(agent), Aux::getStats((*it2)->getActualType(agent), agent)->sight_range, 32767);
             }
         }
     }

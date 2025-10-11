@@ -40,6 +40,7 @@ private:
     bool isBuilding_;
     CompositionAsTarget comp;
 
+    uint32_t lastCached_loop;
     //cache data
     UnitTypeID recentType_cache;
     float radius_cache;
@@ -76,7 +77,7 @@ public:
         shields_cache(unit_->shield), shieldsMax_cache(unit_->shield_max),
         energy_cache(unit_->energy), energyMax_cache(unit_->energy_max), pos_cache(unit_->pos), dead(false),
         attackUpgradeLevel_cache(0), armorUpgradeLevel_cache(0), shieldUpgradeLevel_cache(0),
-        finished_frames(0), isBuilding_(unit_->is_building), flying_cache(unit_->is_flying), creationData(){
+        finished_frames(0), isBuilding_(unit_->is_building), flying_cache(unit_->is_flying), creationData(), lastCached_loop(0){
         //self = unit_->tag;
         name = "";
     }
@@ -85,9 +86,12 @@ public:
     }
 
     inline const Unit* get(Agent* const agent) {
-        FUNCTION_LOG();
+        //FUNCTION_LOG();
         const Unit* unit = agent->Observation()->GetUnit(self);
-        if (unit != nullptr) {
+        uint32_t loop = agent->Observation()->GetGameLoop();
+        if (unit != nullptr && loop != lastCached_loop) {
+            lastCached_loop = loop;
+
             recentType_cache = unit->unit_type;
             radius_cache = unit->radius;
             flying_cache = unit->is_flying;
@@ -104,6 +108,10 @@ public:
             shieldUpgradeLevel_cache = unit->shield_upgrade_level;
 
             pos_cache = unit->pos;
+            
+            if (pos_cache.x == 0) {
+                printf("");
+            }
 
             isHallucination_ = unit->is_hallucination;
 
@@ -119,10 +127,8 @@ public:
                 comp = CompositionAsTarget::Ground;
             }
         }
-        else {
-            if (agent->Observation()->GetVisibility(pos_cache) == Visibility::Visible) {
-                pos_cache = { 0.0F, 0.0F, 0.0F };
-            }
+        else if(unit == nullptr && agent->Observation()->GetVisibility(pos_cache) == Visibility::Visible){
+            pos_cache = { 0.0F, 0.0F, 0.0F };
         }
         return unit;
     }
@@ -132,12 +138,12 @@ public:
         return pos_cache;
     }
 
-    inline Point2D posCache() {
-        if (team != Unit::Self) {
-            throw 7;
-        }
-        return pos_cache;
-    }
+    //inline Point2D posCache() {
+    //    if (team != Unit::Self) {
+    //        throw 7;
+    //    }
+    //    return pos_cache;
+    //}
 
     inline Point3D pos3D(Agent* const agent) {
         get(agent);
