@@ -377,7 +377,7 @@ struct Bot: sc2::Agent
             int numProbesMaxN = 0;
             UnitTypeData* stats = Aux::getStats(UNIT_TYPEID::PROTOSS_PROBE, this);
             float percentUntilViable = 1.0F - (stats->build_time / stats->build_time);
-            if (nexus->get(this)->build_progress < percentUntilViable) {
+            if (nexus->getReturn(this)->build_progress < percentUntilViable) {
                 continue;
             }
             if (nexus->assimilator1 != nullptr) {
@@ -390,7 +390,7 @@ struct Bot: sc2::Agent
             }
             for (int i = 0; i < 8; i++) {
                 if (nexus->minerals[i] != nullptr) {
-                    if (nexus->minerals[i]->get(this) != nullptr) {
+                    if (nexus->minerals[i]->getReturn(this) != nullptr) {
                         numProbesMaxN += 2;
                         numProbesN += probeTargetting[nexus->minerals[i]->self];
                         Point3D po = nexus->minerals[i]->pos3D(this);
@@ -612,7 +612,7 @@ struct Bot: sc2::Agent
         for (int i = 0; i < 3; i++) {
             for (auto typeIt = maps[i]->begin(); typeIt != maps[i]->end(); typeIt++) {
                 for (auto it = typeIt->second.begin(); it != typeIt->second.end(); it++) {
-                    const Unit* selectedUnit = (*it)->get(this);
+                    const Unit* selectedUnit = (*it)->getReturn(this);
                     if (selectedUnit != nullptr && selectedUnit->is_selected) {
                         found += 1;
                         if (found > 1) {

@@ -12,6 +12,12 @@
 constexpr int SECOND_DIVISION_MOVSAFELY = 4;
 constexpr int COOLDOWN_FRAMES = 10;
 
+#ifdef BUILD_FOR_LADDER
+constexpr int POINT_CHECKS_DEFAULT = 10;
+#else
+constexpr int POINT_CHECKS_DEFAULT = 5;
+#endif
+
 class ArmyUnit : public UnitWrapper{
 private:
 public:
@@ -33,21 +39,21 @@ public:
     }
 
     virtual void atk(Agent* const agent, Point2D point) {
-        const Unit* unit = get(agent);
+        const Unit* unit = getReturn(agent);
         if (unit->orders.size() == 0 || unit->orders[0].ability_id != ABILITY_ID::ATTACK || unit->orders[0].target_pos != point) {
             agent->Actions()->UnitCommand(self, ABILITY_ID::ATTACK, point);
         }
     }
 
     virtual void atk(Agent* const agent, UnitWrapperPtr target) {
-        const Unit* unit = get(agent);
+        const Unit* unit = getReturn(agent);
         if (unit->orders.size() == 0 || unit->orders[0].ability_id != ABILITY_ID::ATTACK || unit->orders[0].target_unit_tag != target->self) {
             agent->Actions()->UnitCommand(self, ABILITY_ID::ATTACK, target->self);
         }
     }
 
     virtual void atkmov(Agent* const agent, Point2D point) {
-        if (get(agent)->weapon_cooldown > 0) {
+        if (getReturn(agent)->weapon_cooldown > 0) {
             mov(agent, point);
         }
         else {
@@ -56,7 +62,7 @@ public:
     }
 
     virtual void mov(Agent* const agent, Point2D point) {
-        const Unit* unit = get(agent);
+        const Unit* unit = getReturn(agent);
         if (unit->orders.size() == 0 || unit->orders[0].ability_id != ABILITY_ID::GENERAL_MOVE || unit->orders[0].target_pos != point) {
             agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, point);
         }
@@ -106,10 +112,11 @@ public:
         Point2D solution;
         float damage = FLT_MAX;
         float distance2 = FLT_MAX;
-        if (get(agent)->orders.size() > 0 && get(agent)->orders[0].target_pos != Point2D()) {
+        const Unit* unit = getReturn(agent);
+        if (unit->orders.size() > 0 && unit->orders[0].target_pos != Point2D()) {
             //solution = get(agent)->orders[0].target_pos;
-            damage = getPathDamage(get(agent)->orders[0].target_pos, agent);//WeaponGrid::getRadiusAvgDPS(get(agent)->orders[0].target_pos, radius(agent)+3.5, shared_from_this(), agent);
-            distance2 = PrimordialStar::getPathLengthAStar(get(agent)->orders[0].target_pos, point, radius(agent), agent);
+            damage = getPathDamage(unit->orders[0].target_pos, agent);//WeaponGrid::getRadiusAvgDPS(get(agent)->orders[0].target_pos, radius(agent)+3.5, shared_from_this(), agent);
+            distance2 = PrimordialStar::getPathLengthAStar(unit->orders[0].target_pos, point, radius(agent), agent);
         }
         movProfiler.midLog("movSafely.setup");
         std::vector<Point2D> path = PrimordialStar::getPathAStar(pos(agent), point, radius(agent), agent);
@@ -165,7 +172,7 @@ public:
         float moveDPS = WeaponGrid::getRadiusAvgDPS(moveLocation, radius(agent) + 3.5, WeaponGrid::wrapToTargetInfo(shared_from_this(), agent), agent);
 
         if (cooldownFrames > 0) {
-            if ((target != nullptr && target->isDead()) || get(agent)->orders.size() == 0) {
+            if ((target != nullptr && target->isDead()) || getReturn(agent)->orders.size() == 0) {
                 cooldownFrames = 0;
             }
             else if (moveDPS > moveLocationDPS) {
@@ -220,7 +227,7 @@ public:
 
         if (squad->squadMainStates[self] == 'u') {
             moveLocation = squad->targetPosition;
-            if (get(agent)->weapon_cooldown > 0) {
+            if (getReturn(agent)->weapon_cooldown > 0) {
                 squad->unitStates[self] = 'n';
             }
             else {
@@ -250,13 +257,13 @@ public:
                     DebugLine(agent, pos3D(agent) + Point3D{0,0,1}, target->pos3D(agent) + Point3D{ 0,0,1 }, Colors::Teal);
                 }
 #endif
-                if (target->get(agent) == nullptr) {
+                if (target->getReturn(agent) == nullptr) {
                     atk(agent, target->pos(agent));
                     cooldownFrames = COOLDOWN_FRAMES;
                 }
                 else {
                     float dTtoEnemy = abs(Distance2D(pos(agent), target->pos(agent)) - (weapon->range + target->radius(agent))) / Aux::getStats(getActualType(agent), agent)->movement_speed;
-                    if (dTtoEnemy >= get(agent)->weapon_cooldown) {
+                    if (dTtoEnemy >= getReturn(agent)->weapon_cooldown) {
                         //if (get(agent)->is_selected) {
                         //    printf("");
                         //}
@@ -276,18 +283,18 @@ public:
                         }
                         
                         cooldownFrames = COOLDOWN_FRAMES;
-                        if (COOLDOWN_FRAMES * fps > get(agent)->weapon_cooldown) {
-                            cooldownFrames = get(agent)->weapon_cooldown / fps;
+                        if (COOLDOWN_FRAMES * fps > getReturn(agent)->weapon_cooldown) {
+                            cooldownFrames = getReturn(agent)->weapon_cooldown / fps;
                         }
                     }
                 }
             }
             else {
                 if (squad->isWithinRadius(pos(agent), agent)) {
-                    movSafely(agent, squad->targetPosition, 10, 7);
+                    movSafely(agent, squad->targetPosition, POINT_CHECKS_DEFAULT, 7);
                 }
                 else {
-                    movSafely(agent, squad->getCorePosition(agent), 10, 7);
+                    movSafely(agent, squad->getCorePosition(agent), POINT_CHECKS_DEFAULT, 7);
                 }
                 cooldownFrames = COOLDOWN_FRAMES;
             }
@@ -346,7 +353,7 @@ public:
 
     virtual void execute(Agent* const agent) {
         FUNCTION_LOG();
-        if (get(agent) == nullptr) {
+        if (getReturn(agent) == nullptr) { //is this needed?
             return;
         }
         if (squad->squadMainStates[self] == 'u' && DistanceSquared2D(pos(agent), squad->getCorePosition(agent)) < squad->armyballSquaredRadius()) {

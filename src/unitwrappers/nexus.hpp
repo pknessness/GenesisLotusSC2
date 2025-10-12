@@ -81,8 +81,8 @@ public:
     void execute(Agent* const agent) {
         FUNCTION_LOG();
         if (chronoBoosts.size() > 0) {
-            if (get(agent)->energy >= Aux::unitAbilityToCost(ABILITY_ID::EFFECT_CHRONOBOOSTENERGYCOST, agent).energy) {
-                std::vector<BuffID> buffs = chronoBoosts[0]->get(agent)->buffs;
+            if (getEnergy(agent) >= Aux::unitAbilityToCost(ABILITY_ID::EFFECT_CHRONOBOOSTENERGYCOST, agent).energy) {
+                std::vector<BuffID> buffs = chronoBoosts[0]->getReturn(agent)->buffs;
                 if (std::find(buffs.begin(), buffs.end(), BUFF_ID::CHRONOBOOSTENERGYCOST) == buffs.end()) {
                     agent->Actions()->UnitCommand(self, ABILITY_ID::EFFECT_CHRONOBOOSTENERGYCOST, chronoBoosts[0]->self);
                     chronoBoosts.erase(chronoBoosts.begin());

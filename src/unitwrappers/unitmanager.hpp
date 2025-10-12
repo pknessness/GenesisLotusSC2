@@ -116,7 +116,7 @@ namespace UnitManager {
     }
 
     //TODO: REPLACE getSelf WITH A MACRO
-    UnitWrappers getSelf(UnitTypeID type) {
+    inline UnitWrappers getSelf(UnitTypeID type) {
         return get(&self_units, type);
     }
 

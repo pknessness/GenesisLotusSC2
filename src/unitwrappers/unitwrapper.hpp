@@ -85,49 +85,69 @@ public:
         abilities_cache.clear();
     }
 
-    inline const Unit* get(Agent* const agent) {
+    inline void updateUnitWrapperPtr(const Unit* unit, uint32_t loop) {
+        lastCached_loop = loop;
+
+        recentType_cache = unit->unit_type;
+        radius_cache = unit->radius;
+        flying_cache = unit->is_flying;
+
+        health_cache = unit->health;
+        healthMax_cache = unit->health_max;
+        shields_cache = unit->shield;
+        shieldsMax_cache = unit->shield_max;
+        energy_cache = unit->energy;
+        energyMax_cache = unit->energy_max;
+
+        attackUpgradeLevel_cache = unit->attack_upgrade_level;
+        armorUpgradeLevel_cache = unit->armor_upgrade_level;
+        shieldUpgradeLevel_cache = unit->shield_upgrade_level;
+
+        pos_cache = unit->pos;
+
+        if (pos_cache.x == 0) {
+            printf("");
+        }
+
+        isHallucination_ = unit->is_hallucination;
+
+        name = UnitTypeToName(recentType_cache);
+
+        if (unit->unit_type == UNIT_TYPEID::PROTOSS_COLOSSUS) {
+            comp = CompositionAsTarget::Any;
+        }
+        else if (unit->is_flying) {
+            comp = CompositionAsTarget::Air;
+        }
+        else {
+            comp = CompositionAsTarget::Ground;
+        }
+    }
+
+    inline void get(Agent* const agent) {
         //FUNCTION_LOG();
-        const Unit* unit = agent->Observation()->GetUnit(self);
         uint32_t loop = agent->Observation()->GetGameLoop();
-        if (unit != nullptr && loop != lastCached_loop) {
-            lastCached_loop = loop;
-
-            recentType_cache = unit->unit_type;
-            radius_cache = unit->radius;
-            flying_cache = unit->is_flying;
-
-            health_cache = unit->health;
-            healthMax_cache = unit->health_max;
-            shields_cache = unit->shield;
-            shieldsMax_cache = unit->shield_max;
-            energy_cache = unit->energy;
-            energyMax_cache = unit->energy_max;
-
-            attackUpgradeLevel_cache = unit->attack_upgrade_level;
-            armorUpgradeLevel_cache = unit->armor_upgrade_level;
-            shieldUpgradeLevel_cache = unit->shield_upgrade_level;
-
-            pos_cache = unit->pos;
-            
-            if (pos_cache.x == 0) {
-                printf("");
+        if (loop != lastCached_loop) {
+            const Unit* unit = agent->Observation()->GetUnit(self);
+            if (unit != nullptr) {
+                updateUnitWrapperPtr(unit, loop);
             }
-
-            isHallucination_ = unit->is_hallucination;
-
-            name = UnitTypeToName(recentType_cache);
-
-            if (unit->unit_type == UNIT_TYPEID::PROTOSS_COLOSSUS) {
-                comp = CompositionAsTarget::Any;
-            }
-            else if (unit->is_flying) {
-                comp = CompositionAsTarget::Air;
-            }
-            else {
-                comp = CompositionAsTarget::Ground;
+            else if (unit == nullptr && agent->Observation()->GetVisibility(pos_cache) == Visibility::Visible) {
+                pos_cache = { 0.0F, 0.0F, 0.0F };
             }
         }
-        else if(unit == nullptr && agent->Observation()->GetVisibility(pos_cache) == Visibility::Visible){
+    }
+
+    inline const Unit* getReturn(Agent* const agent) {
+        //FUNCTION_LOG();
+        const Unit* unit = agent->Observation()->GetUnit(self);
+        if (unit != nullptr) {
+            uint32_t loop = agent->Observation()->GetGameLoop();
+            if (loop != lastCached_loop) {
+                updateUnitWrapperPtr(unit, loop);
+            }
+        }
+        else if (unit == nullptr && agent->Observation()->GetVisibility(pos_cache) == Visibility::Visible) {
             pos_cache = { 0.0F, 0.0F, 0.0F };
         }
         return unit;
@@ -161,7 +181,7 @@ public:
     }
 
     CompositionAsTarget getCompositionAsTarget(Agent* agent) {
-        const Unit* selfUnit = get(agent);
+        get(agent);
         return comp;
     }
 
@@ -214,21 +234,19 @@ public:
     //}
 
     virtual float getPathLength(Agent* const agent, Point2D point) {
-        const Unit* unit = get(agent);
-        if (unit == nullptr) return -1;
-        if (unit->is_flying) {
-            return getPathLengthAir(unit->pos, point);
+        get(agent);
+        if (flying_cache) {
+            return getPathLengthAir(pos_cache, point);
         }
-        return UnitWrapper::getPathLengthGroundAStar(unit->pos, point, unit->radius, agent);//->Query()->PathingDistance(unit, point);
+        return UnitWrapper::getPathLengthGroundAStar(pos_cache, point, radius_cache, agent);//->Query()->PathingDistance(unit, point);
     }
 
     virtual std::vector<Point2D> getPathUniversal(Agent* const agent, Point2D point) {
-        const Unit* unit = get(agent);
-        if (unit == nullptr) return std::vector<Point2D>();
-        if (unit->is_flying) {
-            return { unit->pos, point};
+        get(agent);
+        if (flying_cache) {
+            return { pos_cache, point};
         }
-        return PrimordialStar::getPathAStar(unit->pos, point, unit->radius, agent);//->Query()->PathingDistance(unit, point);
+        return PrimordialStar::getPathAStar(pos_cache, point, radius_cache, agent);//->Query()->PathingDistance(unit, point);
     }
 
     void setDead() {
@@ -236,74 +254,47 @@ public:
     }
 
     float getHealth(Agent* const agent) {
-        const Unit* unit = get(agent);
-        if (unit != nullptr) {
-            health_cache = unit->health;
-        }
+        get(agent);
         return health_cache;
     }
 
     float getHealthMax(Agent* const agent) {
-        const Unit* unit = get(agent);
-        if (unit != nullptr) {
-            healthMax_cache = unit->health_max;
-        }
+        get(agent);
         return healthMax_cache;
     }
 
     float getShields(Agent* const agent) {
-        const Unit* unit = get(agent);
-        if (unit != nullptr) {
-            shields_cache = unit->shield;
-        }
+        get(agent);
         return shields_cache;
     }
 
     float getShieldsMax(Agent* const agent) {
-        const Unit* unit = get(agent);
-        if (unit != nullptr) {
-            shieldsMax_cache = unit->shield_max;
-        }
+        get(agent);
         return shieldsMax_cache;
     }
 
     float getEnergy(Agent* const agent) {
-        const Unit* unit = get(agent);
-        if (unit != nullptr) {
-            energy_cache = unit->energy;
-        }
+        get(agent);
         return energy_cache;
     }
 
     float getEnergyMax(Agent* const agent) {
-        const Unit* unit = get(agent);
-        if (unit != nullptr) {
-            energyMax_cache = unit->energy_max;
-        }
+        get(agent);
         return energyMax_cache;
     }
 
     int32_t getAttackUpgradeLevel(Agent* const agent) {
-        const Unit* unit = get(agent);
-        if (unit != nullptr) {
-            attackUpgradeLevel_cache = unit->attack_upgrade_level;
-        }
+        get(agent);
         return attackUpgradeLevel_cache;
     }
 
     int32_t getArmorUpgradeLevel(Agent* const agent) {
-        const Unit* unit = get(agent);
-        if (unit != nullptr) {
-            armorUpgradeLevel_cache = unit->armor_upgrade_level;
-        }
+        get(agent);
         return armorUpgradeLevel_cache;
     }
 
     int32_t getShieldsUpgradeLevel(Agent* const agent) {
-        const Unit* unit = get(agent);
-        if (unit != nullptr) {
-            shieldUpgradeLevel_cache = unit->shield_upgrade_level;
-        }
+        get(agent);
         return shieldUpgradeLevel_cache;
     }
 

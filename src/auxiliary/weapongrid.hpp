@@ -709,7 +709,7 @@ namespace WeaponGrid {
                 Aux::opponent = stats->race;
             }
             for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
-                if ((*it2)->isHallucination() || (*it2)->get(agent) == nullptr) {
+                if ((*it2)->isHallucination() || (*it2)->getReturn(agent) == nullptr) {
                     continue;
                 }
                 

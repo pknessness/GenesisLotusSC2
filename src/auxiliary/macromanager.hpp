@@ -195,7 +195,7 @@ namespace MacroManager {
 		if (pos == Point2D{ 0, 0 }) {
 			for (int i = 0; i < 10; i++) {
 				UnitWrapperPtr pylon = UnitManager::getRandomSelf(UNIT_TYPEID::PROTOSS_PYLON);
-				if (pylon == nullptr || !pylon->get(agent)->IsBuildFinished()) {
+				if (pylon == nullptr || !pylon->getReturn(agent)->IsBuildFinished()) {
 					return Point2D{ -1, -1 };
 				}
 				Point2D p = Aux::getRandomPointRadius(pylon->pos(agent), 6);
@@ -408,7 +408,7 @@ namespace MacroManager {
 			UnitWrappers possibleUnits;
 			float ticksToExecutorReady = -1;
 			for (auto it = allPossibleUnits.begin(); it != allPossibleUnits.end(); it++) {
-				const Unit* unwrapUnit = (*it)->get(agent);
+				const Unit* unwrapUnit = (*it)->getReturn(agent);
 				if (unwrapUnit != nullptr && unwrapUnit->unit_type == UNIT_TYPEID::PROTOSS_WARPGATE) {
 					AvailableAbilities unitAbilities = agent->Query()->GetAbilitiesForUnit(unwrapUnit);
 					bool hasAbility = false;
@@ -612,7 +612,7 @@ namespace MacroManager {
 
 					float ticksToPrereq = -1;
 					for (auto it = allPrereqs.begin(); it != allPrereqs.end(); it++) {
-						const Unit* prereq = (*it)->get(agent);
+						const Unit* prereq = (*it)->getReturn(agent);
 						if (prereq != nullptr) {
 							float ticks = (1.0 - prereq->build_progress) * prereqStats->build_time;
 							if (ticksToPrereq == -1 || ticksToPrereq > ticks) {
@@ -693,7 +693,7 @@ namespace MacroManager {
 
 					bool foundPrereq = false;
 					for (auto it = allPrereqs.begin(); it != allPrereqs.end(); it++) {
-						const Unit* prereq = (*it)->get(agent);
+						const Unit* prereq = (*it)->getReturn(agent);
 						if (prereq != nullptr && prereq->build_progress == 1.0) {
 							foundPrereq = true;
 							break;
@@ -714,7 +714,7 @@ namespace MacroManager {
 			}
 
 			if (theoryMin >= int(abilityCost.minerals) && theoryVesp >= int(abilityCost.vespene)) {
-				const Unit* unit = currentAction->executorPtr->get(agent);
+				const Unit* unit = currentAction->executorPtr->getReturn(agent);
 				macroProfiler.midLog("macro.8");
 				if (currentAction->executor != UNIT_TYPEID::PROTOSS_PROBE) {
 					AvailableAbilities unitAbilities = agent->Query()->GetAbilitiesForUnit(unit);

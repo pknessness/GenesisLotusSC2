@@ -134,7 +134,7 @@ namespace SquadManager {
 
 		UnitWrapperPtr getCore(Agent* const agent) {
 			FUNCTION_LOG();
-			if (core == nullptr || core->get(agent) == nullptr) {
+			if (core == nullptr || core->getReturn(agent) == nullptr) {
 				if (armyContents.size() > 0) {
 					bool hasGND = false;
 					Point2D center;

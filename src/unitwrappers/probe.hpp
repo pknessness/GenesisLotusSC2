@@ -49,10 +49,10 @@ public:
 
     UnitWrapperPtr getTargetTag(Agent* agent) { //TODO: IF ASSIMILATOR EMPTY RETARGET
         FUNCTION_LOG();
-        if (target != nullptr && (target->get(agent) == nullptr || (target->getStorageType() == UNIT_TYPEID::PROTOSS_ASSIMILATOR && target->get(agent)->vespene_contents == 0))) {
+        if (target != nullptr && (target->getReturn(agent) == nullptr || (target->getStorageType() == UNIT_TYPEID::PROTOSS_ASSIMILATOR && target->getReturn(agent)->vespene_contents == 0))) {
             UnitWrapperPtr oldTarget = target;
             setTarget(nullptr);
-            if (oldTarget->get(agent) == nullptr) {
+            if (oldTarget->getReturn(agent) == nullptr) {
                 probeTargetting.erase(oldTarget->self);
             }
         }
@@ -68,7 +68,7 @@ public:
             bool hasNexus = false;
 
             for (UnitWrapperPtr targetWrap : mineralWraps) {
-                if (targetWrap->getStorageType() == UNIT_TYPEID::PROTOSS_ASSIMILATOR && targetWrap->get(agent)->vespene_contents == 0) {
+                if (targetWrap->getStorageType() == UNIT_TYPEID::PROTOSS_ASSIMILATOR && targetWrap->getReturn(agent)->vespene_contents == 0) {
                     continue;
                 }
 
@@ -124,7 +124,7 @@ public:
 
     void execute(Agent* const agent) {
         FUNCTION_LOG();
-        const Unit* unit = get(agent);
+        const Unit* unit = getReturn(agent);
         if (unit == nullptr) {
             return;
         }
@@ -148,7 +148,7 @@ public:
                     bool built = false;
 
                     for (auto it = prereqs.begin(); it != prereqs.end(); it++) {
-                        const Unit* prereq = (*it)->get(agent);
+                        const Unit* prereq = (*it)->getReturn(agent);
                         if (prereq != nullptr && prereq->build_progress == 1.0F) {
                             built = true;
                         }
@@ -187,7 +187,7 @@ public:
             }
             else {
                 DebugBox(agent, AP3D(top.pos) + Point3D{ -1.5,-1.5,0 }, AP3D(top.pos) + Point3D{ 1.5,1.5,3 }, Colors::Teal);
-                const Unit* prob = get(agent);
+                const Unit* prob = getReturn(agent);
                 if (prob->orders.size() == 0 || prob->orders.front().target_pos != top.pos) {
                     agent->Actions()->UnitCommand(self, ABILITY_ID::MOVE_MOVE, top.pos);
                 }
