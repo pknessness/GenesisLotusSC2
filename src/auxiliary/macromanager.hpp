@@ -570,8 +570,12 @@ namespace MacroManager {
 				macroProfiler.midLog("macro.6.2");
 				for (int i = 0; i < 2; i++) {
 					UnitWrapperPtr potentialNewProbe = UnitManager::getRandomSelf(UNIT_TYPEID::PROTOSS_PROBE);
-					UnitTypeID newProbeTarget = std::static_pointer_cast<Probe>(potentialNewProbe)->getTargetTag(agent)->getStorageType(); //TODO: MAKE SURE TARGET TAG ISNT NULL
-					if (oldProbeTarget == UNIT_TYPEID::NEUTRAL_MINERALFIELD && newProbeTarget == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER) {
+					UnitWrapperPtr newProbeTarget = std::static_pointer_cast<Probe>(potentialNewProbe)->getTargetTag(agent);
+					UnitTypeID newProbeTargetType = UNIT_TYPEID::INVALID;
+					if (newProbeTarget != nullptr) {
+						newProbeTargetType = newProbeTarget->getStorageType();
+					}
+					if (oldProbeTarget == UNIT_TYPEID::NEUTRAL_MINERALFIELD && newProbeTargetType == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER) {
 						continue;
 					}
 					macroProfiler.midLog("macro.6.2.1");
@@ -584,7 +588,7 @@ namespace MacroManager {
 						newDist = Distance2D(potentialNewProbe->pos(agent), currentAction->position.pos);
 					}
 					macroProfiler.midLog("macro.6.2.3");
-					if (newDist <= distToTravel || (newProbeTarget == UNIT_TYPEID::NEUTRAL_MINERALFIELD && oldProbeTarget == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER)) {
+					if (newDist <= distToTravel || (newProbeTargetType == UNIT_TYPEID::INVALID || newProbeTargetType == UNIT_TYPEID::NEUTRAL_MINERALFIELD && oldProbeTarget == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER)) {
 						currentAction->executorPtr = potentialNewProbe;
 						distToTravel = newDist;
 						break;
