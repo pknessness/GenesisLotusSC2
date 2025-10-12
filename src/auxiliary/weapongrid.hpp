@@ -19,104 +19,6 @@ namespace WeaponGrid {
     //Fungal Growth - Infestor
 
     constexpr int STATIC_DAMAGECELL_SIZE = 32;
-    //struct WeaponSource {
-    //    UnitTypeID unitType;
-    //    int8_t unitIndex;
-    //};
-
-    //int weaponSourceToInt(WeaponSource in) {
-    //    return (in.unitType << 8) | in.unitIndex;
-    //}
-
-    //WeaponSource intToInbuiltSource(int in) {
-    //    return { UnitTypeID(in >> 8), int8_t(in & 0xFF) };
-    //}
-
-    //struct DamageSourceID {
-    //    UnitTypeID unitType;
-    //    int8_t unitIndex;
-
-    //    int damageSourceIndex;
-    //};
-
-    ////bool operator< (WeaponSource a, WeaponSource b) { return weaponSourceToInt(a) < weaponSourceToInt(b); }
-
-    //static std::map <UnitTypeID, std::vector<DamageSourceID>> damageSources;
-    //static std::map <EffectID, uint8_t> damageEffects;
-
-    //static std::vector < Aux::ExtraWeapon > extraWeapons;
-
-    //static void addDamageSource(UnitTypeID unitType, int8_t unitIndex) {
-    //    int index = damageSources.size();
-    //    if (index >= STATIC_DAMAGECELL_SIZE) {
-    //        printf("STATIC_DAMAGECELL_SIZE is too small %d %d\n", index, STATIC_DAMAGECELL_SIZE);
-    //        throw 40;
-    //    }
-    //    //damageSources.push_back({ unitType, unitIndex, index });
-    //    DamageSourceID dS{ unitType, unitIndex, index };
-    //    if (damageSources.find(unitType) == damageSources.end()) {
-    //        damageSources[unitType] = { dS };
-    //    }
-    //    else {
-    //        damageSources[unitType].push_back(dS);
-    //    }
-    //    
-    //}
-
-    //static void addDamageSource(UnitTypeID unitType, Aux::ExtraWeapon w) {
-    //    int index = extraWeapons.size();
-    //    int8_t uIndex = -extraWeapons.size();
-    //    extraWeapons.push_back(w);
-    //    if (index >= STATIC_DAMAGECELL_SIZE) {
-    //        printf("STATIC_DAMAGECELL_SIZE is too small %d %d\n", index, STATIC_DAMAGECELL_SIZE);
-    //        throw 41;
-    //    }
-    //    //damageSources.push_back({ unitType, unitIndex, index });
-    //    DamageSourceID dS{ unitType, uIndex, index };
-    //    if (damageSources.find(unitType) == damageSources.end()) {
-    //        damageSources[unitType] = { dS };
-    //    }
-    //    else {
-    //        damageSources[unitType].push_back(dS);
-    //    }
-    //}
-
-    //static void addDamageEffect(EffectID effectID, Aux::ExtraWeapon w) {
-    //    int index = damageEffects.size();
-    //    int8_t uIndex = -extraWeapons.size();
-    //    extraWeapons.push_back(w);
-    //    if (index >= STATIC_DAMAGECELL_SIZE) {
-    //        printf("STATIC_DAMAGECELL_SIZE is too small %d %d\n", index, STATIC_DAMAGECELL_SIZE);
-    //        throw 41;
-    //    }
-    //    //damageSources.push_back({ unitType, unitIndex, index });
-    //    if (damageSources.find(effectID) == damageSources.end()) {
-    //        damageSources[unitType] = { dS };
-    //    }
-    //    else {
-    //        damageSources[unitType].push_back(dS);
-    //    }
-    //}
-    
-    //static std::vector < Aux::ExtraWeapon > getWeapons(UnitTypeID unitType, Agent* const agent) {
-    //    if (damageSources.find(unitType) == damageSources.end()) {
-    //        return std::vector<Aux::ExtraWeapon>();
-    //    }
-    //    else {
-    //        std::vector < Aux::ExtraWeapon > weapons;
-    //        std::vector<DamageSourceID> damages = damageSources[unitType];
-    //        for (int i = 0; i < damages.size(); i++) {
-    //            UnitTypeData unitStats = Aux::getStats(unitType, agent);
-    //            if (damages[i].unitIndex >= 0) {
-    //                weapons.push_back(Aux::ExtraWeapon(unitStats.weapons[damages[i].unitIndex]));
-    //            }
-    //            else {
-    //                weapons.push_back(extraWeapons[-damages[i].unitIndex]);
-    //            }
-    //        }
-    //    }
-    //    
-    //}
 
     //UnitType -> all the weapons id
     //Effect -> the relevant weapon id
@@ -244,6 +146,7 @@ namespace WeaponGrid {
         UnitTypeData* targetStats;
         CompositionAsTarget c; 
         float shields; 
+        float shieldsMax;
         int32_t shieldsUpgrade; 
         int32_t armorUpgrade; 
         float energy; 
@@ -251,7 +154,7 @@ namespace WeaponGrid {
     };
 
     inline relevantTargetDamageInfo wrapToTargetInfo(UnitWrapperPtr target, Agent* const agent) {
-        return { Aux::getStats(target->getActualType(agent), agent), target->getCompositionAsTarget(agent), target->getShields(agent), target->getShieldsUpgradeLevel(agent), target->getArmorUpgradeLevel(agent), target->getEnergy(agent), target->isHallucination() };
+        return { Aux::getStats(target->getActualType(agent), agent), target->getCompositionAsTarget(agent), target->getShields(agent), target->getShieldsMax(agent), target->getShieldsUpgradeLevel(agent), target->getArmorUpgradeLevel(agent), target->getEnergy(agent), target->isHallucination() };
     }
     
     //passing it in as parameters for speed
@@ -368,13 +271,45 @@ namespace WeaponGrid {
     static std::shared_ptr < map2d<DamageCell> > damageMap_enemy;
     static std::shared_ptr < map2d<uint8_t> > damageMap_modify;
     static std::shared_ptr < map2d<uint8_t> > damageMap_valid;
-    static std::shared_ptr < map2d<uint16_t> > damageMap_heal;
+
+    /*
+    * BITS 7 6 5 4 3 2 1 0
+    * BIT [0]   | reserved
+    * BIT [1]   | Shield Battery Heal
+    * BIT [2]   | Enemy Cloaked Vision
+    * BIT [3]   | Acceleration Zone (35% speedup?)
+    * BIT [4:7] | reserved
+    */
+    static std::shared_ptr < map2d<uint8_t> > damageMap_other;
+
+    enum OtherSourceTags {
+        RESERVED_BLANK = 0x0,     // 0000: Nothing
+        SHIELDBATTERY_AURA = 0x1,    // 0001: Self Buildings
+        ENEMY_CLOAKVISION = 0x2,   // 0010: Enemy Buildings
+        ACCELERATION_ZONE = 0x3,  // 0011: Cliff Unpathable
+        RESERVED_A = 0x4,    // 0100: Cliff Pathable by Reapers/Colossus
+        RESERVED_B = 0x5,          // 0101: Minerals
+        RESERVED_C = 0x6,  // 0111: Unpathable Rocks
+        RESERVED_D = 0x7,    // 1000: Pathable Rocks
+    };
+
+    void otherSourceSet(int i, int j, OtherSourceTags tag) {
+        imRef(damageMap_other, i, j) = imRef(damageMap_other, i, j) | (0x1 << uint8_t(tag));
+    }
+
+    bool otherSourceGet(int i, int j, OtherSourceTags tag) {
+        return imRef(damageMap_other, i, j) & (0x1 << uint8_t(tag));
+    }
+
+    void otherSourceReset(int i, int j, OtherSourceTags tag) {
+        imRef(damageMap_other, i, j) = imRef(damageMap_other, i, j) & (0x0 << uint8_t(tag));
+    }
 
     static void init(Agent* const agent) {
         damageMap_enemy = std::make_shared<map2d<DamageCell>>(Aux::mapWidth_cache * DAMAGENET_PRECISION, Aux::mapHeight_cache * DAMAGENET_PRECISION, true);
         damageMap_valid = std::make_shared<map2d<uint8_t>>(Aux::mapWidth_cache * DAMAGENET_PRECISION, Aux::mapHeight_cache * DAMAGENET_PRECISION, true);
         damageMap_modify = std::make_shared<map2d<uint8_t>>(Aux::mapWidth_cache * DAMAGENET_PRECISION, Aux::mapHeight_cache * DAMAGENET_PRECISION, true);
-        damageMap_heal = std::make_shared<map2d<uint16_t>>(Aux::mapWidth_cache * DAMAGENET_PRECISION, Aux::mapHeight_cache * DAMAGENET_PRECISION, true);
+        damageMap_other = std::make_shared<map2d<uint8_t>>(Aux::mapWidth_cache * DAMAGENET_PRECISION, Aux::mapHeight_cache * DAMAGENET_PRECISION, true);
 
         emptyWeapon = new Aux::ExtraWeapon();
 
@@ -527,6 +462,7 @@ namespace WeaponGrid {
 
     void clearDamageGrid() {
         damageMap_valid->clear();
+        damageMap_other->clear();
     }
 
     //slower but more reliable on smaller radii
@@ -656,6 +592,28 @@ namespace WeaponGrid {
         }
     }
 
+    void setOtherRadius(Point2D pos, OtherSourceTags otherTag, float radius) {
+        //Profiler profiler("DamageGridF");
+        damageMap_modify->clear();
+
+
+        int xmin = std::max(int((pos.x - radius) * DAMAGENET_PRECISION), 0);
+        int ymin = std::max(int((pos.y - radius) * DAMAGENET_PRECISION), 0);
+        int xmax = std::min(int((pos.x + radius) * DAMAGENET_PRECISION), damageMap_modify->width());
+        int ymax = std::min(int((pos.y + radius) * DAMAGENET_PRECISION), damageMap_modify->height());
+
+        fillDamageModify(pos, radius);
+
+        for (int i = xmin; i <= xmax; i++) {
+            for (int j = ymin; j <= ymax; j++) {
+                //DebugLine(agent,Point3D{ (float)(i) / damageNetPrecision, (float)(j) / damageNetPrecision, 0.0F }, Point3D{ (float)(i) / damageNetPrecision, (float)(j) / damageNetPrecision, 13.0F });
+                if (imRef(damageMap_modify, i, j)) {
+                    otherSourceSet(i, j, otherTag);
+                }
+            }
+        }
+    }
+
     void setEnemyDamageRadius(Point2D pos, uint8_t weaponIndex) {
         //Profiler profiler("DamageGridF");
         damageMap_modify->clear();
@@ -692,17 +650,20 @@ namespace WeaponGrid {
 
         relevantTargetDamageInfo targetInfo = wrapToTargetInfo(unitWrap, agent);
 
-        float dps;
+        float dps_max;
         for (int i = xmin; i <= xmax; i++) {
             for (int j = ymin; j <= ymax; j++) {
                 //DebugLine(agent,Point3D{ (float)(i) / damageNetPrecision, (float)(j) / damageNetPrecision, 0.0F }, Point3D{ (float)(i) / damageNetPrecision, (float)(j) / damageNetPrecision, 13.0F });
                 if (imRef(damageMap_modify, i, j)) {
                     //DamageLocation pointDmag = imRef(enemyDamageNet, i, j);
-                    dps = std::max(dps, getRawCellDPS(i, j, targetInfo, agent));
+                    float dps = std::max(dps, getRawCellDPS(i, j, targetInfo, agent));
+                    if (dps > dps_max) {
+                        dps_max = dps;
+                    }
                 }
             }
         }
-        return dps;
+        return dps_max;
     }
 
     float getRadiusAvgDPS(Point2D pos, float radius, relevantTargetDamageInfo targetInfo, Agent* const agent) {
@@ -724,6 +685,9 @@ namespace WeaponGrid {
                 if (imRef(damageMap_modify, i, j)) {
                     //DamageLocation pointDmag = imRef(enemyDamageNet, i, j);
                     dps += getRawCellDPS(i, j, targetInfo, agent);
+                    if (targetInfo.shields < targetInfo.shieldsMax && otherSourceGet(i, j, SHIELDBATTERY_AURA)) {
+                        dps -= 50; //shield battery is 50 shields per second
+                    }
                     count++;
                 }
             }
@@ -756,6 +720,14 @@ namespace WeaponGrid {
 
                 for (DamageSourceID d : weapons) {
                     setEnemyDamageRadius((*it2)->pos(agent), d.weaponIndex);
+                }
+            }
+        }
+
+        if (UnitManager::self_units.find(UNIT_TYPEID::PROTOSS_SHIELDBATTERY) != UnitManager::self_units.end()) {
+            for (auto it = UnitManager::self_units[UNIT_TYPEID::PROTOSS_SHIELDBATTERY].begin(); it != UnitManager::enemy_units[UNIT_TYPEID::PROTOSS_SHIELDBATTERY].end(); it++) {
+                if ((*it)->getEnergy(agent) > 0) {
+                    setOtherRadius((*it)->pos(agent), SHIELDBATTERY_AURA, 6);
                 }
             }
         }

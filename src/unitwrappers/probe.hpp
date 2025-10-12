@@ -57,19 +57,6 @@ public:
             }
         }
         if (target == nullptr) {
-            //probeTargetting.clear();
-            //for (UnitWrapperPtr probesWr : UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PROBE)) {
-            //    std::shared_ptr<Probe> probe = std::static_pointer_cast<Probe>(probesWr);
-            //    if (probe->target == nullptr) {
-            //        continue;
-            //    }
-
-            //    if (probe->target != nullptr && probeTargetting.find(probe->target->self) == probeTargetting.end()) {
-            //        probeTargetting[probe->target->self] = 0;
-            //    }
-            //    probeTargetting[probe->target->self] += 1;
-            //}
-
             //TODO: CHOOSE NEW TARGET
             UnitWrappers mineralWraps = UnitManager::getMinerals();
             UnitWrappers assimilatorWraps = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_ASSIMILATOR);
@@ -165,10 +152,6 @@ public:
                         if (prereq != nullptr && prereq->build_progress == 1.0F) {
                             built = true;
                         }
-                        //if ((*it)->construction_finished) {
-                        //    built = true;
-                        //    break;
-                        //}
                     }
                     if (!built) {
                         return;
