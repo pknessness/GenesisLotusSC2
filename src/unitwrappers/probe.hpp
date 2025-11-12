@@ -20,11 +20,14 @@ std::map<Tag, int8_t> probeTargetting;
 //std::map<Tag, float> mineralDistance;
 std::map<Tag, bool> nexusNearby;
 
+std::vector<Building> failedBuildings;
+
 class Probe : public UnitWrapper {
 private:
 
     UnitWrapperPtr target;
     float ignoreFrames;
+    Point2D patrolCenter;
 
 public:
     std::vector<Building> buildings;
@@ -122,16 +125,26 @@ public:
         buildings.push_back(b);
     }
 
+    bool isPatrolling() {
+        return patrolCenter != Point2D();
+    }
+
     void execute(Agent* const agent) {
         FUNCTION_LOG();
         const Unit* unit = getReturn(agent);
         if (unit == nullptr) {
             return;
         }
-        if (buildings.size() != 0 && (unit->orders.size() == 0 || unit->orders[0].ability_id == ABILITY_ID::HARVEST_GATHER || unit->orders[0].ability_id == ABILITY_ID::HARVEST_RETURN)) {
+        if (buildings.size() != 0 && (unit->orders.size() == 0 || unit->orders[0].ability_id == ABILITY_ID::HARVEST_GATHER || unit->orders[0].ability_id == ABILITY_ID::HARVEST_RETURN || unit->orders[0].ability_id == ABILITY_ID::GENERAL_PATROL)) {
             Building top = buildings[0];
             if (top.build == ABILITY_ID::GENERAL_MOVE) {
                 agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, top.pos);
+                buildings.erase(buildings.begin());
+            }
+            else if (top.build == ABILITY_ID::GENERAL_PATROL) {
+                agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, top.pos + Point2D{-1,0});
+                agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_PATROL, top.pos + Point2D{ 1,0 }, true);
+                patrolCenter = top.pos;
                 buildings.erase(buildings.begin());
             }
             else if (DistanceSquared2D(agent->Observation()->GetUnit(self)->pos, top.pos) < 4) {
@@ -175,8 +188,14 @@ public:
                     if (agent->Query()->Placement(top.build, top.pos)) {
                         printf("CAN PLACE %s %.1f,%.1f\n", AbilityTypeToName(top.build), top.pos.x, top.pos.y);
                         agent->Actions()->UnitCommand(self, top.build, top.pos);
+                        if (patrolCenter != Point2D()) {
+                            agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, patrolCenter + Point2D{ -1,0 }, true);
+                            agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_PATROL, patrolCenter + Point2D{ 1,0 }, true);
+                        }
                     }
                     else {
+                        failedBuildings.push_back(*buildings.begin());
+                        buildings.erase(buildings.begin());
                         return;
                     }
                 }
@@ -200,6 +219,15 @@ public:
                 /*printf("REASING\n");*/
                 agent->Actions()->UnitCommand(self, ABILITY_ID::HARVEST_GATHER, targ->self);
             }
+        }
+    }
+
+    float getPathLengthFromLastAction(Point2D end, Agent* const agent) {
+        if (buildings.size() > 0) {
+            return getPathLength(buildings[buildings.size() - 1].pos, end, agent);
+        }
+        else {
+            return getPathLength(end, agent);
         }
     }
 };

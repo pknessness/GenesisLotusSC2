@@ -567,19 +567,19 @@ namespace Aux {
 				ExtraWeapon purificationNova(Weapon::TargetType::Ground, 100, 1, 1.5, EPSILON);
 				statsMap[UNIT_TYPEID::PROTOSS_DISRUPTORPHASED].weapons.push_back(purificationNova);
 			}
-			else if (type == UNIT_TYPEID::ZERG_BANELING || type == UNIT_TYPEID::ZERG_BANELINGBURROWED) {
-				//https://www.reddit.com/r/starcraft/comments/40pl7l/how_far_can_a_disruptors_purification_nova_travel/?rdt=50754
-				ExtraWeapon volatileBurst(Weapon::TargetType::Ground, 16, 1, 2.2, EPSILON);
-				volatileBurst.addDamageBonus(Attribute::Light, 19);
-				statsMap[UNIT_TYPEID::ZERG_BANELING].weapons.push_back(volatileBurst);
-				statsMap[UNIT_TYPEID::ZERG_BANELINGBURROWED].weapons.push_back(volatileBurst);
-			}
-			else if (type == UNIT_TYPEID::TERRAN_BATTLECRUISER) {
-				ExtraWeapon ATSLaserBattery(Weapon::TargetType::Ground, 8, 1, 6, 0.16);
-				ExtraWeapon ATALaserBattery(Weapon::TargetType::Air, 5, 1, 6, 0.16);
-				statsMap[UNIT_TYPEID::TERRAN_BATTLECRUISER].weapons.push_back(ATSLaserBattery);
-				statsMap[UNIT_TYPEID::TERRAN_BATTLECRUISER].weapons.push_back(ATALaserBattery);
-			}
+			//else if (type == UNIT_TYPEID::ZERG_BANELING || type == UNIT_TYPEID::ZERG_BANELINGBURROWED) {
+			//	//https://www.reddit.com/r/starcraft/comments/40pl7l/how_far_can_a_disruptors_purification_nova_travel/?rdt=50754
+			//	ExtraWeapon volatileBurst(Weapon::TargetType::Ground, 16, 1, 2.2, EPSILON);
+			//	volatileBurst.addDamageBonus(Attribute::Light, 19);
+			//	statsMap[UNIT_TYPEID::ZERG_BANELING].weapons.push_back(volatileBurst);
+			//	statsMap[UNIT_TYPEID::ZERG_BANELINGBURROWED].weapons.push_back(volatileBurst);
+			//}
+			//else if (type == UNIT_TYPEID::TERRAN_BATTLECRUISER) {
+			//	ExtraWeapon ATSLaserBattery(Weapon::TargetType::Ground, 8.0F, 1, 6.0F, 0.16);
+			//	ExtraWeapon ATALaserBattery(Weapon::TargetType::Air, 5.0F, 1, 6.0F, 0.16);
+			//	statsMap[UNIT_TYPEID::TERRAN_BATTLECRUISER].weapons.push_back(ATSLaserBattery);
+			//	statsMap[UNIT_TYPEID::TERRAN_BATTLECRUISER].weapons.push_back(ATALaserBattery);
+			//}
 		}
 		return &(statsMap[type]);
 	}

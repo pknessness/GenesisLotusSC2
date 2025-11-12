@@ -140,7 +140,7 @@ namespace SquadManager {
 					Point2D center;
 					int cnt = 0;
 					for (auto it = armyContents.begin(); it != armyContents.end(); it++){
-						if (!(*it)->isFlying(agent)) {
+						if (1 || !(*it)->isFlying(agent)) {
 							hasGND = true;
 							center += (*it)->pos(agent);
 							cnt++;

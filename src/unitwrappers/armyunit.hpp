@@ -33,6 +33,8 @@ public:
 
     int8_t cooldownFrames = 0;
 
+    bool safetyMode = false;
+
     ArmyUnit(const Unit* unit, UnitTypeID sType, SquadManager::Squad* squad_) : UnitWrapper(unit, sType), squad(squad_){
         squad->squadMainStates[unit->tag] = 'u';
         squad->unitStates[unit->tag] = ' ';
@@ -69,7 +71,7 @@ public:
     }
 
     float getPathDamage(Point2D p, Agent* const agent) {
-        std::vector<Point2D> path = getPathUniversal(agent, p);
+        std::vector<Point2D> path = getPathUniversal(p, agent);
         std::vector<Point2D> checks = PrimordialStar::stepPointsAlongPath(path, Aux::getStats(getActualType(agent), agent)->movement_speed / SECOND_DIVISION_MOVSAFELY);
         float dps = 0;
         WeaponGrid::relevantTargetDamageInfo selfTargetInfo = WeaponGrid::wrapToTargetInfo(shared_from_this(), agent);
@@ -136,7 +138,7 @@ public:
             }
             else {
                 p = Aux::getRandomPointRadius(pos(agent), searchRadius);
-                if (!Aux::isPathable(p)) {
+                if (!Aux::isPathable(p) && !isFlying(agent)) {
                     i--;
                     continue;
                 }
@@ -145,11 +147,11 @@ public:
             //WeaponGrid::getRadiusAvgDPS(p, radius(agent) + 3.5, shared_from_this(), agent);
             if (damage > dmg) {
                 damage = dmg;
-                distance2 = PrimordialStar::getPathLengthAStar(p, point, radius(agent), agent);
+                distance2 = getPathLength(p, point, agent);
                 solution = p;
             }
             else if (damage == dmg) {
-                float dist2 = PrimordialStar::getPathLengthAStar(p, point, radius(agent), agent);
+                float dist2 = getPathLength(p, point, agent);
                 if (dist2 < distance2) {
                     damage = dmg;
                     distance2 = dist2;
@@ -190,6 +192,14 @@ public:
         target = nullptr;
         //float damageToTarget = 0.0F;
         Aux::ExtraWeapon* weapon = WeaponGrid::emptyWeapon;
+
+        bool radiusOfSafety = (WeaponGrid::getRadiusAvgDPS(pos(agent), radius(agent) + 3.5, WeaponGrid::wrapToTargetInfo(shared_from_this(), agent), agent) == 0.0F);
+        if (!safetyMode && getShields(agent) < 20.0F) {
+            safetyMode = true;
+        }
+        else if (safetyMode && getShields(agent) > (getShieldsMax(agent) - 20.0F)) {
+            safetyMode = false;
+        }
 
         float priority = 0; //fine because condition is also target == nullptr
         float dmagToTarget = 0;
@@ -253,12 +263,15 @@ public:
             //atk(agent, squad->targetPosition);
             if (target != nullptr) {
 #ifdef TARGET_DEBUG
-                if (target != nullptr) {
-                    DebugLine(agent, pos3D(agent) + Point3D{0,0,1}, target->pos3D(agent) + Point3D{ 0,0,1 }, Colors::Teal);
-                }
+                DebugLine(agent, pos3D(agent) + Point3D{ 0,0,1 }, target->pos3D(agent) + Point3D{ 0,0,1 }, Colors::Teal);
 #endif
                 if (target->getReturn(agent) == nullptr) {
-                    atk(agent, target->pos(agent));
+                    if (safetyMode) {
+                        movSafely(agent, squad->getCorePosition(agent), 10, 7);
+                    }
+                    else {
+                        atk(agent, target->pos(agent));
+                    }
                     cooldownFrames = COOLDOWN_FRAMES;
                 }
                 else {
@@ -267,7 +280,12 @@ public:
                         //if (get(agent)->is_selected) {
                         //    printf("");
                         //}
-                        atk(agent, target);
+                        if (safetyMode && !radiusOfSafety) {
+                            movSafely(agent, squad->getCorePosition(agent), 10, 7);
+                        }
+                        else {
+                            atk(agent, target);
+                        }
                         cooldownFrames = COOLDOWN_FRAMES;
                         if (getStorageType() == UNIT_TYPEID::PROTOSS_COLOSSUS) {
                             cooldownFrames = 0;

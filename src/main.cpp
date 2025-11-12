@@ -127,7 +127,7 @@ int main(int argc, char* argv[])
         // coordinator.SetRealtime(true);
 
         Bot bot;
-        sc2::Difficulty diff = sc2::Difficulty::Hard;//sc2::Difficulty::HardVeryHard;
+        sc2::Difficulty diff = sc2::Difficulty::HardVeryHard; //sc2::Difficulty::Hard; //
         sc2::Race race = Race::Random; //(sc2::Race)(std::rand() % 4);  //
         sc2::AIBuild build = sc2::AIBuild::RandomBuild;
         coordinator.SetParticipants({ CreateParticipant(sc2::Race::Protoss, &bot), CreateComputer(race, diff, build) });
@@ -149,7 +149,6 @@ int main(int argc, char* argv[])
                                 "MagannathaAIE_v2.SC2Map" };
 
         int r = std::rand() % 7;
-        r = 6;
         //printf("rand %d [%d %d %d %d %d %d] %d\n", r, std::rand(), std::rand(), std::rand(), std::rand(), std::rand(),
         //    std::rand(), RAND_MAX);
 

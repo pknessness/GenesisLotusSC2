@@ -725,7 +725,7 @@ namespace WeaponGrid {
         }
 
         if (UnitManager::self_units.find(UNIT_TYPEID::PROTOSS_SHIELDBATTERY) != UnitManager::self_units.end()) {
-            for (auto it = UnitManager::self_units[UNIT_TYPEID::PROTOSS_SHIELDBATTERY].begin(); it != UnitManager::enemy_units[UNIT_TYPEID::PROTOSS_SHIELDBATTERY].end(); it++) {
+            for (auto it = UnitManager::self_units[UNIT_TYPEID::PROTOSS_SHIELDBATTERY].begin(); it != UnitManager::self_units[UNIT_TYPEID::PROTOSS_SHIELDBATTERY].end(); it++) {
                 if ((*it)->getEnergy(agent) > 0) {
                     setOtherRadius((*it)->pos(agent), SHIELDBATTERY_AURA, 6);
                 }

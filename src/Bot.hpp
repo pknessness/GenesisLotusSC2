@@ -206,7 +206,7 @@ struct Bot: sc2::Agent
 
         SquadManager::init();
 
-        strat = StrategyManager::shit_stalker_colossus;//StrategyManager::glaive_adept_rush_hupsaiya;//StrategyManager::test_plusone_atk;//
+        strat = StrategyManager::zuka_proxy_tempest; //StrategyManager::shit_stalker_colossus;//StrategyManager::glaive_adept_rush_hupsaiya;//StrategyManager::test_plusone_atk;//
 
         for (int i = 0; i < strat.build_order.size(); i++) {
             MacroManager::addAction(strat.build_order[i]);
@@ -599,7 +599,7 @@ struct Bot: sc2::Agent
 
         onStepProfiler.midLog("oS-SpacEnemy");
 
-        DebugText(this, strprintf("%.3fms", lastDT / 1000.0));
+        DebugText(this, strprintf("%.3fms %u", lastDT / 1000.0, Observation()->GetGameLoop()));
 
         Aux::displayExpansions(this);
 
@@ -630,6 +630,16 @@ struct Bot: sc2::Agent
                             selectedUnit->is_flying ? 'Y' : 'N', selectedUnit->is_burrowed ? 'Y' : 'N',
                             selectedUnit->weapon_cooldown,
                             selectedUnit->attack_upgrade_level, selectedUnit->armor_upgrade_level, selectedUnit->shield_upgrade_level);
+
+                        if (selectedUnit->alliance == Unit::Alliance::Self && selectedUnit->unit_type == UNIT_TYPEID::PROTOSS_PROBE) {
+                            ProbePtr probe = std::static_pointer_cast<Probe>(select);
+                            selected += strprintf("\nTarget: %p\n",
+                                probe->getTargetTag(this));
+                            for (int i = 0; i < probe->buildings.size(); i++) {
+                                selected += strprintf("\n%s: %f,%f",
+                                    AbilityTypeToName(probe->buildings[i].build), probe->buildings[i].pos.x, probe->buildings[i].pos.y);
+                            }
+                        }
                     }
                 }
                 if (found > 1) {

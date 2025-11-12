@@ -233,7 +233,7 @@ public:
     //    return UnitWrapper::getPathLengthGroundAStar(unit->pos, point, unit->radius, agent);//->Query()->PathingDistance(unit, point);
     //}
 
-    virtual float getPathLength(Agent* const agent, Point2D point) {
+    virtual float getPathLength(Point2D point, Agent* const agent) {
         get(agent);
         if (flying_cache) {
             return getPathLengthAir(pos_cache, point);
@@ -241,12 +241,28 @@ public:
         return UnitWrapper::getPathLengthGroundAStar(pos_cache, point, radius_cache, agent);//->Query()->PathingDistance(unit, point);
     }
 
-    virtual std::vector<Point2D> getPathUniversal(Agent* const agent, Point2D point) {
+    virtual std::vector<Point2D> getPathUniversal(Point2D point, Agent* const agent) {
         get(agent);
         if (flying_cache) {
             return { pos_cache, point};
         }
         return PrimordialStar::getPathAStar(pos_cache, point, radius_cache, agent);//->Query()->PathingDistance(unit, point);
+    }
+
+    virtual float getPathLength(Point2D point, Point2D end, Agent* const agent) {
+        get(agent);
+        if (flying_cache) {
+            return getPathLengthAir(point, end);
+        }
+        return UnitWrapper::getPathLengthGroundAStar(point, end, radius_cache, agent);//->Query()->PathingDistance(unit, point);
+    }
+
+    virtual std::vector<Point2D> getPathUniversal(Point2D point, Point2D end, Agent* const agent) {
+        get(agent);
+        if (flying_cache) {
+            return { point, end };
+        }
+        return PrimordialStar::getPathAStar(point, end, radius_cache, agent);//->Query()->PathingDistance(unit, point);
     }
 
     void setDead() {

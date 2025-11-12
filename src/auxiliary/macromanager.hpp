@@ -260,7 +260,11 @@ namespace MacroManager {
 			macroExecuteCooldown_frames--;
 			return;
 		}
-		
+		for (int i = 0; i < failedBuildings.size(); i++) {
+			addAction(MacroBuilding(failedBuildings[i].build, Aux::PointDefault(), MacroActionData(), 0, 0)); //first priority as its already an action that should have happened
+		}
+		failedBuildings.clear();
+
 		std::multiset<const MacroAction*, MacroActionPtrCompare> topActions;
 		int currentMinerals = Aux::effectiveMinerals;
 		int currentVespene = Aux::effectiveVespene;
@@ -340,7 +344,7 @@ namespace MacroManager {
 			//Check PSI
 			if (abilityCost.psi + psi > psiCap && currentAction->readyInFrames != -1 && 
 				currentAction->readyInFrames < pylon_stats->build_time && 
-				(allActions[UNIT_TYPEID::PROTOSS_PROBE].size() != 0 && allActions[UNIT_TYPEID::PROTOSS_PROBE].begin()->ability != ABILITY_ID::BUILD_PYLON)) {
+				(allActions[UNIT_TYPEID::PROTOSS_PROBE].size() == 0 || allActions[UNIT_TYPEID::PROTOSS_PROBE].begin()->ability != ABILITY_ID::BUILD_PYLON)) {
 
 				UnitWrappers pylons = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PYLON);
 
@@ -548,12 +552,21 @@ namespace MacroManager {
 			}
 			macroProfiler.midLog("macro.6");
 			if (currentAction->executor == UNIT_TYPEID::PROTOSS_PROBE && currentAction->ability != ABILITY_ID::MOVE_MOVE &&
-				currentAction->ability != ABILITY_ID::MOVE_MOVEPATROL && currentAction->ability != ABILITY_ID::GENERAL_MOVE) {
+				currentAction->ability != ABILITY_ID::GENERAL_PATROL && currentAction->ability != ABILITY_ID::GENERAL_MOVE) {
 				macroProfiler.subScope();
 				if (prerequisite != UNIT_TYPEID::INVALID && UnitManager::getSelf(prerequisite).size() == 0) {
 					//TODO: CHECK PROBE BUILDINGS FOR PREREQ CHECKS
 					diagnostics += strprintf("PREREQUISITE REQUIRED: %s\n\n", UnitTypeToName(prerequisite));
 					continue;
+				}
+
+				if (currentAction->executorPtr == nullptr) {
+					for (UnitWrapperPtr probe : UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PROBE)) {
+						if (std::static_pointer_cast<Probe>(probe)->isPatrolling()) {
+							currentAction->executorPtr = probe;
+							break;
+						}
+					}
 				}
 
 				if (currentAction->executorPtr == nullptr) {
@@ -566,7 +579,7 @@ namespace MacroManager {
 					oldProbeTarget = probeTarget->getStorageType();
 				}
 				
-				float distToTravel = currentAction->executorPtr->getPathLength(agent, currentAction->position.pos);
+				float distToTravel = currentAction->executorPtr->getPathLength(currentAction->position.pos, agent);
 				macroProfiler.midLog("macro.6.2");
 				for (int i = 0; i < 2; i++) {
 					UnitWrapperPtr potentialNewProbe = UnitManager::getRandomSelf(UNIT_TYPEID::PROTOSS_PROBE);
@@ -579,7 +592,7 @@ namespace MacroManager {
 						continue;
 					}
 					macroProfiler.midLog("macro.6.2.1");
-					float newDist = potentialNewProbe->getPathLength(agent, currentAction->position.pos);
+					float newDist = std::static_pointer_cast<Probe>(potentialNewProbe)->getPathLengthFromLastAction(currentAction->position.pos, agent); //potentialNewProbe->getPathLength(currentAction->position.pos, agent);
 					macroProfiler.midLog("macro.6.2.2");
 					if (distToTravel == 0) {
 						distToTravel = Distance2D(currentAction->executorPtr->pos(agent), currentAction->position.pos);
