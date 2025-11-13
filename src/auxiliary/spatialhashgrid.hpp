@@ -165,7 +165,7 @@ namespace SpatialHashGrid {
         for (auto it = UnitManager::self_units.begin(); it != UnitManager::self_units.end(); it++) {
             for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
                 Bounds b = fillSpacialMapRadius((*it2)->pos(agent), (*it2)->radius(agent), [it2](int i, int j) {imRef(spatialGridSelf, i, j).insert(*it2);});
-                DebugSphere(agent, (*it2)->pos3D(agent), (*it2)->radius(agent));
+                //DebugSphere(agent, (*it2)->pos3D(agent), (*it2)->radius(agent));
             }
         }
     }
@@ -176,7 +176,7 @@ namespace SpatialHashGrid {
         for (auto it = UnitManager::enemy_units.begin(); it != UnitManager::enemy_units.end(); it++) {
             for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
                 Bounds b = fillSpacialMapRadius((*it2)->pos(agent), (*it2)->radius(agent), [it2](int i, int j) {imRef(spatialGridEnemy, i, j).insert(*it2);});
-                DebugSphere(agent, (*it2)->pos3D(agent), (*it2)->radius(agent));
+                //DebugSphere(agent, (*it2)->pos3D(agent), (*it2)->radius(agent), Colors::Red);
             }
         }
     }

@@ -413,32 +413,37 @@ namespace MacroManager {
 			float ticksToExecutorReady = -1;
 			for (auto it = allPossibleUnits.begin(); it != allPossibleUnits.end(); it++) {
 				const Unit* unwrapUnit = (*it)->getReturn(agent);
-				if (unwrapUnit != nullptr && unwrapUnit->unit_type == UNIT_TYPEID::PROTOSS_WARPGATE) {
-					AvailableAbilities unitAbilities = agent->Query()->GetAbilitiesForUnit(unwrapUnit);
-					bool hasAbility = false;
-					for (int a = 0; a < unitAbilities.abilities.size(); a++) {
-						if (unitAbilities.abilities[a].ability_id == currentAction->ability) {
-							hasAbility = true;
-							break;
+				if (unwrapUnit != nullptr) {
+					if (unwrapUnit->is_building && unwrapUnit->unit_type != UNIT_TYPEID::PROTOSS_NEXUS && !unwrapUnit->is_powered) { //ignore depowered structures
+						continue;
+					}
+
+					//why am i checking only if warpgates have the required abilities?
+					if (unwrapUnit->unit_type == UNIT_TYPEID::PROTOSS_WARPGATE) {
+						AvailableAbilities unitAbilities = agent->Query()->GetAbilitiesForUnit(unwrapUnit);
+						bool hasAbility = false;
+						for (int a = 0; a < unitAbilities.abilities.size(); a++) {
+							if (unitAbilities.abilities[a].ability_id == currentAction->ability) {
+								hasAbility = true;
+								break;
+							}
+						}
+						if (hasAbility) {
+							possibleUnits.insert(*it);
+							ticksToExecutorReady = 0;
 						}
 					}
-					if (hasAbility) {
+					else if ((unwrapUnit->orders.size() == 0 || currentAction->executor == UNIT_TYPEID::PROTOSS_PROBE) && unwrapUnit->build_progress == 1.0F) {
 						possibleUnits.insert(*it);
 						ticksToExecutorReady = 0;
 					}
-				}
-				else {
-					if (unwrapUnit != nullptr && (unwrapUnit->orders.size() == 0 || currentAction->executor == UNIT_TYPEID::PROTOSS_PROBE) && unwrapUnit->build_progress == 1.0F) {
-						possibleUnits.insert(*it);
-						ticksToExecutorReady = 0;
-					}
-					else if (unwrapUnit != nullptr && unwrapUnit->orders.size() != 0) {
+					else if (unwrapUnit->orders.size() != 0) {
 						float ready = (1.0F - unwrapUnit->orders[0].progress) * ability_stats->build_time;
 						if (ticksToExecutorReady == -1 || ticksToExecutorReady > ready) {
 							ticksToExecutorReady = ready;
 						}
 					}
-					else if (unwrapUnit != nullptr && unwrapUnit->build_progress != 1.0F) {
+					else if (unwrapUnit->build_progress != 1.0F) {
 						UnitTypeData* executor_stats = Aux::getStats(unwrapUnit->unit_type, agent);
 						float ready = (1.0F - unwrapUnit->build_progress) * executor_stats->build_time;
 						if (ticksToExecutorReady == -1 || ticksToExecutorReady > ready) {
@@ -446,8 +451,12 @@ namespace MacroManager {
 						}
 					}
 					else {
-						//printf("what is this state\n");
+						printf("NO CLUE, SHOULDNT BE POSSIBLE\n");
+						throw 42;
 					}
+				}
+				else {
+					//probe inside assimilator
 				}
 			}
 			if (ticksToExecutorReady != -1 && currentAction->readyInFrames < ticksToExecutorReady) {
@@ -581,7 +590,7 @@ namespace MacroManager {
 				
 				float distToTravel = currentAction->executorPtr->getPathLength(currentAction->position.pos, agent);
 				macroProfiler.midLog("macro.6.2");
-				for (int i = 0; i < 2; i++) {
+				for (int i = 0; i < 5; i++) {
 					UnitWrapperPtr potentialNewProbe = UnitManager::getRandomSelf(UNIT_TYPEID::PROTOSS_PROBE);
 					UnitWrapperPtr newProbeTarget = std::static_pointer_cast<Probe>(potentialNewProbe)->getTargetTag(agent);
 					UnitTypeID newProbeTargetType = UNIT_TYPEID::INVALID;
@@ -610,11 +619,11 @@ namespace MacroManager {
 				}
 				macroProfiler.midLog("macro.6.3");
 
-				DebugSphere(agent, AP3D(currentAction->position.pos), 1);
+				DebugSphere(agent, AP3D(currentAction->position.pos), 1, Colors::Green);
 
 				UnitTypeData* probeStats = Aux::getStats(UNIT_TYPEID::PROTOSS_PROBE, agent);
 
-				float dtTravel = (distToTravel - 2) / (probeStats->movement_speed * timeSpeed);
+				float dtTravel = std::max(distToTravel - 2, 0.0F) / (probeStats->movement_speed * timeSpeed);
 
 				macroProfiler.midLog("macro.6.4");
 

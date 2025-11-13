@@ -19,8 +19,11 @@
 #include "auxiliary/debugging.hpp"
 #include "unitwrappers/unitmanager.hpp"
 #include "auxiliary/macromanager.hpp"
+
 #include "unitwrappers/nexus.hpp"
 #include "unitwrappers/vespene.hpp"
+#include "unitwrappers/adept.hpp"
+
 #include "auxiliary/armymanager.hpp"
 #include "unitwrappers/armyunit.hpp"
 #include "auxiliary/spatialhashgrid.hpp"
@@ -82,6 +85,22 @@ namespace UnitManager {
                 nexus->init(agent);
                 encode(nexus, unit_);
                 units[stype].insert(nexus);
+            }
+            else if (stype == UNIT_TYPEID::PROTOSS_ADEPT) {
+                AdeptPtr adept = std::make_shared<Adept>(unit_, &ArmyManager::mainAttackSquad);
+                //adept->init(agent);
+                encode(adept, unit_);
+                units[stype].insert(adept);
+                ArmyManager::mainAttackSquad.add(adept);
+
+            }
+            else if (stype == UNIT_TYPEID::PROTOSS_ADEPTPHASESHIFT) {
+                AdeptShadePtr shade = std::make_shared<AdeptShade>(unit_, &ArmyManager::mainAttackSquad);
+                shade->init(agent);
+                //encode(shade, unit_);
+                units[stype].insert(shade);
+                ArmyManager::mainAttackSquad.add(shade);
+
             }
             else if (stype == UNIT_TYPEID::PROTOSS_ASSIMILATOR) {
                 UnitWrapperPtr assimilator = std::make_shared<UnitWrapper>(unit_, stype);
@@ -260,7 +279,7 @@ struct Bot: sc2::Agent
                     }
                 }
                 fprintf(fp, "\nMovementSpeed: %.2f\nArmor: %.1f\nWeapons:\n",
-                    d->movement_speed / timeSpeed,
+                    d->movement_speed * timeSpeed,
                     d->armor);
                 for (int w = 0; w < d->weapons.size(); w++) {
                     float atkcd = d->weapons[w].speed / timeSpeed;
@@ -427,13 +446,13 @@ struct Bot: sc2::Agent
 
         onStepProfiler.midLog("oS-macroExec");
 
-        ArmyManager::execute(this, strat);
-
-        onStepProfiler.midLog("oS-armyExec");
-
         VisibleMap2D::update(this);
 
         onStepProfiler.midLog("oS-visMap");
+
+        ArmyManager::execute(this, strat);
+
+        onStepProfiler.midLog("oS-armyExec");
 
         WeaponGrid::update(this);
 

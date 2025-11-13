@@ -9,6 +9,8 @@
 #include "../unitwrappers/unitmanager.hpp"
 #include "spatialhashgrid.hpp"
 
+constexpr int VISIBILITY_MAX = 32767;
+
 namespace VisibleMap2D {
 
     constexpr int8_t visibleCellSize = 3;
@@ -68,7 +70,7 @@ namespace VisibleMap2D {
         //DO I WANT TO USE UNITWRAPPER FOR THIS OR GETUNITS??
         for (auto it = UnitManager::self_units.begin(); it != UnitManager::self_units.end(); it++) {
             for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
-                fillVisibleMapRadius((*it2)->pos(agent), Aux::getStats((*it2)->getActualType(agent), agent)->sight_range, 32767);
+                fillVisibleMapRadius((*it2)->pos(agent), Aux::getStats((*it2)->getActualType(agent), agent)->sight_range, VISIBILITY_MAX);
             }
         }
     }
@@ -80,5 +82,12 @@ namespace VisibleMap2D {
                 uint8_t(imRef(visibleMap, realScaleToVisMap(i), realScaleToVisMap(j)) / 255),
                 uint8_t(imRef(visibleMap, realScaleToVisMap(i), realScaleToVisMap(j)) / 255) };
             }, visibleCellSize);
+    }
+
+    //higher values are more recent
+    int16_t getVisibilityRecency(Point2D p) {
+        return imRef(VisibleMap2D::visibleMap,
+            VisibleMap2D::realScaleToVisMap((int)(p.x)),
+            VisibleMap2D::realScaleToVisMap((int)(p.y)));
     }
 }

@@ -496,7 +496,7 @@ namespace Aux {
 	std::set<ExpansionDistance, ExpansionDistanceCompare> selfRankedExpansions;
 	std::set<ExpansionDistance, ExpansionDistanceCompare> enemyRankedExpansions;
 
-	static Point2D getRandomPoint(Agent* agent, float startX = -1, float endX = -1, float startY = -1, float endY = -1) {
+	static Point2D getRandomPoint(float startX = -1, float endX = -1, float startY = -1, float endY = -1) {
 		FUNCTION_LOG();
 		float sX = startX;
 		float eX = endX;
@@ -511,11 +511,26 @@ namespace Aux {
 		return Point2D{ x, y };
 	}
 
-	static Point2D getRandomPathable(Agent* agent, float startX = -1, float endX = -1, float startY = -1, float endY = -1) {
+	Point2D getRandomPointRadius(Point2D point, float radius_max) {
+		float theta = (2.0F * GS_PI * rand()) / RAND_MAX;
+		float radius = (radius_max * rand()) / RAND_MAX;
+		return point + Point2D{ radius * cos(theta), radius * sin(theta) };
+	}
+
+	static Point2D getRandomPathable(float startX = -1, float endX = -1, float startY = -1, float endY = -1) {
 		FUNCTION_LOG();
 		Point2D p;
 		do {
-			p = getRandomPoint(agent, startX, endX, startY, endY);
+			p = getRandomPoint(startX, endX, startY, endY);
+		} while (!Aux::isPathable(p) || !Aux::withinBounds(p));
+		return p;
+	}
+
+	static Point2D getRandomPathablePointRadius(Point2D center, float radius) {
+		FUNCTION_LOG();
+		Point2D p;
+		do {
+			p = getRandomPointRadius(center, radius);
 		} while (!Aux::isPathable(p) || !Aux::withinBounds(p));
 		return p;
 	}
@@ -1098,12 +1113,6 @@ namespace Aux {
 		return (type == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER || type == UNIT_TYPEID::NEUTRAL_PROTOSSVESPENEGEYSER ||
 			type == UNIT_TYPEID::NEUTRAL_PURIFIERVESPENEGEYSER || type == UNIT_TYPEID::NEUTRAL_RICHVESPENEGEYSER ||
 			type == UNIT_TYPEID::NEUTRAL_SHAKURASVESPENEGEYSER || type == UNIT_TYPEID::NEUTRAL_SPACEPLATFORMGEYSER);
-	}
-
-	Point2D getRandomPointRadius(Point2D point, float radius_max) {
-		float theta = (2.0F * GS_PI * rand()) / RAND_MAX;
-		float radius = (radius_max * rand()) / RAND_MAX;
-		return point + Point2D{ radius * cos(theta), radius * sin(theta) };
 	}
 
 	encoding2D getRandomEncodingPoint() {

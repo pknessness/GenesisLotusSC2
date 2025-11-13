@@ -295,9 +295,9 @@ namespace StrategyManager {
             // ===== Early Economy ===== (0:00-1:21)
             MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::criticalPoints[Aux::SELF_FIRSTPYLON_POINT]),  // 12 probes @ 0:08
             MacroBuilding(ABILITY_ID::BUILD_GATEWAY),                  // 13 probes @ 0:26
+            MacroBuilding(ABILITY_ID::GENERAL_PATROL, proxyPoint + Point2D{0, -3.5}),
             MacroBuilding(ABILITY_ID::GENERAL_MOVE, Aux::criticalPoints[Aux::ENEMY_STARTLOC_POINT]),
             MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),              // 14 probes @ 0:41
-            MacroBuilding(ABILITY_ID::GENERAL_PATROL, proxyPoint + Point2D{0, -3.5}),
             MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),              // 16 probes @ 0:51
             MacroBuilding(ABILITY_ID::BUILD_CYBERNETICSCORE),          // 18 probes @ 1:14
             MacroBuilding(ABILITY_ID::BUILD_PYLON, proxyPoint),                    // 18 probes @ 1:21

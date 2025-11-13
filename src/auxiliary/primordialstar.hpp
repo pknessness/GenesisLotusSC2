@@ -946,7 +946,7 @@ namespace PrimordialStar {
 		pts.reserve(NUM_PTS_RT);
 
 		for (int asd = 0; asd < NUM_PTS_RT; asd++) {
-			pts.push_back(Aux::getRandomPathable(agent));
+			pts.push_back(Aux::getRandomPathable());
 		}
 
 		std::vector<float> differenceInDistance;

@@ -5,6 +5,7 @@
 #include "../auxiliary/squadmanager.hpp"
 #include "../auxiliary/visiblemap.hpp"
 #include "../auxiliary/weapongrid.hpp"
+#include "../auxiliary/debugging.hpp"
 
 //#define MOVSAFELY_DEBUG
 #define TARGET_DEBUG
@@ -24,7 +25,7 @@ public:
 
     SquadManager::Squad* squad;
 
-    float moveLocationDPS = 0.0F;
+    float prevMoveLocationDPS = 0.0F;
     Point2D moveLocation;
 
     float localDPS = 0.0F;
@@ -44,6 +45,7 @@ public:
         const Unit* unit = getReturn(agent);
         if (unit->orders.size() == 0 || unit->orders[0].ability_id != ABILITY_ID::ATTACK || unit->orders[0].target_pos != point) {
             agent->Actions()->UnitCommand(self, ABILITY_ID::ATTACK, point);
+            moveLocation = point;
         }
     }
 
@@ -51,6 +53,7 @@ public:
         const Unit* unit = getReturn(agent);
         if (unit->orders.size() == 0 || unit->orders[0].ability_id != ABILITY_ID::ATTACK || unit->orders[0].target_unit_tag != target->self) {
             agent->Actions()->UnitCommand(self, ABILITY_ID::ATTACK, target->self);
+            moveLocation = Point2D();
         }
     }
 
@@ -67,7 +70,17 @@ public:
         const Unit* unit = getReturn(agent);
         if (unit->orders.size() == 0 || unit->orders[0].ability_id != ABILITY_ID::GENERAL_MOVE || unit->orders[0].target_pos != point) {
             agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, point);
+            moveLocation = point;
         }
+    }
+
+    inline float getEnemyDPS(Point2D point, float extraRadius, WeaponGrid::relevantTargetDamageInfo selfTargetInfo, Agent* const agent) {
+        return WeaponGrid::getRadiusAvgDPS(point, radius(agent) + extraRadius, selfTargetInfo, agent);
+    }
+
+    inline float getEnemyDPS(Point2D point, float extraRadius, Agent* const agent) {
+        WeaponGrid::relevantTargetDamageInfo selfTargetInfo = WeaponGrid::wrapToTargetInfo(shared_from_this(), agent);
+        return getEnemyDPS(point, extraRadius, selfTargetInfo, agent);
     }
 
     float getPathDamage(Point2D p, Agent* const agent) {
@@ -76,7 +89,7 @@ public:
         float dps = 0;
         WeaponGrid::relevantTargetDamageInfo selfTargetInfo = WeaponGrid::wrapToTargetInfo(shared_from_this(), agent);
         for (int i = 0; i < checks.size(); i++) {
-            float addDps = WeaponGrid::getRadiusAvgDPS(checks[i], radius(agent) + 0.5, selfTargetInfo, agent) * SECOND_DIVISION_MOVSAFELY;
+            float addDps = getEnemyDPS(checks[i], 0.5, agent) * SECOND_DIVISION_MOVSAFELY;
             dps += addDps;
 #ifdef MOVSAFELY_DEBUG
             Color c;
@@ -93,7 +106,7 @@ public:
             DebugSphere(agent, AP3D(checks[i]), radius(agent) + 0.5, c);
 #endif
         }
-        dps += WeaponGrid::getRadiusAvgDPS(p, radius(agent) + 3.5, selfTargetInfo, agent) * 2 * SECOND_DIVISION_MOVSAFELY;
+        dps += getEnemyDPS(p, 0.5, agent) * 2 * SECOND_DIVISION_MOVSAFELY;
 #ifdef MOVSAFELY_DEBUG
         if (path.size() > 0) {
             for (int i = 0; i < path.size() - 1; i++) {
@@ -171,13 +184,13 @@ public:
         FUNCTION_LOG();
         Profiler armyUnitProfiler("armyu(atk)");
 
-        float moveDPS = WeaponGrid::getRadiusAvgDPS(moveLocation, radius(agent) + 3.5, WeaponGrid::wrapToTargetInfo(shared_from_this(), agent), agent);
+        float moveLocationDPS = WeaponGrid::getRadiusAvgDPS(moveLocation, radius(agent) + 3.5, WeaponGrid::wrapToTargetInfo(shared_from_this(), agent), agent);
 
         if (cooldownFrames > 0) {
             if ((target != nullptr && target->isDead()) || getReturn(agent)->orders.size() == 0) {
                 cooldownFrames = 0;
             }
-            else if (moveDPS > moveLocationDPS) {
+            else if (moveLocationDPS > prevMoveLocationDPS) {
                 cooldownFrames /= 2;
             }
             else {
@@ -186,7 +199,7 @@ public:
             }
         }
 
-        moveLocationDPS = moveDPS;
+        prevMoveLocationDPS = moveLocationDPS;
 
         moveLocation = Point2D{ -1, -1 };
         target = nullptr;
@@ -220,10 +233,19 @@ public:
                 //float damageLost = (distanceToEnemy > weapon.range) ? (((distanceToEnemy - weapon.range) / Aux::getStats(getActualType(agent), agent).movement_speed) * (damagePerHit / weapon.speed)) : 0.0F;
                 //p -= damageLost / 50; //every 50 damage lost takes a unit down one priority peg;
                 float range = (weapon->range + (*it)->radius(agent));
-                if (distanceToEnemy > range) {
-                    p -= 2*(distanceToEnemy - range); //every one unit outside of range a unit is, it gets taken down two priority pegs
+
+                //if (distanceToEnemy > range) {
+                //    p -= 2*(distanceToEnemy - range); //every one unit outside of range a unit is, it gets taken down two priority pegs
+                //}
+                //p += damagePerHit / weapon->speed; //each DPS, up one peg of priority
+
+                float enemyHealth = (*it)->getHealth(agent);
+                float dtToEnemyDeath = enemyHealth / (damagePerHit / weapon->speed);
+                p /= dtToEnemyDeath;
+
+                if (enemyHealth < damagePerHit) {
+                    p *= 2;
                 }
-                p += damagePerHit / weapon->speed; //each DPS, up one peg of priority
                 if (target == nullptr || p > priority) {
                     priority = p;
                     target = *it;
@@ -236,15 +258,15 @@ public:
         bool attacking = false;
 
         if (squad->squadMainStates[self] == 'u') {
-            moveLocation = squad->targetPosition;
             if (getReturn(agent)->weapon_cooldown > 0) {
                 squad->unitStates[self] = 'n';
             }
             else {
                 squad->unitStates[self] = 'k';
             }
-        }
-        if (squad->squadMainStates[self] == 'u') {
+        //}
+        //if (squad->squadMainStates[self] == 'u') {
+            //moveLocation = squad->getCorePosition(agent);
             if (squad->unitStates[self] == 'n') {
                 mov(agent, squad->getCorePosition(agent));
                 cooldownFrames = COOLDOWN_FRAMES;
@@ -344,9 +366,7 @@ public:
         if (p.x == 0 && p.y == 0) {
             return -1;
         }
-        return imRef(VisibleMap2D::visibleMap, 
-            VisibleMap2D::realScaleToVisMap((int)(p.x)), 
-            VisibleMap2D::realScaleToVisMap((int)(p.y)));
+        return VisibleMap2D::getVisibilityRecency(p);
     }
 
     virtual void executeSearch(Agent* const agent) {
@@ -359,7 +379,7 @@ public:
         //posTarget = { 0,0 };
         for (int i = 0; i < 5; i++) {
             Point2D check;
-            check = Aux::getRandomPathable(agent);
+            check = Aux::getRandomPathable();
             float cos = searchCost(check);
             if (cos < cost || cost == -1) {
                 cost = cos;
@@ -388,6 +408,9 @@ public:
         }
         else if (squad->squadMode == SquadManager::SEARCH) {
             executeSearch(agent);
+        }
+        if (moveLocation != Point2D()) {
+            DebugSphere(agent, AP3D(moveLocation), 0.5, Colors::Teal);
         }
     }
 };
