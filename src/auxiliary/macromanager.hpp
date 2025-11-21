@@ -19,6 +19,7 @@ using namespace sc2;
 #define ACTION_CHECK_DT 10
 #define PROBE_CHECK_DT 30
 #define PROBE_CHECK_DACTION 3
+#define BUILDING_DISTANCE_TIMING_TOLERANCE 2
 
 struct MacroAction {
 	static int globalIndex;
@@ -266,8 +267,8 @@ namespace MacroManager {
 		failedBuildings.clear();
 
 		std::multiset<const MacroAction const*, MacroActionPtrCompare> topActions;
-		int currentMinerals = Aux::effectiveMinerals;
-		int currentVespene = Aux::effectiveVespene;
+		//int currentMinerals = Aux::effectiveMinerals;
+		//int currentVespene = Aux::effectiveVespene;
 		//TODO: TAKE INTO ACCOUNT PROBE BUILDING STORAGE
 			
 		for (auto it = allActions.begin(); it != allActions.end(); it++) {
@@ -588,7 +589,7 @@ namespace MacroManager {
 					currentAction->executorPtr = *possibleUnits.begin();
 				}
 				macroProfiler.midLog("macro.6.1");
-				UnitWrapperPtr probeTarget = std::static_pointer_cast<Probe>(currentAction->executorPtr)->getTargetTag(agent);
+				UnitWrapperPtr probeTarget = std::static_pointer_cast<Probe>(currentAction->executorPtr)->rawTargetTag();
 				UnitTypeID oldProbeTarget = UNIT_TYPEID::INVALID;
 				if (probeTarget != nullptr) {
 					oldProbeTarget = probeTarget->getStorageType();
@@ -598,12 +599,12 @@ namespace MacroManager {
 				macroProfiler.midLog("macro.6.2");
 				for (int i = 0; i < 5; i++) {
 					UnitWrapperPtr potentialNewProbe = UnitManager::getRandomSelf(UNIT_TYPEID::PROTOSS_PROBE);
-					UnitWrapperPtr newProbeTarget = std::static_pointer_cast<Probe>(potentialNewProbe)->getTargetTag(agent);
+					UnitWrapperPtr newProbeTarget = std::static_pointer_cast<Probe>(potentialNewProbe)->rawTargetTag();
 					UnitTypeID newProbeTargetType = UNIT_TYPEID::INVALID;
 					if (newProbeTarget != nullptr) {
 						newProbeTargetType = newProbeTarget->getStorageType();
 					}
-					if (oldProbeTarget == UNIT_TYPEID::NEUTRAL_MINERALFIELD && newProbeTargetType == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER) {
+					if (oldProbeTarget == UNIT_TYPEID::NEUTRAL_MINERALFIELD && newProbeTargetType == UNIT_TYPEID::PROTOSS_ASSIMILATOR) {
 						continue;
 					}
 					macroProfiler.midLog("macro.6.2.1");
@@ -616,7 +617,8 @@ namespace MacroManager {
 						newDist = Distance2D(potentialNewProbe->pos(agent), currentAction->position.pos);
 					}
 					macroProfiler.midLog("macro.6.2.3");
-					if (newDist <= distToTravel || (newProbeTargetType == UNIT_TYPEID::INVALID || newProbeTargetType == UNIT_TYPEID::NEUTRAL_MINERALFIELD && oldProbeTarget == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER)) {
+					//TODO: HAVE UNBUSY LADS DO BUILDINGS BY DEFAULT BUT ONLY IF THEY'RE NEARBY ENOUGH (calculate dt to target etc.)
+					if (newDist <= distToTravel || (/*newProbeTargetType == UNIT_TYPEID::INVALID ||*/ newProbeTargetType == UNIT_TYPEID::NEUTRAL_MINERALFIELD && oldProbeTarget == UNIT_TYPEID::NEUTRAL_VESPENEGEYSER)) {
 						currentAction->executorPtr = potentialNewProbe;
 						distToTravel = newDist;
 						break;
@@ -629,7 +631,7 @@ namespace MacroManager {
 
 				UnitTypeData* probeStats = Aux::getStats(UNIT_TYPEID::PROTOSS_PROBE, agent);
 
-				float dtTravel_fsec = std::max(distToTravel, 0.0F) / (probeStats->movement_speed * timeSpeed);
+				float dtTravel_fsec = std::max(distToTravel + BUILDING_DISTANCE_TIMING_TOLERANCE, 0.0F) / (probeStats->movement_speed * timeSpeed);
 
 				macroProfiler.midLog("macro.6.4");
 
@@ -684,7 +686,7 @@ namespace MacroManager {
 
 				int numMineralMiners = 0, numVespeneMiners = 0;
 				for (auto it = probes.begin(); it != probes.end(); it++) {
-					UnitWrapperPtr target = std::static_pointer_cast<Probe>(*it)->getTargetTag(agent);
+					UnitWrapperPtr target = std::static_pointer_cast<Probe>(*it)->rawTargetTag();
 					if (target == nullptr)
 						continue;
 					if (target->getStorageType() == UNIT_TYPEID::NEUTRAL_MINERALFIELD) {
@@ -817,8 +819,10 @@ namespace MacroManager {
 					dataEncoding[encodingPoint] = currentAction->extraData;
 
 #ifdef BUILD_ORDER_VERIFICATION
-					int seconds = agent->Observation()->GetGameLoop() / fps;
-					printf("%s at %d:%d\n", UnitTypeToName(Aux::buildAbilityToUnit(currentAction->ability)), seconds / 60, seconds % 60);
+					if (currentAction->ability != ABILITY_ID::TRAIN_PROBE) {
+						int seconds = agent->Observation()->GetGameLoop() / fps;
+						printf("%s @ %02d:%02d\n", UnitTypeToName(Aux::buildAbilityToUnit(currentAction->ability)), seconds / 60, seconds % 60);
+					}
 #endif //BUILD_ORDER_VERIFICATION
 
 				}

@@ -50,6 +50,10 @@ public:
         target = newTarget;
     }
 
+    UnitWrapperPtr rawTargetTag() {
+        return target;
+    }
+
     UnitWrapperPtr getTargetTag(Agent* agent) { //TODO: IF ASSIMILATOR EMPTY RETARGET
         FUNCTION_LOG();
         if (target != nullptr && (target->getReturn(agent) == nullptr || (target->getStorageType() == UNIT_TYPEID::PROTOSS_ASSIMILATOR && target->getReturn(agent)->vespene_contents == 0))) {
@@ -139,6 +143,13 @@ public:
         return patrolCenter != Point2D();
     }
 
+    void conditionalDisengage(Agent* const agent, Point2D location) {
+        if (DistanceSquared2D(agent->Observation()->GetUnit(self)->pos, location) > 900) {
+            setTarget(nullptr);
+        }
+    }
+
+    //TODO: MAKE SURE THAT PROBES HAVE TO BE WITHIN 10 TO CLAIM, AND OTHERWISE THEY WILL JUST MOVE TOWARD THE ONE THEY WANT TO CLAIM
     void execute(Agent* const agent) {
         FUNCTION_LOG();
         const Unit* unit = getReturn(agent);
@@ -149,20 +160,22 @@ public:
             Building top = buildings[0];
             if (top.build == ABILITY_ID::GENERAL_MOVE) {
                 agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, top.pos);
+                conditionalDisengage(agent, top.pos);
                 buildings.erase(buildings.begin());
             }
             else if (top.build == ABILITY_ID::GENERAL_PATROL) {
                 agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, top.pos + Point2D{-1,0});
                 agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_PATROL, top.pos + Point2D{ 1,0 }, true);
                 patrolCenter = top.pos;
+                conditionalDisengage(agent, top.pos);
                 buildings.erase(buildings.begin());
             }
             else if (DistanceSquared2D(agent->Observation()->GetUnit(self)->pos, top.pos) < 4) {
                 DebugBox(agent, AP3D(top.pos) + Point3D{ -1.5,-1.5,0 }, AP3D(top.pos) + Point3D{ 1.5,1.5,3 }, Colors::Blue);
                 Aux::Cost buildingCost = Aux::buildAbilityToCost(top.build, agent);
-                if (buildingCost.minerals > agent->Observation()->GetMinerals() || buildingCost.vespene > agent->Observation()->GetVespene())
+                if (buildingCost.minerals > agent->Observation()->GetMinerals() || buildingCost.vespene > agent->Observation()->GetVespene()) {
                     return;
-
+                }
                 UnitTypeData* ability_stats = Aux::getStats(Aux::buildAbilityToUnit(top.build), agent);
                 UnitTypeID prerequisite = ability_stats->tech_requirement;
                 if (prerequisite != UNIT_TYPEID::INVALID) {
@@ -211,7 +224,9 @@ public:
                 }
                 buildings.erase(buildings.begin());
                 Aux::Cost g = Aux::buildAbilityToCost(top.build, agent);
-                Aux::effectiveMinerals -= g.minerals;
+                //because the building is being begun this frame, the minerals/vesp are not yet updated to take into account that this is being built.
+                //TODO: TAKE INTO ACCOUNT SUPPLY ALSO
+                Aux::effectiveMinerals -= g.minerals; 
                 Aux::effectiveVespene -= g.vespene;
             }
             else {
@@ -219,11 +234,16 @@ public:
                 const Unit* prob = getReturn(agent);
                 if (prob->orders.size() == 0 || prob->orders.front().target_pos != top.pos) {
                     agent->Actions()->UnitCommand(self, ABILITY_ID::MOVE_MOVE, top.pos);
+                    conditionalDisengage(agent, top.pos);
                 }
             }
         }
-        else {
+        //if unit has no buildings
+        //and if unit has either no orders, or the order is harvest
+        else if((unit->orders.size() == 0 || unit->orders[0].ability_id == ABILITY_ID::HARVEST_GATHER) && buildings.size() == 0) {
             UnitWrapperPtr targ = getTargetTag(agent);
+            //if unit has no target
+            //and if unit has either no orders, or the order is harvest to the wrong target
             if (targ != nullptr && (unit->orders.size() == 0 || (unit->orders[0].ability_id == ABILITY_ID::HARVEST_GATHER &&
                 unit->orders[0].target_unit_tag != targ->self))) {
                 /*printf("REASING\n");*/

@@ -35,7 +35,7 @@
 
 #define DEBUG
 //#define DAMAGEGRID_DEBUG
-//#define PROBE_DEBUG
+#define PROBE_DEBUG
 
 //#define DMAG_FILE
 
@@ -43,7 +43,7 @@
 //#define STALKER_COLOSSUS_TIMING
 
 namespace UnitManager {
-    void encode(UnitWrapperPtr wrap, const Unit* unit_) {
+    void encode(UnitWrapperPtr wrap, const Unit* unit_, uint32_t gl) {
         FUNCTION_LOG();
         if (unit_->orders.size() != 0 && unit_->orders[0].target_pos != Point2D()) {
             Aux::encoding2D point(unit_->orders[0].target_pos);
@@ -51,7 +51,7 @@ namespace UnitManager {
                 wrap->creationData = MacroManager::dataEncoding.at(point);
                 MacroManager::dataEncoding.erase(point);
             }
-            else {
+            else if(gl != 0){
                 printf("missed production\n");
             }
         }
@@ -66,7 +66,7 @@ namespace UnitManager {
                     break;
                 }
             }
-            if (!encoded) {
+            if (!encoded && gl != 0) {
                 printf("missed production 2\n");
             }
         }
@@ -77,21 +77,22 @@ namespace UnitManager {
     void add(UnitWrapperMap& units, const Unit* unit_, Agent* const agent) {
         FUNCTION_LOG();
         UnitTypeID stype = getSuperType(unit_->unit_type);
+        uint32_t gl = agent->Observation()->GetGameLoop();
         if (unit_->alliance == Unit::Self) {
             if (stype == UNIT_TYPEID::PROTOSS_PROBE) {
                 ProbePtr probe = std::make_shared<Probe>(unit_);
-                encode(probe, unit_);
+                encode(probe, unit_, gl);
                 units[stype].insert(probe);
             }else if (stype == UNIT_TYPEID::PROTOSS_NEXUS) {
                 NexusPtr nexus = std::make_shared<Nexus>(unit_);
                 nexus->init(agent);
-                encode(nexus, unit_);
+                encode(nexus, unit_, gl);
                 units[stype].insert(nexus);
             }
             else if (stype == UNIT_TYPEID::PROTOSS_ADEPT) {
                 AdeptPtr adept = std::make_shared<Adept>(unit_, &ArmyManager::mainAttackSquad);
                 //adept->init(agent);
-                encode(adept, unit_);
+                encode(adept, unit_, gl);
                 units[stype].insert(adept);
                 ArmyManager::mainAttackSquad.add(adept);
 
@@ -113,17 +114,17 @@ namespace UnitManager {
                         break;
                     }
                 }
-                encode(assimilator, unit_);
+                encode(assimilator, unit_, gl);
                 units[stype].insert(assimilator);
             }
             else if(unit_->is_building){
                 UnitWrapperPtr selfUnit = std::make_shared<UnitWrapper>(unit_, stype);
-                encode(selfUnit, unit_);
+                encode(selfUnit, unit_, gl);
                 units[stype].insert(selfUnit);
             }
             else {
                 ArmyUnitPtr armyUnit = std::make_shared<ArmyUnit>(unit_, stype, &ArmyManager::mainAttackSquad);
-                encode(armyUnit, unit_);
+                encode(armyUnit, unit_, gl);
                 units[stype].insert(armyUnit);
                 ArmyManager::mainAttackSquad.add(armyUnit);
             }
@@ -389,7 +390,7 @@ struct Bot: sc2::Agent
             ProbePtr probe = std::static_pointer_cast<Probe>(p);
             probe->execute(this);
 #ifdef PROBE_DEBUG
-            UnitWrapperPtr target = probe->getTargetTag(this);
+            UnitWrapperPtr target = probe->rawTargetTag();
             if (target != nullptr) {
                 DebugLine(this, target->pos3D(this) + Point3D{ 0,0,1 }, probe->pos3D(this) + Point3D{ 0,0,1 });
             }
@@ -456,7 +457,7 @@ struct Bot: sc2::Agent
             numProbesMax += numProbesMaxN;
         }
 
-        //numProbes = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PROBE).size();
+        numProbes = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PROBE).size();
         //TODO: EXCLUDE PATROL PROBES
 
         if ((numProbes) < numProbesMax && MacroManager::allActions[UNIT_TYPEID::PROTOSS_NEXUS].size() == 0) {
@@ -842,8 +843,10 @@ struct Bot: sc2::Agent
         //}
         //printf("\n");
 #ifdef BUILD_ORDER_VERIFICATION
-        int seconds = Observation()->GetGameLoop() / fps;
-        printf("%s at %d:%d\n", UnitTypeToName(unit_->unit_type), seconds / 60, seconds % 60);
+        if (unit_->unit_type != UNIT_TYPEID::PROTOSS_PROBE) {
+            int seconds = Observation()->GetGameLoop() / fps;
+            printf("%s at %02d:%02d\n", UnitTypeToName(unit_->unit_type), seconds / 60, seconds % 60);
+        }
 #endif //BUILD_ORDER_VERIFICATION
 
     }
