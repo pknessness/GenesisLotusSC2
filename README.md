@@ -1,3 +1,6 @@
+# Genesis Lotus SC2
+### A bot by pknessness
+This bot is built off cpp-sc2's blank-bot from pure scratch in c++
 # blank-bot
 
 [![Build](https://github.com/cpp-sc2/blank-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/cpp-sc2/blank-bot/actions/workflows/ci.yml)
