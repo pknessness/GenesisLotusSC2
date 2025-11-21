@@ -265,7 +265,7 @@ namespace MacroManager {
 		}
 		failedBuildings.clear();
 
-		std::multiset<const MacroAction*, MacroActionPtrCompare> topActions;
+		std::multiset<const MacroAction const*, MacroActionPtrCompare> topActions;
 		int currentMinerals = Aux::effectiveMinerals;
 		int currentVespene = Aux::effectiveVespene;
 		//TODO: TAKE INTO ACCOUNT PROBE BUILDING STORAGE
@@ -287,7 +287,7 @@ namespace MacroManager {
 
 		for (auto it = topActions.begin(); it != topActions.end(); it++) {
 			macroProfiler.subScope();
-			const MacroAction* currentAction = *it;
+			const MacroAction const* currentAction = *it;
 
 			if (currentAction->executor == UNIT_TYPEID::PROTOSS_GATEWAY &&
 				agent->Observation()->GetWarpGateCount() > 0 && currentAction->ability != ABILITY_ID::TRAIN_ARCHON) {
@@ -337,6 +337,12 @@ namespace MacroManager {
 			if (currentAction->dependency != 0 && triggeredDependencyFlags.find(currentAction->dependency) == triggeredDependencyFlags.end()) {
 				diagnostics += strprintf("DEPENDENCY %x|%d NOT MET\n\n", currentAction->dependency, currentAction->dependency);
 				continue;
+			}
+
+			//probe is the only executor with delayed resource
+			if (currentAction->executor != UNIT_TYPEID::PROTOSS_PROBE && (Aux::effectiveMinerals < abilityCost.minerals || Aux::effectiveVespene < abilityCost.vespene)) {
+				diagnostics += "NOT ENOUGH RESOURCES\n\n";
+				break;
 			}
 
 			int pylonInX = -1;
@@ -623,7 +629,7 @@ namespace MacroManager {
 
 				UnitTypeData* probeStats = Aux::getStats(UNIT_TYPEID::PROTOSS_PROBE, agent);
 
-				float dtTravel = std::max(distToTravel - 2, 0.0F) / (probeStats->movement_speed * timeSpeed);
+				float dtTravel_fsec = std::max(distToTravel, 0.0F) / (probeStats->movement_speed * timeSpeed);
 
 				macroProfiler.midLog("macro.6.4");
 
@@ -690,15 +696,15 @@ namespace MacroManager {
 				}
 				macroProfiler.midLog("macro.6.7");
 
-				float dtPrerequisites = currentAction->readyInFrames / fps;
-				if (dtPrerequisites > dtTravel) {
+				float dtPrerequisites_fsec = currentAction->readyInFrames / fps;
+				if (dtPrerequisites_fsec > dtTravel_fsec) {
 					diagnostics += strprintf("WAITING ON PREREQUISITES TO BE READY [%d]\n\n", currentAction->readyInFrames);
 					break;
 				}
-				float dt = dtTravel;
+				float dt_fsec = dtTravel_fsec;
 
-				theoryMin += (int)(dt * MINERALS_PER_PROBE_PER_SEC * numMineralMiners);
-				theoryVesp += (int)(dt * VESPENE_PER_PROBE_PER_SEC * numVespeneMiners);
+				theoryMin += (int)(dt_fsec * MINERALS_PER_PROBE_PER_SEC * numMineralMiners);
+				theoryVesp += (int)(dt_fsec * VESPENE_PER_PROBE_PER_SEC * numVespeneMiners);
 				macroProfiler.midLog("macro.6.8");
 
 			}
@@ -749,7 +755,7 @@ namespace MacroManager {
 					}
 
 					if (!hasAbility) {
-						diagnostics += "UNIT DOES NOT HAVE REQUIRED ABILITY\n\n";
+							diagnostics += "UNIT DOES NOT HAVE REQUIRED ABILITY\n\n";
 						continue;
 					}
 				}
@@ -809,6 +815,12 @@ namespace MacroManager {
 						printf("");
 					}
 					dataEncoding[encodingPoint] = currentAction->extraData;
+
+#ifdef BUILD_ORDER_VERIFICATION
+					int seconds = agent->Observation()->GetGameLoop() / fps;
+					printf("%s at %d:%d\n", UnitTypeToName(Aux::buildAbilityToUnit(currentAction->ability)), seconds / 60, seconds % 60);
+#endif //BUILD_ORDER_VERIFICATION
+
 				}
 				macroProfiler.midLog("macro.11");
 				if (currentAction->chronoBoost) {

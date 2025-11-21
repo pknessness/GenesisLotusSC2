@@ -103,9 +103,19 @@ public:
                 //    continue;
                 //}
 
+                //if viable minerals exist, don't do assimilators
+                //should only do assimilators over minerals if minerals are over 100 dist2 away
+                if (nextTarget != nullptr && Aux::isMineralType(nextTarget->getActualType(agent)) && DistanceSquared2D(nextTarget->pos(agent), pos(agent)) < 100 && targetWrap->getActualType(agent) == UNIT_TYPEID::PROTOSS_ASSIMILATOR) {
+                    continue;
+                }
+
+
                 float dist = DistanceSquared2D(pos(agent), targetWrap->pos(agent));
 
-                if (minDist == -1 || (!hasNexus && nexusNearby[targetWrap->self])/* || (capacity > probeTargetting[targetWrap->self])*/ || dist < minDist) {
+                //if assimilator is chosen and a mineral closer than 100 apears, swap to it for sure
+                //or if no item is chosen yet (minDist == -1)
+                //or if dist < minDist
+                if (minDist == -1 || (nextTarget != nullptr && nextTarget->getActualType(agent) == UNIT_TYPEID::PROTOSS_ASSIMILATOR && Aux::isMineralType(targetWrap->getActualType(agent)) && DistanceSquared2D(targetWrap->pos(agent), pos(agent)) < 100) || (!hasNexus && nexusNearby[targetWrap->self])/* || (capacity > probeTargetting[targetWrap->self])*/ || dist < minDist) {
                     if (nexusNearby[targetWrap->self]) {
                         hasNexus = true;
                     }
@@ -174,10 +184,10 @@ public:
                 if (top.build == ABILITY_ID::BUILD_ASSIMILATOR) {
                     UnitWrappers vespenes = UnitManager::getVespene();
                     for (auto it = vespenes.begin(); it != vespenes.end(); it++) {
-                        printf("TRY: %.1f,%.1f %.1f,%.1f\n", (*it)->pos(agent).x, (*it)->pos(agent).y,
-                            pos(agent).x, pos(agent).y);
+                        //printf("TRY: %.1f,%.1f %.1f,%.1f\n", (*it)->pos(agent).x, (*it)->pos(agent).y,
+                        //    pos(agent).x, pos(agent).y);
                         if (DistanceSquared2D((*it)->pos(agent), top.pos) < 4) {
-                            printf("%Ix %s %Ix\n", self, AbilityTypeToName(top.build), (*it)->self);
+                            //printf("%Ix %s %Ix\n", self, AbilityTypeToName(top.build), (*it)->self);
                             agent->Actions()->UnitCommand(self, top.build, (*it)->self);
                             std::static_pointer_cast<Vespene>((*it))->taken = true;
                             break;
@@ -186,7 +196,7 @@ public:
                 }
                 else {
                     if (agent->Query()->Placement(top.build, top.pos)) {
-                        printf("CAN PLACE %s %.1f,%.1f\n", AbilityTypeToName(top.build), top.pos.x, top.pos.y);
+                        //printf("CAN PLACE %s %.1f,%.1f\n", AbilityTypeToName(top.build), top.pos.x, top.pos.y);
                         agent->Actions()->UnitCommand(self, top.build, top.pos);
                         if (patrolCenter != Point2D()) {
                             agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, patrolCenter + Point2D{ -1,0 }, true);

@@ -14,6 +14,8 @@
 #define FLT_MAX 3.402823466e+38F
 #endif
 
+#define BUILD_ORDER_VERIFICATION
+
 #include "auxiliary/helpers.hpp"
 #include "auxiliary/profiler.hpp"
 #include "auxiliary/debugging.hpp"
@@ -35,10 +37,10 @@
 //#define DAMAGEGRID_DEBUG
 //#define PROBE_DEBUG
 
+//#define DMAG_FILE
+
 #define ADEPT_RUSH
 //#define STALKER_COLOSSUS_TIMING
-
-constexpr int16_t maxDamageOnGrid = 32;
 
 namespace UnitManager {
     void encode(UnitWrapperPtr wrap, const Unit* unit_) {
@@ -148,10 +150,11 @@ namespace UnitManager {
         units[stype].insert(std::make_shared<UnitWrapper>(unit_, stype));
     }
 
-    void remove(const Unit* unit_) {
+    UnitWrapperPtr remove(const Unit* unit_) {
         FUNCTION_LOG();
         UnitTypeID stype = getSuperType(unit_->unit_type);
         UnitWrapperMap* units;
+        UnitWrapperPtr unitWrap;
         if (unit_->alliance == Unit::Alliance::Self) {
             units = &self_units;
         }
@@ -169,6 +172,7 @@ namespace UnitManager {
         for (auto it = (*units)[stype].begin(); it != (*units)[stype].end(); it++) {
             if ((*it)->self == unit_->tag) {
                 (*it)->setDead();
+                unitWrap = *it;
                 (*units)[stype].erase(it);
                 removed = true;
                 break;
@@ -178,6 +182,7 @@ namespace UnitManager {
             printf("NOT REMOVED, YOU FUCKED UP super(%s) = %s\n", UnitTypeToName(unit_->unit_type), UnitTypeToName(stype));
             //throw 5;
         }
+        return unitWrap;
     }
 }
 
@@ -191,10 +196,13 @@ struct Bot: sc2::Agent
 
     StrategyManager::Strategy strat;
 
+#ifdef DMAG_FILE
+    FILE* dmagFile;
+#endif
+
  private:
     //! Called when a game is started or restarted.
     void OnGameStart(){
-        printf("onGameStart\n");
         std::filesystem::create_directory("data");
         FILE* imageFile = fopen("data/functionLogs.txt", "wb");
         fclose(imageFile);
@@ -223,9 +231,17 @@ struct Bot: sc2::Agent
         VisibleMap2D::init();
         WeaponGrid::init(this);
 
+#ifdef DMAG_FILE
+        dmagFile = WeaponGrid::createDMAGFile(strprintf("data/%d.dmag", rand()).c_str(), Aux::gameInfo_cache.map_name, Aux::gameInfo_cache.player_info[1].race_requested);
+#endif
         SquadManager::init();
 
-        strat = StrategyManager::zuka_proxy_tempest; //StrategyManager::shit_stalker_colossus;//StrategyManager::glaive_adept_rush_hupsaiya;//StrategyManager::test_plusone_atk;//
+        //strat = StrategyManager::glaive_adept_rush_hupsaiya;
+        //strat = StrategyManager::classic_colossus_disruptor;
+        //strat = StrategyManager::shit_stalker_colossus;
+        //strat = StrategyManager::zuka_proxy_tempest; 
+        //strat = StrategyManager::test_plusone_atk;
+        strat = StrategyManager::pig_colossus_timing;
 
         for (int i = 0; i < strat.build_order.size(); i++) {
             MacroManager::addAction(strat.build_order[i]);
@@ -339,9 +355,10 @@ struct Bot: sc2::Agent
             fclose(fp);
         }
         fclose(fpa);
-        printf("TECHNICALLY MOST EFFECTIVE UNIT: %s @ %.3fdpspsp\nNUMWEAPONS: %d\n", maxDPSPSpName.c_str(), maxDPSPSp, numWeapons);
+        //printf("TECHNICALLY MOST EFFECTIVE UNIT: %s @ %.3fdpspsp\nNUMWEAPONS: %d\n", maxDPSPSpName.c_str(), maxDPSPSp, numWeapons);
 
 #endif
+        printf("%s\n", Aux::gameInfo_cache.map_name.c_str());
     }
 
     //! Called when a game has ended.
@@ -351,6 +368,9 @@ struct Bot: sc2::Agent
         UnitManager::self_units.clear();
         UnitManager::neutral_units.clear();
         UnitManager::enemy_units.clear();
+#ifdef DMAG_FILE
+        WeaponGrid::closeDMAGFile(dmagFile);
+#endif
     }
 
     //! In non realtime games this function gets called after each step as indicated by step size.
@@ -435,6 +455,9 @@ struct Bot: sc2::Agent
             numProbes += numProbesN;
             numProbesMax += numProbesMaxN;
         }
+
+        //numProbes = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PROBE).size();
+        //TODO: EXCLUDE PATROL PROBES
 
         if ((numProbes) < numProbesMax && MacroManager::allActions[UNIT_TYPEID::PROTOSS_NEXUS].size() == 0) {
             MacroManager::addAction(MacroAction(UNIT_TYPEID::PROTOSS_NEXUS, ABILITY_ID::TRAIN_PROBE, false, MacroActionData(), 0, 0));
@@ -618,7 +641,17 @@ struct Bot: sc2::Agent
 
         onStepProfiler.midLog("oS-SpacEnemy");
 
-        DebugText(this, strprintf("%.3fms %u", lastDT / 1000.0, Observation()->GetGameLoop()));
+        uint32_t gl = Observation()->GetGameLoop();
+
+#ifdef DMAG_FILE
+        if (gl % 20 == 0) {
+            WeaponGrid::updateDMAGFile(dmagFile, gl);
+
+            onStepProfiler.midLog("oS-DMAGFile");
+        }
+#endif
+
+        DebugText(this, strprintf("%.3fms %u", lastDT / 1000.0, gl));
 
         Aux::displayExpansions(this);
 
@@ -785,13 +818,18 @@ struct Bot: sc2::Agent
         onStepProfiler.midLog("oS-SendDebug");
 
         lastDT = onStepProfiler.getFullDT();
+
+        if (DEBUG_DETAILTRIGGER) {
+            printf("");
+        }
+        DEBUG_DETAILTRIGGER = false;
     }
 
     //! Called when a Unit has been created by the player.
     //!< \param unit The created unit.
     void OnUnitCreated(const sc2::Unit* unit_){
         FUNCTION_LOG();
-        printf("%s (%Ix) was created ", UnitTypeToName(unit_->unit_type), unit_->tag);
+        //printf("%s (%Ix) was created", UnitTypeToName(unit_->unit_type), unit_->tag);
         //UnitWrapper u(unit_);
         //UnitManager::self_units.insert(std::make_shared<UnitWrapper>(unit_));
         if (unit_->tag != 0) {
@@ -799,18 +837,23 @@ struct Bot: sc2::Agent
             Aux::loadUnitPlacement(Aux::SELF_BUILDINGS, unit_->pos, unit_->unit_type);
         }
 
-        for(int i = 0; i < unit_->orders.size(); i ++) {
-            printf("[%s %.1f,%.1f, %Ix]", AbilityTypeToName(unit_->orders[i].ability_id), unit_->orders[i].target_pos.x, unit_->orders[i].target_pos.y, unit_->orders[i].target_unit_tag);
-        }
-        printf("\n");
+        //for(int i = 0; i < unit_->orders.size(); i ++) {
+        //    printf("[%s %.1f,%.1f, %Ix]", AbilityTypeToName(unit_->orders[i].ability_id), unit_->orders[i].target_pos.x, unit_->orders[i].target_pos.y, unit_->orders[i].target_unit_tag);
+        //}
+        //printf("\n");
+#ifdef BUILD_ORDER_VERIFICATION
+        int seconds = Observation()->GetGameLoop() / fps;
+        printf("%s at %d:%d\n", UnitTypeToName(unit_->unit_type), seconds / 60, seconds % 60);
+#endif //BUILD_ORDER_VERIFICATION
+
     }
 
     //! Called when an enemy unit enters vision from out of fog of war.
     //!< \param unit The unit entering vision.
     virtual void OnUnitEnterVision(const sc2::Unit* unit_) {
         FUNCTION_LOG();
-        std::cout << sc2::UnitTypeToName(unit_->unit_type) <<
-            "(" << unit_->tag << ") was created E" << std::endl;
+        //std::cout << sc2::UnitTypeToName(unit_->unit_type) <<
+        //    "(" << unit_->tag << ") was created E" << std::endl;
 
         UnitManager::add(UnitManager::enemy_units, unit_, this);
         Aux::loadUnitPlacement(Aux::ENEMY_BUILDINGS, unit_->pos, unit_->unit_type); //TODO: ENEMY UNITS WHEN get() is called WILL CHECK IF THEIR POSITION IS DIFFERENT FROM THEIR OLD POSITION AND IF SO, REWORK THE PATHING GRID
@@ -820,8 +863,8 @@ struct Bot: sc2::Agent
     //!< \param unit The observed unit.
     virtual void OnNeutralUnitCreated(const sc2::Unit* unit_) {
         FUNCTION_LOG();
-        std::cout << sc2::UnitTypeToName(unit_->unit_type) <<
-            "(" << unit_->tag << ") was created N" << std::endl;
+        //std::cout << sc2::UnitTypeToName(unit_->unit_type) <<
+        //    "(" << unit_->tag << ") was created N" << std::endl;
 
         UnitManager::add(UnitManager::neutral_units, unit_, this);
     }
@@ -830,19 +873,25 @@ struct Bot: sc2::Agent
     //!< \param unit The destroyed unit.
     void OnUnitDestroyed(const sc2::Unit* unit_){
         FUNCTION_LOG();
-        std::cout << sc2::UnitTypeToName(unit_->unit_type) <<
-             "(" << unit_->tag << ") was destroyed" << std::endl;
-        UnitManager::remove(unit_);
+        //std::cout << sc2::UnitTypeToName(unit_->unit_type) <<
+        //     "(" << unit_->tag << ") was destroyed" << std::endl;
+        UnitWrapperPtr unitWrap = UnitManager::remove(unit_);
         if (unit_->alliance == Unit::Neutral) {
             Aux::unloadNeutralUnitPlacement(this, unit_->pos, unit_->unit_type);
         }
+        else if (unit_->alliance == Unit::Self) {
+            if (unit_->is_building) {
+                MacroManager::addAction(MacroBuilding{ Aux::getStats(unit_->unit_type, this)->ability_id, Aux::PointDefault(), unitWrap->creationData });
+            }
+        }
+
     }
 
     //! Called when an upgrade is finished, warp gate, ground weapons, baneling speed, etc.
     //!< \param upgrade The completed upgrade.
     void OnUpgradeCompleted(sc2::UpgradeID id_){
         FUNCTION_LOG();
-        std::cout << sc2::UpgradeIDToName(id_) << " completed" << std::endl;
+        //std::cout << sc2::UpgradeIDToName(id_) << " completed" << std::endl;
     }
 
     //! Called when the unit in the current observation has lower health or shields than in the previous observation.
@@ -891,7 +940,7 @@ struct Bot: sc2::Agent
     //!< \param unit The constructed unit.
     void OnBuildingConstructionComplete(const sc2::Unit* building_){
         FUNCTION_LOG();
-        std::cout << sc2::UnitTypeToName(building_->unit_type) <<
-            "(" << building_->tag << ") constructed" << std::endl;
+        //std::cout << sc2::UnitTypeToName(building_->unit_type) <<
+        //    "(" << building_->tag << ") constructed" << std::endl;
     }
 };

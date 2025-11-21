@@ -101,10 +101,10 @@ public:
         if (linkedAdept->target != nullptr && VisibleMap2D::getVisibilityRecency(linkedAdept->target->pos(agent)) < (VISIBILITY_MAX - 5)) {
             mov(agent, linkedAdept->target->pos(agent));
         }
-        else if (linkedAdept->moveLocation != Point2D() && DistanceSquared2D(pos(agent), linkedAdept->moveLocation) / 5.5 > DistanceSquared2D(linkedAdept->pos(agent), linkedAdept->moveLocation) / 3.5) {
-            
-            mov(agent, linkedAdept->moveLocation);
-        }
+        //else if (linkedAdept->moveLocation != Point2D() && DistanceSquared2D(pos(agent), linkedAdept->moveLocation) / 5.5 > DistanceSquared2D(linkedAdept->pos(agent), linkedAdept->moveLocation) / 3.5) {
+        //    
+        //    mov(agent, linkedAdept->moveLocation);
+        //}
         else {
             ////copied from armyunit search code
             //float cost = -1;
@@ -122,19 +122,24 @@ public:
             //    }
             //}
             //mov(agent, moveLocation);
-            mov(agent, squad->targetPosition);
+            if (lastTime - creationTime > 30) { //
+                movSafely(agent, linkedAdept->targetLocation, 3, 8);
+            }
+            else {
+                mov(agent, linkedAdept->targetLocation);
+            }
         }
         lastTime = agent->Observation()->GetGameLoop();
 
         if (lastTime - creationTime > ADEPT_SHADE_LIFETIME_FRAMES) {
-            float adeptDPS = linkedAdept->getEnemyDPS(linkedAdept->pos(agent), 1.0F, agent);
-            float shadeDPS = getEnemyDPS(pos(agent), 1.0F, agent);
+            float adeptDPS = linkedAdept->getEnemyDPS(linkedAdept->pos(agent), linkedAdept->safetyMode ? 4.0F : 1.0F, agent);
+            float shadeDPS = getEnemyDPS(pos(agent), linkedAdept->safetyMode ? 4.0F : 1.0F, agent);
 
-            if (adeptDPS > shadeDPS) {
+            if (adeptDPS >= shadeDPS) {
                 float adeptDist = linkedAdept->getPathLength(squad->targetPosition, agent);
                 float shadeDist = getPathLength(squad->targetPosition, agent);
-                if (adeptDist > shadeDist) {
-                    return;
+                if (adeptDist >= shadeDist) {
+                    return; //tp to shade
                 }
             }
             agent->Actions()->UnitCommand(linkedAdept->self, ABILITY_ID::CANCEL_ADEPTPHASESHIFT);
