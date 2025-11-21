@@ -10,7 +10,7 @@ namespace SquadManager {
 		HARASS,
 	};
 
-	std::map<UnitTypeID, uint32_t> priorityMap;
+	std::map<UnitTypeID, int32_t> priorityMap;
 
 	void init() {
 		// Terran
@@ -267,9 +267,9 @@ namespace SquadManager {
 		float getEnemyUnitPriority(UnitWrapperPtr enemyUnit, Agent* const agent) {
 			UnitTypeID id = enemyUnit->getActualType(agent);
 			if (priorityMap.find(id) != priorityMap.end()) {
-				return priorityMap[id];
+				return (float)priorityMap[id];
 			}
-			return 0;
+			return 0.0F;
 		}
 	};
 }

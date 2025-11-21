@@ -4,8 +4,9 @@
 #include <chrono>
 using timeus = std::chrono::time_point<std::chrono::steady_clock>;
 
-
 using namespace sc2;
+
+bool DEBUG_DETAILTRIGGER = false;
 
 //! Outputs text at the top, left of the screen.
 //!< \param out The string of text to display.
@@ -63,6 +64,16 @@ void DebugBox(Agent* const agent, const Point3D& p_min, const Point3D& p_max, Co
 void DebugSphere(Agent* const agent, const Point3D& p, float r, Color color = Colors::White) {
 #ifndef BUILD_FOR_LADDER
     agent->Debug()->DebugSphereOut(p, r, color);
+#endif
+}
+
+void DebugPath(Agent* const agent, std::vector<Point2D> path, Color color = Colors::White, float elevation = 1.5F) {
+#ifndef BUILD_FOR_LADDER
+    for (int i = 0; i < path.size() - 1; i++) {
+        Point3D p1 = Point3D(path[i].x, path[i].y, agent->Observation()->TerrainHeight(path[i]) + elevation);
+        Point3D p2 = Point3D(path[i + 1].x, path[i + 1].y, agent->Observation()->TerrainHeight(path[i + 1]) + elevation);
+        DebugLine(agent, p1, p2, color);
+    }
 #endif
 }
 

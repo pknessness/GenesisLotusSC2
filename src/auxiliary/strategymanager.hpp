@@ -66,6 +66,9 @@ namespace StrategyManager {
 
     Strategy zuka_proxy_tempest;//https://lotv.spawningtool.com/build/150094/
 
+    Strategy classic_colossus_disruptor; //https://lotv.spawningtool.com/build/197604/
+
+    Strategy pig_colossus_timing; //https://lotv.spawningtool.com/build/184604/
 
     void load(){
         FUNCTION_LOG();
@@ -86,7 +89,7 @@ namespace StrategyManager {
 
             //Warp Gate + Early Units
             MacroAction(UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, ABILITY_ID::RESEARCH_WARPGATE, true), //Chrono Boosted
-            MacroAction(UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, ABILITY_ID::RESEARCH_WARPGATE), // 2nd Chrono
+            //MacroAction(UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, ABILITY_ID::RESEARCH_WARPGATE), // 2nd Chrono
             MacroGateway(ABILITY_ID::TRAIN_ADEPT),
             MacroGateway(ABILITY_ID::TRAIN_ADEPT),
 
@@ -201,7 +204,7 @@ namespace StrategyManager {
             MacroGateway(ABILITY_ID::TRAIN_ADEPT),
         };
         glaive_adept_rush_hupsaiya.unitRatio.adept = 1;
-        glaive_adept_rush_hupsaiya.armyAttackNum = 13; //Hit at 4:37 with 14 Adepts
+        glaive_adept_rush_hupsaiya.armyAttackNum = 2; //Hit at 4:37 with 14 Adepts
         glaive_adept_rush_hupsaiya.commit = true;
 
         test_plusone_atk.build_order = {
@@ -289,7 +292,7 @@ namespace StrategyManager {
         shit_stalker_colossus.commit = true;
 
         auto it = Aux::enemyRankedExpansions.begin();
-        it++; it++; it++;
+        it++; it++; it++; it++;
         Point2D proxyPoint = Aux::P2D(Aux::expansions[(*it).expansionIndex].pos);
         zuka_proxy_tempest.build_order = {
             // ===== Early Economy ===== (0:00-1:21)
@@ -354,6 +357,148 @@ namespace StrategyManager {
         zuka_proxy_tempest.unitRatio.stalker = 10;
         zuka_proxy_tempest.armyAttackNum = 1;
 
+        classic_colossus_disruptor.build_order = {
+            // Early Economy & Expansion
+            MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::criticalPoints[Aux::SELF_FIRSTPYLON_POINT]),  // 14 @ 0:20
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),                              // 16 @ 0:40
+            MacroBuilding(ABILITY_ID::GENERAL_MOVE, Aux::criticalPoints[Aux::ENEMY_STARTLOC_POINT]),
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),                         // 17 @ 0:50
+
+            // Tech & Production
+            MacroBuilding(ABILITY_ID::BUILD_NEXUS), // 20 @ 1:27
+            MacroBuilding(ABILITY_ID::BUILD_CYBERNETICSCORE),                     // 21 @ 1:38
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),                         // 21 @ 1:47
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),                               // 22 @ 1:55
+
+            // Early Units & Robotics
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT, true), // 25 @ 2:14 (Chrono)
+            MacroAction(UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, ABILITY_ID::RESEARCH_WARPGATE), // 26 @ 2:16
+            MacroBuilding(ABILITY_ID::BUILD_ROBOTICSFACILITY),                    // 26 @ 2:23
+            MacroGateway(ABILITY_ID::TRAIN_STALKER, true), // 29 @ 2:34 (Chrono)
+
+            // Army Composition
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER), // 36 @ 3:01
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_OBSERVER), // 39 @ 3:12
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),                              // 41 @ 3:26
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),                               // 41 @ 3:28
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),                         // 43 @ 3:44 (x2)
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_IMMORTAL), // 47 @ 3:47
+
+            // Expansion & Tech
+            MacroBuilding(ABILITY_ID::BUILD_NEXUS), // 49 @ 4:00
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),                               // 49 @ 4:08
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),                               // 52 @ 4:25
+            MacroBuilding(ABILITY_ID::BUILD_ROBOTICSBAY),                         // 54 @ 4:34
+            MacroBuilding(ABILITY_ID::BUILD_ROBOTICSFACILITY),                    // 56 @ 4:43
+            // MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_OBSERVER), // 59 @ 4:49
+
+            // Upgrades & Heavy Production
+            MacroBuilding(ABILITY_ID::BUILD_FORGE),                               // 66 @ 5:15
+            MacroRobo(ABILITY_ID::TRAIN_COLOSSUS, true), // 66 @ 5:32 (Chrono x2)
+            MacroRobo(ABILITY_ID::TRAIN_COLOSSUS, true),
+            MacroBuilding(ABILITY_ID::BUILD_TWILIGHTCOUNCIL),                     // 72 @ 5:35
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),                               // 81 @ 5:38
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),                         // 83 @ 5:48 (x2)
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
+
+            // Late Game Army
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),                               // 90 @ 6:13
+            MacroAction(UNIT_TYPEID::PROTOSS_FORGE, ABILITY_ID::RESEARCH_PROTOSSGROUNDWEAPONSLEVEL1, Aux::PointArea(), true), // 91 @ 6:16 (Chrono)
+            MacroAction(UNIT_TYPEID::PROTOSS_TWILIGHTCOUNCIL, ABILITY_ID::RESEARCH_CHARGE, Aux::PointArea(), true), // 91 @ 6:17 (Chrono)
+
+            // Mass Gateway Production
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),                              // 92 @ 6:30 (x7)
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_TEMPLARARCHIVE),                     // 92 @ 6:38
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),                               // 96 @ 6:41
+
+            // Disruptor Tech
+            MacroRobo(ABILITY_ID::TRAIN_DISRUPTOR, true), // 100 @ 6:43 (Chrono x2)
+            MacroRobo(ABILITY_ID::TRAIN_DISRUPTOR, true),
+
+            // Final Production Phase
+            MacroRobo(ABILITY_ID::TRAIN_IMMORTAL, true), // 108 @ 7:15 (Chrono x2)
+            MacroRobo(ABILITY_ID::TRAIN_IMMORTAL, true),
+            MacroBuilding(ABILITY_ID::BUILD_NEXUS), // 108 @ 7:25
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),                               // 108 @ 7:30
+
+            // Archon Transition
+            MacroRobo(ABILITY_ID::TRAIN_WARPPRISM, true), // 116 @ 7:52 (Chrono)
+            MacroRobo(ABILITY_ID::TRAIN_IMMORTAL, true), // 116 @ 7:52 (Chrono)
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_HIGHTEMPLAR), // 116 @ 8:07 (x6)
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_HIGHTEMPLAR),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_HIGHTEMPLAR),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_HIGHTEMPLAR),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_HIGHTEMPLAR),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_HIGHTEMPLAR),
+            MacroAction(UNIT_TYPEID::PROTOSS_HIGHTEMPLAR, ABILITY_ID::MORPH_ARCHON), // Make Archons x3
+            MacroAction(UNIT_TYPEID::PROTOSS_HIGHTEMPLAR, ABILITY_ID::MORPH_ARCHON),
+            MacroAction(UNIT_TYPEID::PROTOSS_HIGHTEMPLAR, ABILITY_ID::MORPH_ARCHON)
+        };
+
+        // Unit Composition
+        classic_colossus_disruptor.unitRatio.adept = 1;
+        classic_colossus_disruptor.unitRatio.stalker = 2;
+        classic_colossus_disruptor.unitRatio.observer = 2;
+        classic_colossus_disruptor.unitRatio.immortal = 5;
+        classic_colossus_disruptor.unitRatio.colossus = 2;
+        classic_colossus_disruptor.unitRatio.disruptor = 2;
+        classic_colossus_disruptor.unitRatio.warpprism = 1;
+        classic_colossus_disruptor.unitRatio.hightemplar = 6;
+        classic_colossus_disruptor.unitRatio.archon = 3;
+
+        // Attack Timing
+        classic_colossus_disruptor.armyAttackNum = 9;  // Push with Colossus + Disruptor timing
+
+        pig_colossus_timing.build_order = {
+            MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::criticalPoints[Aux::SELF_FIRSTPYLON_POINT]),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::GENERAL_MOVE, Aux::criticalPoints[Aux::ENEMY_STARTLOC_POINT]),
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
+            MacroBuilding(ABILITY_ID::BUILD_NEXUS),
+            MacroBuilding(ABILITY_ID::BUILD_CYBERNETICSCORE),
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroGateway(ABILITY_ID::TRAIN_ADEPT, true),
+            MacroAction(UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, ABILITY_ID::RESEARCH_WARPGATE, true),
+            MacroBuilding(ABILITY_ID::BUILD_ROBOTICSFACILITY),
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),
+            MacroGateway(ABILITY_ID::TRAIN_STALKER),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroRobo(ABILITY_ID::TRAIN_OBSERVER, true),
+            MacroBuilding(ABILITY_ID::BUILD_ROBOTICSBAY),
+            MacroGateway(ABILITY_ID::TRAIN_STALKER),
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
+            MacroRobo(ABILITY_ID::TRAIN_COLOSSUS, true),
+            MacroGateway(ABILITY_ID::TRAIN_STALKER),
+            MacroGateway(ABILITY_ID::TRAIN_STALKER),
+            MacroGateway(ABILITY_ID::TRAIN_STALKER),
+            MacroRobo(ABILITY_ID::TRAIN_COLOSSUS),
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSBAY, ABILITY_ID::RESEARCH_EXTENDEDTHERMALLANCE),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroGateway(ABILITY_ID::TRAIN_SENTRY),
+            MacroGateway(ABILITY_ID::TRAIN_SENTRY),
+            MacroGateway(ABILITY_ID::TRAIN_SENTRY),
+            MacroRobo(ABILITY_ID::TRAIN_WARPPRISM),
+
+        };
+        pig_colossus_timing.unitRatio.stalker = 6;
+        pig_colossus_timing.unitRatio.colossus = 1;
+        pig_colossus_timing.unitRatio.sentry = 2;
+        pig_colossus_timing.armyAttackNum = 10; 
+        pig_colossus_timing.commit = true;
     }
 
 }

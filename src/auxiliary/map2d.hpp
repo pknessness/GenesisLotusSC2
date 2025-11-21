@@ -41,6 +41,9 @@ public:
     /* print an image */
     void print();
 
+    /* print an image */
+    int rawSize();
+
     /* copy an image */
     map2d<T> *copy() const;
 
@@ -120,6 +123,11 @@ map2d<T> *map2d<T>::copy() const {
     map2d<T> *im = new map2d<T>(w, h, false);
     memcpy(im->data, data, w * h * sizeof(T));
     return im;
+}
+
+template <class T>
+int map2d<T>::rawSize() {
+    return sizeof(T) * w * h;
 }
 
 #endif

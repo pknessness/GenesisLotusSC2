@@ -34,6 +34,8 @@ constexpr float GS_PI = 3.14159274F;
 constexpr float timeSpeed = 1.4F;
 constexpr float fps = 16 * timeSpeed;
 
+//henceforth, i will try to put all time variables in units of either native frames _natframes, faster frames _fframes, native seconds _natsec, or fast seconds _fsec
+
 constexpr float MINERALS_PER_PROBE_PER_SEC = 55.0F / 60;
 constexpr float VESPENE_PER_PROBE_PER_SEC = 61.0F / 60;
 
@@ -183,9 +185,9 @@ namespace Aux {
 
 		}
 
-		ExtraWeapon(Weapon::TargetType type_, float damage_, uint32_t attacks_, float range_, float speed_, EnergyCost energyCost_ = { 0, 0 }, bool spell_ = false) {
+		ExtraWeapon(Weapon::TargetType type_, float damage__, uint32_t attacks_, float range_, float speed_, EnergyCost energyCost_ = { 0, 0 }, bool spell_ = false) {
 			type = type_;
-			damage_ = damage_;
+			damage_ = damage__;
 			attacks = attacks_;
 			range = range_;
 			speed = speed_;
@@ -511,9 +513,9 @@ namespace Aux {
 		return Point2D{ x, y };
 	}
 
-	Point2D getRandomPointRadius(Point2D point, float radius_max) {
+	Point2D getRandomPointRadius(Point2D point, float radius_max, float radius_min = 0.0F) {
 		float theta = (2.0F * GS_PI * rand()) / RAND_MAX;
-		float radius = (radius_max * rand()) / RAND_MAX;
+		float radius = radius_min + ((radius_max - radius_min) * rand()) / RAND_MAX;
 		return point + Point2D{ radius * cos(theta), radius * sin(theta) };
 	}
 
@@ -1537,6 +1539,7 @@ namespace Aux {
 		saveMasterBitmap("masterMap.bmp");
 	}
 
+	//white and black ignored
 	void gridTemplate(Agent* const agent, std::function<Color(int, int)> color, int cellSize = 1, bool pathableCheck = true, float boxBorder = 0.05F) {
 		FUNCTION_LOG();
 		Point2D center = agent->Observation()->GetCameraPos();
@@ -1569,6 +1572,54 @@ namespace Aux {
 
 					DebugBox(agent, Point3D(w + boxBorder, h + boxBorder, height + 0.05F),
 						Point3D(w + cellSize - boxBorder, h + cellSize - boxBorder, 0), c);
+
+					//DebugText(agent, strprintf("%d, %d", w, h),
+					//	Point3D(w + boxBorder, h + 0.2F + boxBorder, height + 0.1F),
+					//	Color(200, 90, 15), 8);
+				}
+			}
+		}
+	}
+
+
+	//white and black ignored
+	void gridTemplatePrecise(Agent* const agent, std::function<Color(int, int)> color, int precision = 1, bool pathableCheck = true, float boxBorder = 0.05F) {
+		FUNCTION_LOG();
+		Point2D center = agent->Observation()->GetCameraPos() * precision;
+		int wS = int(center.x) - 10 * precision;
+		if (wS < 1)
+			wS = 1;
+		int hS = int(center.y) - 5 * precision;
+		if (hS < 1)
+			hS = 1;
+		int wE = int(center.x) + 11 * precision;
+		if (wE >= (Aux::mapWidth_cache - 2) * precision)
+			wE = (Aux::mapWidth_cache - 2) * precision;
+		int hE = int(center.y) + 14 * precision;
+		if (hE >= (Aux::mapHeight_cache - 2) * precision)
+			hE = (Aux::mapHeight_cache - 2) * precision;
+
+		float blockSize = 1.0F / precision;
+
+		for (int w = wS; w < wE; w++) {
+			for (int h = hS; h < hE; h++) {
+				if ((pathableCheck && !Aux::isPathableTile(w / precision, h / precision))) {
+					continue;
+				}
+				Point2D point(w * blockSize, h * blockSize);
+				float boxHeight = 0;
+				Color c = color(w, h);
+
+				float w_real = (float)w / precision;
+				float h_real = (float)h / precision;
+
+				if (0 || (c.r != 255 && c.r != 0) || (c.g != 255 && c.g != 0) || (c.b != 255 && c.b != 0) || boxHeight != 0) {
+					float height = std::max(
+						agent->Observation()->TerrainHeight(Point2D{ w_real, h_real }),
+						agent->Observation()->TerrainHeight(Point2D{ w_real + 1, h_real + 1 }));
+
+					DebugBox(agent, Point3D(w_real + boxBorder, h_real + boxBorder, height + 0.05F),
+						Point3D(w_real + blockSize - boxBorder, h_real + blockSize - boxBorder, 0), c);
 
 					//DebugText(agent, strprintf("%d, %d", w, h),
 					//	Point3D(w + boxBorder, h + 0.2F + boxBorder, height + 0.1F),
@@ -1653,6 +1704,39 @@ namespace Aux {
 
 	inline const char* RaceToName(Race r) {
 		return raceNames[(int)r];
+	}
+
+	inline std::string barToString(float percent_decimal) {
+		if (percent_decimal < 0.2) {
+			percent_decimal = 0;
+		}
+		int full = (int)(percent_decimal * 10);
+		if (full >= 10) {
+			return std::string("##########");
+		}
+		int half = (int)(((full / 10.0F) - percent_decimal) * 50);
+		//std::string result = "";
+		char str[11] = { 0 };
+		memset(str, ' ', 10);
+		memset(str, '#', full);
+		char hal = '?';
+		if (half == 1) {
+			hal = '~';
+		}
+		else if (half == 2) {
+			hal = ':';
+		}
+		else if (half == 3) {
+			hal = '!';
+		}
+		else if (half == 4) {
+			hal = '$';
+		}
+		else {
+			hal = '*';
+		}
+		memset(str+full, hal, 1);
+		return std::string(str);
 	}
 
 	inline int damageExtraPerUpgrade(float baseDamage) {
