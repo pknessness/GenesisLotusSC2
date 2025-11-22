@@ -214,6 +214,9 @@ namespace SquadManager {
 			squadTargetDamage.clear();
 			Circles c = {};
 			for (auto it = armyContents.begin(); it != armyContents.end(); it++) {
+				if (squadMainStates[(*it)->self] == 'u') {
+					continue;
+				}
 				float radius = Aux::getStats((*it)->getActualType(agent), agent)->sight_range + 1;
 				c.push_back({ (*it)->pos(agent), radius });
 			}

@@ -35,7 +35,7 @@
 
 #define DEBUG
 //#define DAMAGEGRID_DEBUG
-#define PROBE_DEBUG
+//#define PROBE_DEBUG
 
 //#define DMAG_FILE
 

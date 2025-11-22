@@ -207,6 +207,62 @@ public:
         //TODO: add path itself as a weight
     }
 
+    virtual void findTarget(Agent* const agent, Aux::ExtraWeapon& weapon, float& dmagToTarget) {
+        float priority = 0; //fine because condition is also target == nullptr
+        for (auto it = squad->squadTargets.begin(); it != squad->squadTargets.end(); it++) {
+            if (squad->squadTargetDamage[(*it)->self] < (*it)->getHealth(agent)) {
+                float p = squad->getEnemyUnitPriority(*it, agent);
+                float damagePerHit = 0;
+                UnitTypeID selfType = getActualType(agent);
+
+                bool hittable = false;
+                for (int i = 0; i < WeaponGrid::unitDamageSources[selfType].size(); i++) { //TODO: URGENT. VOID RAYS HAVE 0 NATIVE ATK AND SO THEIR ATK PRIORITY IS WAY OFF.
+                    int index = WeaponGrid::unitDamageSources[selfType][i].weaponIndex;
+                    float damage = WeaponGrid::DamageCalculation(index, *it, agent);
+                    if (damage > damagePerHit) {
+                        damagePerHit = damage;
+                        weapon = WeaponGrid::getSelfWeaponFromIndex(index);
+                        hittable = true;
+                    }
+                }
+                if (!hittable) { //making sure old weapon isn' applied to another enemy that is not hittable
+                    DebugText(agent, "NA", (*it)->pos3D(agent) + Point3D{ 0,0,1 });
+                    continue;
+                }
+                float distanceToEnemy = Distance2D((*it)->pos(agent), pos(agent));
+                //float damageLost = (distanceToEnemy > weapon.range) ? (((distanceToEnemy - weapon.range) / Aux::getStats(getActualType(agent), agent).movement_speed) * (damagePerHit / weapon.speed)) : 0.0F;
+                //p -= damageLost / 50; //every 50 damage lost takes a unit down one priority peg;
+                float range = (weapon.range + (*it)->radius(agent));
+
+                if (distanceToEnemy > range) {
+                    p -= 4 * (distanceToEnemy - range); //every one unit outside of range a unit is, it gets taken down two priority pegs
+                }
+                //p += damagePerHit / weapon->speed; //each DPS, up one peg of priority
+
+                float enemyHealth = (*it)->getHealth(agent);
+                if (squad->squadTargetDamage.find((*it)->self) != squad->squadTargetDamage.end()) {
+                    enemyHealth -= squad->squadTargetDamage[(*it)->self];
+                }
+                float dtToEnemyDeath_natsec = enemyHealth / ((int)(damagePerHit / weapon.speed) + 1);
+                p /= dtToEnemyDeath_natsec;
+
+                if (enemyHealth < damagePerHit) {
+                    p *= 2;
+                }
+                if (target == nullptr || p > priority) {
+                    priority = p;
+                    target = *it;
+                    dmagToTarget = damagePerHit;
+                }
+
+                if (getReturn(agent)->is_selected) {
+                    //DebugText(agent, strprintf("%f", p), (*it)->pos3D(agent) + Point3D{ 0,0,1 }, Colors::Blue);
+                    DebugText(agent, strprintf("%f", p), (*it)->pos3D(agent) + Point3D{ 0,0,1 });
+                }
+            }
+        }
+    }
+
     virtual void executeAttack(Agent* const agent) {
         FUNCTION_LOG();
         Profiler armyUnitProfiler("armyu(atk)");
@@ -239,8 +295,8 @@ public:
 
         moveLocation = Point2D{ -1, -1 };
         target = nullptr;
-        //float damageToTarget = 0.0F;
         Aux::ExtraWeapon weapon = WeaponGrid::emptyWeapon;
+        float dmagToTarget = 0;
 
         bool radiusOfSafety = (WeaponGrid::getRadiusAvgDPS(pos(agent), radius(agent) + 3.5, WeaponGrid::wrapToTargetInfo(shared_from_this(), agent), agent) == 0.0F);
         //if (!safetyMode && getShields(agent) < 20.0F) {
@@ -250,94 +306,32 @@ public:
         //    safetyMode = false;
         //}
 
-        float priority = 0; //fine because condition is also target == nullptr
-        float dmagToTarget = 0;
-        for (auto it = squad->squadTargets.begin(); it != squad->squadTargets.end(); it++) {
-            if (squad->squadTargetDamage[(*it)->self] < (*it)->getHealth(agent)) {
-                float p = squad->getEnemyUnitPriority(*it, agent);
-                float damagePerHit = 0;
-                UnitTypeID selfType = getActualType(agent);
+        findTarget(agent, weapon, dmagToTarget);
 
-                bool hittable = false;
-                for (int i = 0; i < WeaponGrid::unitDamageSources[selfType].size(); i++) { //TODO: URGENT. VOID RAYS HAVE 0 NATIVE ATK AND SO THEIR ATK PRIORITY IS WAY OFF.
-                    int index = WeaponGrid::unitDamageSources[selfType][i].weaponIndex;
-                    float damage = WeaponGrid::DamageCalculation(index, *it, agent);
-                    if (damage > damagePerHit) {
-                        damagePerHit = damage;
-                        weapon = WeaponGrid::getSelfWeaponFromIndex(index);
-                        hittable = true;
-                    }
-                }
-                if (!hittable) { //making sure old weapon isn' applied to another enemy that is not hittable
-                    DebugText(agent, "NA", (*it)->pos3D(agent) + Point3D{ 0,0,1 });
-                    continue;
-                }
-                float distanceToEnemy = Distance2D((*it)->pos(agent), pos(agent));
-                //float damageLost = (distanceToEnemy > weapon.range) ? (((distanceToEnemy - weapon.range) / Aux::getStats(getActualType(agent), agent).movement_speed) * (damagePerHit / weapon.speed)) : 0.0F;
-                //p -= damageLost / 50; //every 50 damage lost takes a unit down one priority peg;
-                float range = (weapon.range + (*it)->radius(agent));
-
-                if (distanceToEnemy > range) {
-                    p -= 4*(distanceToEnemy - range); //every one unit outside of range a unit is, it gets taken down two priority pegs
-                }
-                //p += damagePerHit / weapon->speed; //each DPS, up one peg of priority
-
-                float enemyHealth = (*it)->getHealth(agent);
-                if (squad->squadTargetDamage.find((*it)->self) != squad->squadTargetDamage.end()) {
-                    enemyHealth -= squad->squadTargetDamage[(*it)->self];
-                }
-                float dtToEnemyDeath_natsec = enemyHealth / ((int)(damagePerHit / weapon.speed) + 1);
-                p /= dtToEnemyDeath_natsec;
-
-                if (enemyHealth < damagePerHit) {
-                    p *= 2;
-                }
-                if (target == nullptr || p > priority) {
-                    priority = p;
-                    target = *it;
-                    dmagToTarget = damagePerHit;
-                }
-
-                if (getReturn(agent)->is_selected) {
-                    //DebugText(agent, strprintf("%f", p), (*it)->pos3D(agent) + Point3D{ 0,0,1 }, Colors::Blue);
-                    DebugText(agent, strprintf("%f", p), (*it)->pos3D(agent) + Point3D{ 0,0,1 });
-                }
-            }
+        if (getReturn(agent)->is_selected && radiusOfSafety) {
+            DebugBox(agent, pos3D(agent) + Point3D{ -0.2,-0.2, 1 }, pos3D(agent) + Point3D{ 0.2,0.2,1.4 }, Colors::Green);
         }
+
         armyUnitProfiler.midLog("armyu(atk).findTarget");
 
         bool attacking = false;
 
         if (squad->squadMainStates[self] == 'u') {
             if (getReturn(agent)->weapon_cooldown > 0) {
-                squad->unitStates[self] = 'n';
-            }
-            else {
-                squad->unitStates[self] = 'k';
-            }
-        //}
-        //if (squad->squadMainStates[self] == 'u') {
-            //moveLocation = squad->getCorePosition(agent);
-            if (squad->unitStates[self] == 'n') {
                 mov(agent, squad->getCorePosition(agent));
-                cooldownFrames = COOLDOWN_FRAMES;
-            }
-            else if (squad->unitStates[self] == 'k') {
-                atk(agent, squad->getCorePosition(agent));
-                cooldownFrames = COOLDOWN_FRAMES;
             }
             else {
                 atk(agent, squad->getCorePosition(agent));
-                cooldownFrames = COOLDOWN_FRAMES;
             }
+            cooldownFrames = COOLDOWN_FRAMES;
             targetLocation = squad->getCorePosition(agent);
         }
         else if (squad->squadMainStates[self] == 'j') {
             targetLocation = squad->targetPosition;
-            //atk(agent, squad->targetPosition);
             if (target != nullptr) {
 #ifdef TARGET_DEBUG
                 DebugLine(agent, pos3D(agent) + Point3D{ 0,0,1 }, target->pos3D(agent) + Point3D{ 0,0,1 }, Colors::Teal);
+                DebugLine(agent, pos3D(agent) + Point3D{ 0,0,1.1 }, target->pos3D(agent) + Point3D{ 0,0,1.1 }, Colors::Yellow);
 #endif
                 if (target->getReturn(agent) == nullptr) {
                     if (safetyMode) {

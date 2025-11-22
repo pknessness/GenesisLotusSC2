@@ -817,7 +817,6 @@ namespace MacroManager {
 						printf("");
 					}
 					dataEncoding[encodingPoint] = currentAction->extraData;
-
 #ifdef BUILD_ORDER_VERIFICATION
 					if (currentAction->ability != ABILITY_ID::TRAIN_PROBE) {
 						int seconds = agent->Observation()->GetGameLoop() / fps;

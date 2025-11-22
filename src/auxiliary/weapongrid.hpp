@@ -822,6 +822,9 @@ namespace WeaponGrid {
             else if (damage < (maxDamageOnGrid * 2)) {
                 c = { 255, (uint8_t)(255 - (uint8_t)(dmg * mult)), (uint8_t)(255 - (uint8_t)(dmg * mult)) };
             }
+            else if (damage < 0) {
+                c = { 0, (uint8_t)(dmg * mult), (uint8_t)(255 - (uint8_t)(dmg * mult)) };
+            }
             else {
                 c = { 255, 0, 0 };
             }
