@@ -197,6 +197,8 @@ struct Bot: sc2::Agent
 
     StrategyManager::Strategy strat;
 
+    uint32_t mspt = 0;
+
 #ifdef DMAG_FILE
     FILE* dmagFile;
 #endif
@@ -617,6 +619,9 @@ struct Bot: sc2::Agent
                     Actions()->SendChat("Saving damage bitmap");
                     WeaponGrid::saveDamageMapEnemyBitmap("damage");
                 }
+                else if (command == "mspt") { //save main damage bitmap
+                    mspt = atoi(arguments[0].c_str());
+                }
                 else {
                     Actions()->SendChat("Invalid Command " + command);
                 }
@@ -769,6 +774,15 @@ struct Bot: sc2::Agent
 
         //VisibleMap2D::debug(this);
 
+        for (auto it = UnitManager::enemy_units.begin(); it != UnitManager::enemy_units.end(); it++) {
+            for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
+                if ((*it2)->getReturn(this) == nullptr) {
+                    DebugSphere(this, (*it2)->pos3D(this), (*it2)->radius(this), Colors::Red);
+                    DebugText(this, strprintf("%s", UnitTypeToName((*it2)->getActualType(this))), (*it2)->pos3D(this) + Point3D{0,0,1}, Colors::Red);
+                }
+            }
+        }
+
         onStepProfiler.midLog("oS-Debug");
 
         std::string profilestr = "";
@@ -819,6 +833,13 @@ struct Bot: sc2::Agent
         onStepProfiler.midLog("oS-SendDebug");
 
         lastDT = onStepProfiler.getFullDT();
+
+        if (mspt > 44) {
+            long long extra = mspt * 1000 - lastDT - 4000;
+            if (extra > 0) {
+                std::this_thread::sleep_for(std::chrono::microseconds(extra));
+            }
+        }
 
         if (DEBUG_DETAILTRIGGER) {
             printf("");

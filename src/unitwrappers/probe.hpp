@@ -54,7 +54,7 @@ public:
         return target;
     }
 
-    UnitWrapperPtr getTargetTag(Agent* agent) { //TODO: IF ASSIMILATOR EMPTY RETARGET
+    UnitWrapperPtr getTargetTag(Agent* agent) {
         FUNCTION_LOG();
         if (target != nullptr && (target->getReturn(agent) == nullptr || (target->getStorageType() == UNIT_TYPEID::PROTOSS_ASSIMILATOR && target->getReturn(agent)->vespene_contents == 0))) {
             UnitWrapperPtr oldTarget = target;
@@ -64,7 +64,6 @@ public:
             }
         }
         if (target == nullptr) {
-            //TODO: CHOOSE NEW TARGET
             UnitWrappers mineralWraps = UnitManager::getMinerals();
             UnitWrappers assimilatorWraps = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_ASSIMILATOR);
             mineralWraps.insert(assimilatorWraps.begin(), assimilatorWraps.end());
@@ -103,16 +102,11 @@ public:
                     continue;
                 }
 
-                //if (capacity < probeTargetting[targetWrap->self]) {
-                //    continue;
-                //}
-
                 //if viable minerals exist, don't do assimilators
                 //should only do assimilators over minerals if minerals are over 100 dist2 away
                 if (nextTarget != nullptr && Aux::isMineralType(nextTarget->getActualType(agent)) && DistanceSquared2D(nextTarget->pos(agent), pos(agent)) < 100 && targetWrap->getActualType(agent) == UNIT_TYPEID::PROTOSS_ASSIMILATOR) {
                     continue;
                 }
-
 
                 float dist = DistanceSquared2D(pos(agent), targetWrap->pos(agent));
 
@@ -148,7 +142,7 @@ public:
             setTarget(nullptr);
         }
     }
-
+    
     //TODO: MAKE SURE THAT PROBES HAVE TO BE WITHIN 10 TO CLAIM, AND OTHERWISE THEY WILL JUST MOVE TOWARD THE ONE THEY WANT TO CLAIM
     void execute(Agent* const agent) {
         FUNCTION_LOG();
@@ -246,7 +240,6 @@ public:
             //and if unit has either no orders, or the order is harvest to the wrong target
             if (targ != nullptr && (unit->orders.size() == 0 || (unit->orders[0].ability_id == ABILITY_ID::HARVEST_GATHER &&
                 unit->orders[0].target_unit_tag != targ->self))) {
-                /*printf("REASING\n");*/
                 agent->Actions()->UnitCommand(self, ABILITY_ID::HARVEST_GATHER, targ->self);
             }
         }
