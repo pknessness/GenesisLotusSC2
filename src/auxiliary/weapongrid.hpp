@@ -767,16 +767,20 @@ namespace WeaponGrid {
     void update(Agent* agent) {
         clearDamageGrid();
         for (auto it = UnitManager::enemy_units.begin(); it != UnitManager::enemy_units.end(); it++) {
-            std::vector<DamageSourceID> weapons = getWeapons(it->first);
             if (Aux::opponent == Random) {
                 UnitTypeData* stats = Aux::getStats(it->first, agent);
                 Aux::opponent = stats->race;
             }
             for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
+                std::vector<DamageSourceID> weapons = getWeapons((*it2)->getActualType(agent));
                 if ((*it2)->isHallucination()/* || (*it2)->getReturn(agent) == nullptr*/) {
                     continue;
                 }
                 
+                if ((*it2)->getActualType(agent) == UNIT_TYPEID::TERRAN_SIEGETANKSIEGED) {
+                    printf("");
+                }
+
                 //TODO:
                 // add psi storm (more damage the more time it has left, prioritzed more since its constant dmag)
                 // add helion line, lurker line, liberator circle

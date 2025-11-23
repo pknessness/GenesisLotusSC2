@@ -188,6 +188,21 @@ public:
                     }
                 }
 
+                UnitTypeID unitToCreate = Aux::buildAbilityToUnit(top.build); //if a unit needs a pylon, check for pylon in range
+                if (unitToCreate != UNIT_TYPEID::INVALID && unitToCreate != UNIT_TYPEID::PROTOSS_NEXUS && unitToCreate != UNIT_TYPEID::PROTOSS_PYLON && unitToCreate != UNIT_TYPEID::PROTOSS_ASSIMILATOR) {
+                    UnitWrappers pylons = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PYLON);
+                    bool pylonInRange = false;
+                    for (auto it = pylons.begin(); it != pylons.end(); it++) {
+                        if ((*it)->getReturn(agent)->build_progress == 1.0 && DistanceSquared2D((*it)->pos(agent), top.pos) < PYLON_RADIUS_SQUARED_REAL) {
+                            pylonInRange = true;
+                        }
+                    }
+
+                    if (!pylonInRange) {
+                        return;
+                    }
+                }
+
                 if (top.build == ABILITY_ID::BUILD_ASSIMILATOR) {
                     UnitWrappers vespenes = UnitManager::getVespene();
                     for (auto it = vespenes.begin(); it != vespenes.end(); it++) {
@@ -196,21 +211,28 @@ public:
                         if (DistanceSquared2D((*it)->pos(agent), top.pos) < 4) {
                             //printf("%Ix %s %Ix\n", self, AbilityTypeToName(top.build), (*it)->self);
                             agent->Actions()->UnitCommand(self, top.build, (*it)->self);
+                            MacroManager::dataEncoding[top.pos].stepBegin = agent->Observation()->GetGameLoop();
                             std::static_pointer_cast<Vespene>((*it))->taken = true;
                             break;
                         }
                     }
                 }
-                else {
-                    if (agent->Query()->Placement(top.build, top.pos)) {
-                        //printf("CAN PLACE %s %.1f,%.1f\n", AbilityTypeToName(top.build), top.pos.x, top.pos.y);
+                else { //TODO: ADD REQUIRED ENCODING CONFIRMATION FOR BUILDINGS TO KNOW THEYVE BEEN BUILT, COUNT # of failures and exceeding a certain number of retries, go to failed building
+                    //if (agent->Query()->Placement(top.build, top.pos)) {
+                    if(Aux::checkStructurePlacement(top.pos, top.build, true)) {
+
                         agent->Actions()->UnitCommand(self, top.build, top.pos);
+                        MacroManager::dataEncoding[top.pos].stepBegin = agent->Observation()->GetGameLoop();
+
                         if (patrolCenter != Point2D()) {
                             agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, patrolCenter + Point2D{ -1,0 }, true);
                             agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_PATROL, patrolCenter + Point2D{ 1,0 }, true);
                         }
                     }
                     else {
+                        Point3D p = AP3D(buildings.begin()->pos);
+                        DebugBox(agent, p - Point3D{ 1.5,1.5,0 }, p + Point3D{ 1.5,1.5,3 }, Colors::Red);
+                        SendDebug(agent);
                         failedBuildings.push_back(*buildings.begin());
                         buildings.erase(buildings.begin());
                         return;

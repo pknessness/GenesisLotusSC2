@@ -10,9 +10,10 @@
 //#define MOVSAFELY_DEBUG
 #define TARGET_DEBUG
 
-constexpr int SECOND_DIVISION_MOVSAFELY = 4;
+constexpr float DIVISION_MOVSAFELY_CELLS = 1; //how far apart getPathDamage checks in cells
 constexpr int COOLDOWN_FRAMES = 5;
 constexpr int ARMYUNIT_KITE_TOLERANCE_EPSILON_FFRAMES = 5;
+constexpr int MOVSAFELY_MAINCHECK_BISECTIONS = 4;
 
 #ifdef BUILD_FOR_LADDER
 constexpr int POINT_CHECKS_DEFAULT = 10;
@@ -68,10 +69,10 @@ public:
         }
     }
 
-    virtual void mov(Agent* const agent, Point2D point) {
+    virtual void mov(Agent* const agent, Point2D point, bool queue = false) {
         const Unit* unit = getReturn(agent);
         if (unit->orders.size() == 0 || unit->orders[0].ability_id != ABILITY_ID::GENERAL_MOVE || unit->orders[0].target_pos != point) {
-            agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, point);
+            agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, point, queue);
             moveLocation = point;
         }
     }
@@ -87,11 +88,12 @@ public:
 
     //avg damage of path plus a 2x damage spike at the endpoint
     float getPathDamage(std::vector<Point2D> path, Agent* const agent, float extraRadiusAlong = 0.5, float extraRadiusEnd = 3.5) {
-        std::vector<Point2D> checks = PrimordialStar::stepPointsAlongPath(path, Aux::getStats(getActualType(agent), agent)->movement_speed / SECOND_DIVISION_MOVSAFELY);
+        float len = PrimordialStar::getPathLength(path);
+        std::vector<Point2D> checks = PrimordialStar::stepPointsAlongPath(path, DIVISION_MOVSAFELY_CELLS);
         float dps = 0;
         WeaponGrid::relevantTargetDamageInfo selfTargetInfo = WeaponGrid::wrapToTargetInfo(shared_from_this(), agent);
         for (int i = 0; i < checks.size(); i++) {
-            float addDps = getEnemyDPS(checks[i], extraRadiusAlong, agent) * SECOND_DIVISION_MOVSAFELY;
+            float addDps = getEnemyDPS(checks[i], extraRadiusAlong, agent);
             dps += addDps;
 #ifdef MOVSAFELY_DEBUG
             Color c;
@@ -108,8 +110,8 @@ public:
             DebugSphere(agent, AP3D(checks[i]), radius(agent) + 0.5, c);
 #endif
         }
-        dps /= PrimordialStar::getPathLength(path);
-        dps += getEnemyDPS(path[path.size() - 1], extraRadiusEnd, agent) * 2 * SECOND_DIVISION_MOVSAFELY;
+        dps /= checks.size(); //PrimordialStar::getPathLength(path);
+        dps += getEnemyDPS(path[path.size() - 1], extraRadiusEnd, agent) * 2;
 #ifdef MOVSAFELY_DEBUG
         if (path.size() > 0) {
             for (int i = 0; i < path.size() - 1; i++) {
@@ -129,7 +131,7 @@ public:
         return getPathDamage(path, agent, extraRadiusAlong, extraRadiusEnd);
     }
 
-    virtual void movSafely(Agent* const agent, Point2D point, int attempts, float searchRadius, float toleranceRadius = 1.5) {
+    virtual void movSafely(Agent* const agent, Point2D point, int attempts, float searchRadius, float toleranceRadius = 1.5, bool queue = false) {
         //agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, point);
         Profiler movProfiler("movSafely");
         Point2D solution;
@@ -152,59 +154,80 @@ public:
         std::vector<Point2D> path = getPathUniversal(point, agent);
         float l = PrimordialStar::getPathLength(path);
         std::vector<Point2D> ptsToCheck;
+        bool quickEnd = true;
         if (l != 0) {
-            ptsToCheck = { PrimordialStar::distanceAlongPath(path, l / 2), point, pos(agent)};
+            ptsToCheck = PrimordialStar::stepPointsAlongPath(path, DIVISION_MOVSAFELY_CELLS);
+            for (int i = 0; i < ptsToCheck.size(); i++) {
+                float dmag = getEnemyDPS(ptsToCheck[i], 0.5, agent);
+                if (dmag != 0) {
+                    if (i == 0) {
+                        quickEnd = false;
+                    }
+                    else {
+                        damage = dmag;
+                        distance2 = getPathLength(ptsToCheck[i - 1], point, agent);;
+                        solution = ptsToCheck[i - 1];
+                        break;
+                    }
+                }
+            }
+            if (quickEnd) {
+                solution = point;
+                distance2 = 0;
+            }
+        }
+        //TODO: IF POINTS ON THE FASTEST PATH WORK, DON'T CHECK OTHER POINTS
+        if (quickEnd) {
+            if (unit->is_selected) {
+                DebugPath(agent, path, Colors::Yellow);
+                DebugText(agent, "0", AP3D(solution), Colors::Yellow);
+                DebugSphere(agent, AP3D(solution), 0.5, Colors::Yellow);
+                DEBUG_DETAILTRIGGER = true;
+            }
         }
         else {
-            ptsToCheck = { point, pos(agent) };
-        }
-        
-        for (int i = 0; i < attempts + ptsToCheck.size(); i++) {
-            Point2D p;
-            if (i < ptsToCheck.size()) {
-                p = ptsToCheck[i];
-            }
-            else {
-                p = Aux::getRandomPointRadius(pos(agent), searchRadius, 1.0F);
+            for (int i = 0; i < attempts; i++) {
+                Point2D p = Aux::getRandomPointRadius(pos(agent), searchRadius, 1.0F);
                 if (!Aux::isPathable(p) && !isFlying(agent)) {
                     i--;
                     continue;
                 }
-                float endDMG = getEnemyDPS(p, toleranceRadius, agent) * 2 * SECOND_DIVISION_MOVSAFELY;
+                float endDMG = getEnemyDPS(p, toleranceRadius, agent) * 2;
                 if (endDMG > damage) {
-                    i--;
+                    //i--;
                     continue;
                 }
-            }
-            std::vector<Point2D> prospath = getPathUniversal(p, agent);
-            float dmg = getPathDamage(prospath, agent, 0.5, toleranceRadius);
-            if (unit->is_selected) {
-                DebugPath(agent, prospath, Colors::Green);
-                DebugText(agent, strprintf("%.2f", dmg), AP3D(p), Colors::Green);
-                DebugSphere(agent, AP3D(p), 0.5, Colors::Green);
-                DEBUG_DETAILTRIGGER = true;
-            }
-            //WeaponGrid::getRadiusAvgDPS(p, radius(agent) + 3.5, shared_from_this(), agent);
-            if (damage > dmg) {
-                damage = dmg;
-                distance2 = getPathLength(p, point, agent);
-                solution = p;
-            }
-            else if (damage == dmg) {
-                float dist2 = getPathLength(p, point, agent);
-                if (dist2 < distance2) {
+                std::vector<Point2D> prospath = getPathUniversal(p, agent);
+                float dmg = getPathDamage(prospath, agent, 0.5, toleranceRadius);
+                if (unit->is_selected) {
+                    DebugPath(agent, prospath, Colors::Green);
+                    DebugText(agent, strprintf("%.2f", dmg), AP3D(p), Colors::Green);
+                    DebugSphere(agent, AP3D(p), 0.5, Colors::Green);
+                    DEBUG_DETAILTRIGGER = true;
+                }
+                //WeaponGrid::getRadiusAvgDPS(p, radius(agent) + 3.5, shared_from_this(), agent);
+                if (damage > dmg) {
                     damage = dmg;
-                    distance2 = dist2;
+                    distance2 = getPathLength(p, point, agent);
                     solution = p;
+                }
+                else if (damage == dmg) {
+                    float dist2 = getPathLength(p, point, agent);
+                    if (dist2 < distance2) {
+                        damage = dmg;
+                        distance2 = dist2;
+                        solution = p;
+                    }
                 }
             }
         }
+        
         movProfiler.midLog("movSafely.findSpot");
         if (solution != Point2D()) {
-            mov(agent, solution);
+            mov(agent, solution, queue);
         }
         movProfiler.midLog("movSafely.mov");
-        //TODO: add path itself as a weight
+        //TODO: add path itself as a weight (what does this mean?)
     }
 
     virtual void findTarget(Agent* const agent, Aux::ExtraWeapon& weapon, float& dmagToTarget) {
@@ -216,7 +239,7 @@ public:
                 UnitTypeID selfType = getActualType(agent);
 
                 bool hittable = false;
-                for (int i = 0; i < WeaponGrid::unitDamageSources[selfType].size(); i++) { //TODO: URGENT. VOID RAYS HAVE 0 NATIVE ATK AND SO THEIR ATK PRIORITY IS WAY OFF.
+                for (int i = 0; i < WeaponGrid::unitDamageSources[selfType].size(); i++) {
                     int index = WeaponGrid::unitDamageSources[selfType][i].weaponIndex;
                     float damage = WeaponGrid::DamageCalculation(index, *it, agent);
                     if (damage > damagePerHit) {
@@ -273,8 +296,11 @@ public:
             WeaponGrid::showDamageGrid(shared_from_this(), agent);
             std::vector<WeaponGrid::DamageSourceID> weapons = WeaponGrid::getWeapons(getActualType(agent));
             if (weapons.size() > 0) {
-                float cd_fframes = WeaponGrid::getSelfWeaponFromIndex(weapons[0].weaponIndex).speed * fps;
-                DebugText(agent, Aux::barToString(1.0F - getReturn(agent)->weapon_cooldown / cd_fframes), pos3D(agent) + Point3D{ 0,0,2 });
+                if (getReturn(agent)->weapon_cooldown != 0) {
+                    printf("");
+                }
+                float cd_frames = WeaponGrid::getSelfWeaponFromIndex(weapons[0].weaponIndex).speed * native_fps;
+                DebugText(agent, Aux::barToString(1.0F - getReturn(agent)->weapon_cooldown / cd_frames), pos3D(agent) + Point3D{ 0,0,2 });
             }
         }
 
@@ -333,6 +359,37 @@ public:
                 DebugLine(agent, pos3D(agent) + Point3D{ 0,0,1 }, target->pos3D(agent) + Point3D{ 0,0,1 }, Colors::Teal);
                 DebugLine(agent, pos3D(agent) + Point3D{ 0,0,1.1 }, target->pos3D(agent) + Point3D{ 0,0,1.1 }, Colors::Yellow);
 #endif
+                float distToAtkEnemy = Distance2D(pos(agent), target->pos(agent)) - (weapon.range + target->radius(agent) + radius(agent));
+                float dTtoEnemy_frames = distToAtkEnemy / (Aux::getStats(getActualType(agent), agent)->movement_speed / fps);
+
+                if (dTtoEnemy_frames + ARMYUNIT_KITE_TOLERANCE_EPSILON_FFRAMES >= getReturn(agent)->weapon_cooldown) {
+                    if (safetyMode && !radiusOfSafety) {
+                        movSafely(agent, squad->getCorePosition(agent), 10, 7, 3.5);
+                    }
+                    else {
+                        atk(agent, target);
+                    }
+                    cooldownFrames = COOLDOWN_FRAMES;
+                    if (getStorageType() == UNIT_TYPEID::PROTOSS_COLOSSUS) {
+                        cooldownFrames = 1;
+                        //movSafely(agent, squad->getCorePosition(agent), 10, 7, 3.5, true);
+                    }
+                    attacking = true;
+                }
+                else {
+                    if (squad->isWithinRadius(pos(agent), agent)) {
+                        movSafely(agent, target->pos(agent), 10, 7);
+                    }
+                    else {
+                        movSafely(agent, squad->getCorePosition(agent), 10, 7);
+                    }
+
+                    cooldownFrames = COOLDOWN_FRAMES;
+                    if (COOLDOWN_FRAMES * fps > getReturn(agent)->weapon_cooldown) {
+                        cooldownFrames = getReturn(agent)->weapon_cooldown / fps;
+                    }
+                }
+
                 if (target->getReturn(agent) == nullptr) {
                     if (safetyMode) {
                         movSafely(agent, squad->getCorePosition(agent), 10, 7);
@@ -343,37 +400,7 @@ public:
                     cooldownFrames = COOLDOWN_FRAMES;
                 }
                 else {
-                    float distToAtkEnemy = abs(Distance2D(pos(agent), target->pos(agent)) - (weapon.range + target->radius(agent) + radius(agent)));
-                    float dTtoEnemy_fframes = distToAtkEnemy / (Aux::getStats(getActualType(agent), agent)->movement_speed / fps);
-                    if (dTtoEnemy_fframes + ARMYUNIT_KITE_TOLERANCE_EPSILON_FFRAMES >= getReturn(agent)->weapon_cooldown) {
-                        //if (get(agent)->is_selected) {
-                        //    printf("");
-                        //}
-                        if (safetyMode && !radiusOfSafety) {
-                            movSafely(agent, squad->getCorePosition(agent), 10, 7, 3.5);
-                        }
-                        else {
-                            atk(agent, target);
-                        }
-                        cooldownFrames = COOLDOWN_FRAMES;
-                        if (getStorageType() == UNIT_TYPEID::PROTOSS_COLOSSUS) {
-                            cooldownFrames = 0;
-                        }
-                        attacking = true;
-                    }
-                    else {
-                        if (squad->isWithinRadius(pos(agent), agent)) {
-                            movSafely(agent, target->pos(agent), 10, 7);
-                        }
-                        else {
-                            movSafely(agent, squad->getCorePosition(agent), 10, 7);
-                        }
-                        
-                        cooldownFrames = COOLDOWN_FRAMES;
-                        if (COOLDOWN_FRAMES * fps > getReturn(agent)->weapon_cooldown) {
-                            cooldownFrames = getReturn(agent)->weapon_cooldown / fps;
-                        }
-                    }
+                    
                 }
             }
             else {

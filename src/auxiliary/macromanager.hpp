@@ -235,8 +235,7 @@ namespace MacroManager {
 
 	//std::map<UnitTypeID, std::priority_queue<MacroAction, std::vector<MacroAction>, MacroActionCompare>> allActions;
 	std::map<UnitTypeID, std::multiset<MacroAction, MacroActionCompare>> allActions;
-	std::unordered_map<Aux::encoding2D, MacroActionData, Aux::encoding2DHash> dataEncoding;
-	
+
 	int lastPylonTriggered_frames = 0;
 	int macroExecuteCooldown_frames = 0;
 	std::string diagnostics = "";
@@ -783,6 +782,10 @@ namespace MacroManager {
 					}
 				}
 				macroProfiler.midLog("macro.10");
+
+				UnitTypeID cunit = Aux::buildAbilityToUnit(currentAction->ability);
+				//printf("%s -> %s\n", AbilityTypeToName(currentAction->ability), UnitTypeToName(cunit));
+
 				if (currentAction->position.pos != Point2D{ 0, 0 }) {
 					if (currentAction->position.pos == Point2D{ -1, -1 }) {
 						diagnostics += "POS NOT DEFINED EARLIER\n\n";
@@ -792,11 +795,17 @@ namespace MacroManager {
 						if (currentAction->executor == UNIT_TYPEID::PROTOSS_PROBE) {
 							std::static_pointer_cast<Probe>(currentAction->executorPtr)->addBuilding(*currentAction);
 							Aux::loadUnitPlacement(Aux::BUILDING_RESERVE, currentAction->position.pos, unitToCreate);
-							dataEncoding[currentAction->position.pos] = currentAction->extraData;
+							if (cunit != UNIT_TYPEID::INVALID) {
+								dataEncoding[currentAction->position.pos] = currentAction->extraData;
+							}
+							//dataEncoding[currentAction->position.pos].stepBegin = agent->Observation()->GetGameLoop();
 						}
 						else {
 							agent->Actions()->UnitCommand(currentAction->executorPtr->self, currentAction->ability, currentAction->position.pos);
-							dataEncoding[currentAction->position.pos] = currentAction->extraData;
+							if (cunit != UNIT_TYPEID::INVALID) {
+								dataEncoding[currentAction->position.pos] = currentAction->extraData;
+								dataEncoding[currentAction->position.pos].stepBegin = agent->Observation()->GetGameLoop();
+							}
 						}
 					}
 				}
@@ -816,7 +825,10 @@ namespace MacroManager {
 						printf("Gateway: %s\n", currentAction->executorPtr->creationData.name.c_str());
 						printf("");
 					}
-					dataEncoding[encodingPoint] = currentAction->extraData;
+					if (cunit != UNIT_TYPEID::INVALID) {
+						dataEncoding[encodingPoint] = currentAction->extraData;
+						dataEncoding[encodingPoint].stepBegin = agent->Observation()->GetGameLoop();
+					}
 #ifdef BUILD_ORDER_VERIFICATION
 					if (currentAction->ability != ABILITY_ID::TRAIN_PROBE) {
 						int seconds = agent->Observation()->GetGameLoop() / fps;
@@ -877,8 +889,8 @@ namespace MacroManager {
 		for (auto it = dataEncoding.begin(); it != dataEncoding.end(); it++) {
 			auto all = it->second;
 			std::string type = UnitTypeToName(it->second.type);
-			tot += strprintf("[%.1f, %.1f] %d %s: %s %x|%d\n", it->first.x, it->first.y, it->second.index, UnitTypeToName(it->second.type), it->second.name.c_str(), it->second.dependencyFlag, it->second.dependencyFlag);
+			tot += strprintf("[%.1f, %.1f] %d %s: %s %x|%d DT:%u\n", it->first.x, it->first.y, it->second.index, UnitTypeToName(it->second.type), it->second.name.c_str(), it->second.dependencyFlag, it->second.dependencyFlag, /*agent->Observation()->GetGameLoop() - */it->second.stepBegin);
 		}
-		DebugText(agent, tot, Point2D(0.01F, 0.21F), Color(132, 67, 135), 8);
+		DebugText(agent, tot, Point2D(0.01F, 0.21F), Color(132, 67, 135), 16);
 	}
 };

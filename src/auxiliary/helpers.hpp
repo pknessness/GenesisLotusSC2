@@ -32,15 +32,38 @@ std::string strprintf(const char* format, Args... args) {
 
 constexpr float GS_PI = 3.14159274F;
 constexpr float timeSpeed = 1.4F;
-constexpr float fps = 16 * timeSpeed;
+constexpr float native_fps = 16;
+constexpr float fps = native_fps * timeSpeed;
 
-//henceforth, i will try to put all time variables in units of either native frames _natframes, faster frames _fframes, native seconds _natsec, or fast seconds _fsec
+//henceforth, i will try to put all time variables in units of either native frames _natframes, faster frames _fframes, native seconds _natsec, or faster seconds _fsec
+
+//timeSpeed = 1.4F; native_fps = 16;
+//natsec (native seconds) / timeSpeed = fsec (faster seconds)
+//natsec (native seconds) * native_fps = natframes (native frames)
+//fsec (faster seconds) * native_fps = fframes (faster frames)
+//natframes (native frames) / timeSpeed = fframes (faster frames)
+
+//are fframes the same as natframes?
+
+//timeSpeed = 1.4F; native_fps = 16; fps = 22.4
+//natsec (native seconds) / timeSpeed = fsec (faster seconds)
+//natsec (native seconds) * native_fps = frames (frames)
+//fsec (faster seconds) * fps = frames (frames)
+
+//fsec [REALTIME SPEED, LIQUPEDIA]
+//frames [unit.weapon_cooldown (frames until next attack)]
+//natsec [unit_stats.movement_speed (cells/natsec), q.speed (time between attacks in natsec)]
+
+//1.07 fsec -> 23.968 frames (colossus)
 
 constexpr float MINERALS_PER_PROBE_PER_SEC = 55.0F / 60;
 constexpr float VESPENE_PER_PROBE_PER_SEC = 61.0F / 60;
 
 constexpr float PYLON_RADIUS = 6.0F;
-constexpr float PYLON_RADIUS_SQUARED = PYLON_RADIUS*PYLON_RADIUS;
+constexpr float PYLON_RADIUS_REAL = 6.5F;
+constexpr float PYLON_RADIUS_SQUARED = PYLON_RADIUS * PYLON_RADIUS;
+constexpr float PYLON_RADIUS_SQUARED_REAL = PYLON_RADIUS_REAL * PYLON_RADIUS_REAL;
+
 
 constexpr float EPSILON = 0.1; //time between attacks for one time attacks
 
@@ -151,9 +174,9 @@ namespace Aux {
 		return !((imRef(masterMap, i, j) & 0x01));
 	}
 
-	bool isPlacable(int i, int j) {
+	bool isPlacable(int i, int j, bool ignoreBuildingReserve = false) {
 		ObstacleInfo obstacle = getObstacle(i, j);
-		return !(imRef(masterMap, i, j) & 0x02 || 
+		return !((imRef(masterMap, i, j) & 0x02) || 
 			obstacle == SELF_BUILDINGS ||
 			obstacle == ENEMY_BUILDINGS ||
 			obstacle == CLIFF_UNPATHABLE ||
@@ -162,7 +185,7 @@ namespace Aux {
 			obstacle == UNPATHABLE_ROCKS ||
 			obstacle == PATHABLE_ROCKS || 
 			obstacle == VESPENE ||
-			obstacle == BUILDING_RESERVE);
+			(obstacle == BUILDING_RESERVE && !ignoreBuildingReserve));
 	}
 
 	struct Cost {
@@ -358,16 +381,22 @@ namespace Aux {
 
 		UNIT_TYPEID::TERRAN_GHOST,
 
-		UNIT_TYPEID::TERRAN_HELLION, //TERRAN_HELLIONTANK
+		UNIT_TYPEID::TERRAN_HELLION,
+		UNIT_TYPEID::TERRAN_HELLIONTANK,
 		UNIT_TYPEID::TERRAN_WIDOWMINE,
 		UNIT_TYPEID::TERRAN_CYCLONE,
-		UNIT_TYPEID::TERRAN_SIEGETANK, //TERRAN_SIEGETANKSIEGED
+		UNIT_TYPEID::TERRAN_SIEGETANK,
+		UNIT_TYPEID::TERRAN_SIEGETANKSIEGED,
 
-		UNIT_TYPEID::TERRAN_THOR, //TERRAN_THORAP
+		UNIT_TYPEID::TERRAN_THOR,
+		UNIT_TYPEID::TERRAN_THORAP,
 
-		UNIT_TYPEID::TERRAN_VIKINGFIGHTER, //TERRAN_VIKINGASSAULT
+		UNIT_TYPEID::TERRAN_VIKINGFIGHTER,
+		UNIT_TYPEID::TERRAN_VIKINGASSAULT,
 		UNIT_TYPEID::TERRAN_MEDIVAC,
-		UNIT_TYPEID::TERRAN_LIBERATOR, //TERRAN_LIBERATORAG
+		UNIT_TYPEID::TERRAN_LIBERATOR, 
+		UNIT_TYPEID::TERRAN_LIBERATORAG, 
+
 		UNIT_TYPEID::TERRAN_RAVEN,
 		UNIT_TYPEID::TERRAN_AUTOTURRET,
 		UNIT_TYPEID::TERRAN_BANSHEE,
@@ -566,24 +595,24 @@ namespace Aux {
 				throw 5;
 				//return UnitTypeData();//agent->Observation()->GetUnitTypeData().at(static_cast<uint32_t>(type));
 			}
-			if (type == UNIT_TYPEID::PROTOSS_VOIDRAY) {
-				ExtraWeapon prismaticBeam(Weapon::TargetType::Any, 6, 1, 6, 0.36F);
-				prismaticBeam.addDamageBonus(Attribute::Armored, 4);
-				statsMap[UNIT_TYPEID::PROTOSS_VOIDRAY].weapons.push_back(prismaticBeam);
-			}
-			else if (type == UNIT_TYPEID::PROTOSS_SENTRY) {
-				ExtraWeapon disruptionBeam(Weapon::TargetType::Any, 6, 1, 5, 0.71F);
-				statsMap[UNIT_TYPEID::PROTOSS_SENTRY].weapons.push_back(disruptionBeam);
-			}
-			else if (type == UNIT_TYPEID::PROTOSS_DISRUPTOR) {
-				//https://www.reddit.com/r/starcraft/comments/40pl7l/how_far_can_a_disruptors_purification_nova_travel/?rdt=50754
-				ExtraWeapon novaAura(Weapon::TargetType::Any, 100, 1, 13, 21.4F);
-				statsMap[UNIT_TYPEID::PROTOSS_DISRUPTOR].weapons.push_back(novaAura);
-			}
-			else if (type == UNIT_TYPEID::PROTOSS_DISRUPTORPHASED) {
-				ExtraWeapon purificationNova(Weapon::TargetType::Ground, 100, 1, 1.5, EPSILON);
-				statsMap[UNIT_TYPEID::PROTOSS_DISRUPTORPHASED].weapons.push_back(purificationNova);
-			}
+			//if (type == UNIT_TYPEID::PROTOSS_VOIDRAY) {
+			//	ExtraWeapon prismaticBeam(Weapon::TargetType::Any, 6, 1, 6, 0.36F);
+			//	prismaticBeam.addDamageBonus(Attribute::Armored, 4);
+			//	statsMap[UNIT_TYPEID::PROTOSS_VOIDRAY].weapons.push_back(prismaticBeam);
+			//}
+			//else if (type == UNIT_TYPEID::PROTOSS_SENTRY) {
+			//	ExtraWeapon disruptionBeam(Weapon::TargetType::Any, 6, 1, 5, 0.71F);
+			//	statsMap[UNIT_TYPEID::PROTOSS_SENTRY].weapons.push_back(disruptionBeam);
+			//}
+			//else if (type == UNIT_TYPEID::PROTOSS_DISRUPTOR) {
+			//	//https://www.reddit.com/r/starcraft/comments/40pl7l/how_far_can_a_disruptors_purification_nova_travel/?rdt=50754
+			//	ExtraWeapon novaAura(Weapon::TargetType::Any, 100, 1, 13, 21.4F);
+			//	statsMap[UNIT_TYPEID::PROTOSS_DISRUPTOR].weapons.push_back(novaAura);
+			//}
+			//else if (type == UNIT_TYPEID::PROTOSS_DISRUPTORPHASED) {
+			//	ExtraWeapon purificationNova(Weapon::TargetType::Ground, 100, 1, 1.5, EPSILON);
+			//	statsMap[UNIT_TYPEID::PROTOSS_DISRUPTORPHASED].weapons.push_back(purificationNova);
+			//}
 			//else if (type == UNIT_TYPEID::ZERG_BANELING || type == UNIT_TYPEID::ZERG_BANELINGBURROWED) {
 			//	//https://www.reddit.com/r/starcraft/comments/40pl7l/how_far_can_a_disruptors_purification_nova_travel/?rdt=50754
 			//	ExtraWeapon volatileBurst(Weapon::TargetType::Ground, 16, 1, 2.2, EPSILON);
@@ -759,7 +788,7 @@ namespace Aux {
 			return UNIT_TYPEID::PROTOSS_HIGHTEMPLAR;
 
 		default:
-			return 0;
+			return UNIT_TYPEID::INVALID;
 		}
 	}
 
@@ -1065,8 +1094,8 @@ namespace Aux {
 		criticalPoints[CrucialPoints::ENEMY_STARTLOC_POINT] = gameInfo_cache.enemy_start_locations[0];;
 
 		Point2D py;
-		py.x = (criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].x > mapWidth_cache / 2) ? criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].x - 6 : criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].x + 6;
-		py.y = (criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].y > mapHeight_cache / 2) ? criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].y - 6 : criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].y + 6;
+		py.x = (criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].x > mapWidth_cache / 2) ? criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].x - 5.5 : criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].x + 5.5;
+		py.y = (criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].y > mapHeight_cache / 2) ? criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].y - 5.5 : criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].y + 5.5;
 		criticalPoints[CrucialPoints::SELF_FIRSTPYLON_POINT] = py;
 
 		py.x = (criticalPoints[CrucialPoints::SELF_STARTLOC_POINT].x > mapWidth_cache / 2) ? expansions[selfRankedExpansions.begin()->expansionIndex].pos.x - 6 : expansions[selfRankedExpansions.begin()->expansionIndex].pos.x + 6;
@@ -1265,14 +1294,16 @@ namespace Aux {
 				}
 				if (pattern == nullptr || (*pattern)[i][j] == 1) {
 					if (obstacle == NOTHING) {
-						imRef(masterMap, i + x, j + y) &= 0xC0;
+						imRef(masterMap, i + x, j + y) &= 0xC0; //clears all but the highest two bits?
 					}
 					else {
 						if (obstacle == VESPENE) {
-							imRef(masterMap, i + x, j + y) |= 0x3;
+							imRef(masterMap, i + x, j + y) |= 0x3; //sets it to unpathable and unplacable
 						}
-						imRef(masterMap, i + x, j + y) &= 0xC0;
+						imRef(masterMap, i + x, j + y) &= 0xC0; //clears all but the highest two bits?
 						imRef(masterMap, i + x, j + y) |= ((uint8_t)(obstacle) << 2);
+						uint8_t asd = imRef(masterMap, i + x, j + y);
+						printf("");
 						//imRef(masterMap, i + x, j + y) &= 0xFC;
 					}
 
@@ -1344,18 +1375,31 @@ namespace Aux {
 		}
 	}
 
-	static bool checkStructurePlacement(Point2D pos, int size) {
+	static bool checkStructurePlacement(Point2D pos, int size, bool ignoreBuildingReserve = false) {
 		FUNCTION_LOG();
 		int x = (int)(pos.x - (size / 2) + ((size % 2 == 0) ? 0.5F : 0.0F));
 		int y = (int)(pos.y - (size / 2) + ((size % 2 == 0) ? 0.5F : 0.0F));
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < size; j++) {
-				if (!isPlacable(i + x, j + y)) {
+				if (!isPlacable(i + x, j + y, ignoreBuildingReserve)) {
 					return false;
 				}
 			}
 		}
 		return true;
+	}
+
+	inline static bool checkStructurePlacement(Point2D pos, UnitTypeID type, bool ignoreBuildingReserve = false) {
+		if (structureDiameter.find(type) == structureDiameter.end()) {
+			printf("What is the radius of unit id %ul", type);
+			throw 71;
+		}
+		return checkStructurePlacement(pos, structureDiameter[type], ignoreBuildingReserve);
+	}
+
+	inline static bool checkStructurePlacement(Point2D pos, AbilityID build, bool ignoreBuildingReserve = false) {
+		UnitTypeID type = Aux::buildAbilityToUnit(build);
+		return checkStructurePlacement(pos, type, ignoreBuildingReserve);
 	}
 
 	static Point2D possibleNextPylons[6] = {Point2D{8, -2}, Point2D{-8, 2}, Point2D{4, 5} , Point2D{-4, -5} , Point2D{4, -7} , Point2D{-4, 7} };
@@ -1457,53 +1501,55 @@ namespace Aux {
 		return false;
 	}
 
-	void saveMasterBitmap(std::string fileName) {
-		FUNCTION_LOG();
-		saveBitmap(fileName, masterMap->width(), masterMap->height(), [](int i, int j) {
-			ObstacleInfo obstacle = getObstacle(i, j);
-			uint8_t p = imRef(masterMap, i, j);
-			if (isPlacable(i, j) && !isPathable(i, j)) {
-				return Color{ 0, 255, 0 };
+	Color masterGridColor(int i, int j) {
+		ObstacleInfo obstacle = getObstacle(i, j);
+		uint8_t p = imRef(masterMap, i, j);
+		if (isPlacable(i, j) && !isPathable(i, j)) {
+			return Color{ 0, 255, 0 };
+		}
+		else if (obstacle == NOTHING) {
+			if (!isPathable(i, j)) {
+				return Color{ 1,1,1 };
 			}
-			else if (obstacle == NOTHING) {
-				if (!isPathable(i, j)) {
-					return Color{ 0,0,0 };
-				}
-				else if (!isPlacable(i, j)) {
-					return Color{ 100, 100, 100 };
-				}
-				else {
-					return Color{ 255,255,255 };
-				}
-			}
-			else if (obstacle == SELF_BUILDINGS) {
-				return Color{ 30, 30, 255 };
-			}
-			else if (obstacle == ENEMY_BUILDINGS) {
-				return Color{ 255, 30, 30 };
-			}
-			else if (obstacle == CLIFF_UNPATHABLE) {
-				return Color{ 200, 100, 200 };
-			}
-			else if (obstacle == CLIFF_PATHABLE) {
-				return Color{ 150, 50, 150 };
-			}
-			else if (obstacle == MINERALS) {
-				return Color{ 50, 50, 150 };
-			}
-			else if (obstacle == UNPATHABLE_ROCKS) {
-				return Color{ 150, 100, 50 };
-			}
-			else if (obstacle == PATHABLE_ROCKS) {
-				return Color{ 150, 150, 50 };
-			}
-			else if (obstacle == VESPENE) {
-				return Color{ 50, 150, 50 };
+			else if (!isPlacable(i, j)) {
+				return Color{ 100, 100, 100 };
 			}
 			else {
-				return Color{ 255,70,162 };
+				return Color{ 254,254,254 };
 			}
-			});
+		}
+		else if (obstacle == SELF_BUILDINGS) {
+			return Color{ 30, 30, 255 };
+		}
+		else if (obstacle == ENEMY_BUILDINGS) {
+			return Color{ 255, 30, 30 };
+		}
+		else if (obstacle == CLIFF_UNPATHABLE) {
+			return Color{ 200, 100, 200 };
+		}
+		else if (obstacle == CLIFF_PATHABLE) {
+			return Color{ 150, 50, 150 };
+		}
+		else if (obstacle == MINERALS) {
+			return Color{ 50, 50, 150 };
+		}
+		else if (obstacle == UNPATHABLE_ROCKS) {
+			return Color{ 150, 100, 50 };
+		}
+		else if (obstacle == PATHABLE_ROCKS) {
+			return Color{ 150, 150, 50 };
+		}
+		else if (obstacle == VESPENE) {
+			return Color{ 50, 150, 50 };
+		}
+		else {
+			return Color{ 255,70,162 };
+		}
+	}
+
+	void saveMasterBitmap(std::string fileName) {
+		FUNCTION_LOG();
+		saveBitmap(fileName, masterMap->width(), masterMap->height(), masterGridColor);
 	}
 
 	void setupMasterMap(Agent* const agent) {
@@ -1627,6 +1673,11 @@ namespace Aux {
 				}
 			}
 		}
+	}
+
+	void displayMasterGrid(Agent* const agent) {
+		FUNCTION_LOG();
+		gridTemplate(agent, masterGridColor);
 	}
 
 	const char* attributeNames[] = {

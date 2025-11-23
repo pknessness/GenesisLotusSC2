@@ -45,22 +45,30 @@
 namespace UnitManager {
     void encode(UnitWrapperPtr wrap, const Unit* unit_, uint32_t gl) {
         FUNCTION_LOG();
-        if (unit_->orders.size() != 0 && unit_->orders[0].target_pos != Point2D()) {
+        //non-structure creation (don't have set positions of creation so their encoding is determined by rally point)
+        if (unit_->orders.size() != 0 && unit_->orders[0].target_pos != Point2D()) { 
             Aux::encoding2D point(unit_->orders[0].target_pos);
             if (MacroManager::dataEncoding.find(point) != MacroManager::dataEncoding.end()) {
                 wrap->creationData = MacroManager::dataEncoding.at(point);
+                if (unit_->unit_type != UNIT_TYPEID::PROTOSS_PROBE) {
+                    printf("ENC %u.%u ", wrap->creationData.stepBegin, gl);
+                }
                 MacroManager::dataEncoding.erase(point);
             }
             else if(gl != 0){
                 printf("missed production\n");
             }
         }
+        //structure creation (encoding is determined by their location of creation)
         else {
             Aux::encoding2D point(unit_->pos);
             bool encoded = false;
             for (auto it = MacroManager::dataEncoding.begin(); it != MacroManager::dataEncoding.end(); it++) {
                 if (DistanceSquared2D((*it).first, point) < 2) {
                     wrap->creationData = MacroManager::dataEncoding.at((*it).first);
+                    if (unit_->unit_type != UNIT_TYPEID::PROTOSS_PROBE) {
+                        printf("ENC2 %u.%u ", wrap->creationData.stepBegin, gl);
+                    }
                     MacroManager::dataEncoding.erase((*it).first);
                     encoded = true;
                     break;
@@ -124,7 +132,9 @@ namespace UnitManager {
             }
             else {
                 ArmyUnitPtr armyUnit = std::make_shared<ArmyUnit>(unit_, stype, &ArmyManager::mainAttackSquad);
-                encode(armyUnit, unit_, gl);
+                if (stype != UNIT_TYPEID::PROTOSS_INTERCEPTOR) {
+                    encode(armyUnit, unit_, gl);
+                }
                 units[stype].insert(armyUnit);
                 ArmyManager::mainAttackSquad.add(armyUnit);
             }
@@ -198,6 +208,7 @@ struct Bot: sc2::Agent
     StrategyManager::Strategy strat;
 
     uint32_t mspt = 0;
+    bool displayMasterGrid = false;
 
 #ifdef DMAG_FILE
     FILE* dmagFile;
@@ -217,7 +228,7 @@ struct Bot: sc2::Agent
         Aux::opponent = Aux::gameInfo_cache.player_info[1].race_requested;
 
         //printf("0: %s / %s; ", Aux::RaceToName(Aux::gameInfo_cache.player_info[0].race_actual), Aux::RaceToName(Aux::gameInfo_cache.player_info[0].race_requested));
-        printf("1: %s / %s\n", Aux::RaceToName(Aux::gameInfo_cache.player_info[1].race_actual), Aux::RaceToName(Aux::gameInfo_cache.player_info[1].race_requested));
+        printf("1: A:%s / R:%s\n", Aux::RaceToName(Aux::gameInfo_cache.player_info[1].race_actual), Aux::RaceToName(Aux::gameInfo_cache.player_info[1].race_requested));
 
         Aux::setupExpansions(this);
 
@@ -619,8 +630,11 @@ struct Bot: sc2::Agent
                     Actions()->SendChat("Saving damage bitmap");
                     WeaponGrid::saveDamageMapEnemyBitmap("damage");
                 }
-                else if (command == "mspt") { //save main damage bitmap
+                else if (command == "mspt") { //set mspt
                     mspt = atoi(arguments[0].c_str());
+                }
+                else if (command == "mg") { //toggle masterGrid
+                    displayMasterGrid = !displayMasterGrid;
                 }
                 else {
                     Actions()->SendChat("Invalid Command " + command);
@@ -774,6 +788,10 @@ struct Bot: sc2::Agent
 
         //VisibleMap2D::debug(this);
 
+        if (displayMasterGrid) {
+            Aux::displayMasterGrid(this);
+        }
+
         for (auto it = UnitManager::enemy_units.begin(); it != UnitManager::enemy_units.end(); it++) {
             for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
                 if ((*it2)->getReturn(this) == nullptr) {
@@ -916,6 +934,8 @@ struct Bot: sc2::Agent
     void OnUpgradeCompleted(sc2::UpgradeID id_){
         FUNCTION_LOG();
         //std::cout << sc2::UpgradeIDToName(id_) << " completed" << std::endl;
+        UpgradeData d = Observation()->GetUpgradeData()[id_];
+        //printf("%u %s %s M:%d V:%d\n", d.upgrade_id, d.name.c_str(), AbilityTypeToName(d.ability_id), d.mineral_cost, d.vespene_cost);
     }
 
     //! Called when the unit in the current observation has lower health or shields than in the previous observation.
@@ -942,10 +962,14 @@ struct Bot: sc2::Agent
         for (const auto i : client_errors) {
             std::cerr << "Encountered client error: " <<
                 static_cast<int>(i) << std::endl;
+            printf("Client Error [%d]\n", static_cast<int>(i));
         }
 
-        for (const auto& i : protocol_errors)
+        for (const auto& i : protocol_errors) {
             std::cerr << "Encountered protocol error: " << i << std::endl;
+            printf("Protocol Error [%s]\n", i.c_str());
+        }
+
     }
 
     //! Called when a unit becomes idle, this will only occur as an event so will only be called when the unit becomes

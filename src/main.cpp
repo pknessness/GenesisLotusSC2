@@ -149,7 +149,7 @@ int main(int argc, char* argv[])
                                 "MagannathaAIE_v2.SC2Map" };
 
         int r = std::rand() % 7;
-        r = 1;
+        //r = 1;
         //printf("rand %d [%d %d %d %d %d %d] %d\n", r, std::rand(), std::rand(), std::rand(), std::rand(), std::rand(),
         //    std::rand(), RAND_MAX);
 

@@ -17,8 +17,9 @@ struct MacroActionData {
     std::string name;
     char dependencyFlag;
     UnitTypeID type;
+    uint32_t stepBegin;
 
-    MacroActionData() : index(0), name(""), dependencyFlag(0), type(UNIT_TYPEID::INVALID) {
+    MacroActionData() : index(0), name(""), dependencyFlag(0), type(UNIT_TYPEID::INVALID), stepBegin(0) {
 
     }
 
@@ -26,10 +27,14 @@ struct MacroActionData {
 
     //}
 
-    MacroActionData(std::string name_, char dependencyFlag_ = 0) : index(-1), name(name_), dependencyFlag(dependencyFlag_), type(UNIT_TYPEID::INVALID) {
+    MacroActionData(std::string name_, char dependencyFlag_ = 0) : index(-1), name(name_), dependencyFlag(dependencyFlag_), type(UNIT_TYPEID::INVALID), stepBegin(0) {
 
     }
 };
+
+namespace MacroManager {
+    std::unordered_map<Aux::encoding2D, MacroActionData, Aux::encoding2DHash> dataEncoding;
+}
 
 class UnitWrapper : public std::enable_shared_from_this<UnitWrapper> {
 private:
