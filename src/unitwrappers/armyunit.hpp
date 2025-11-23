@@ -359,7 +359,7 @@ public:
                 DebugLine(agent, pos3D(agent) + Point3D{ 0,0,1 }, target->pos3D(agent) + Point3D{ 0,0,1 }, Colors::Teal);
                 DebugLine(agent, pos3D(agent) + Point3D{ 0,0,1.1 }, target->pos3D(agent) + Point3D{ 0,0,1.1 }, Colors::Yellow);
 #endif
-                float distToAtkEnemy = Distance2D(pos(agent), target->pos(agent)) - (weapon.range + target->radius(agent) + radius(agent));
+                float distToAtkEnemy = std::max(0.0F, Distance2D(pos(agent), target->pos(agent)) - (weapon.range + target->radius(agent) + radius(agent)));
                 float dTtoEnemy_frames = distToAtkEnemy / (Aux::getStats(getActualType(agent), agent)->movement_speed / fps);
 
                 if (dTtoEnemy_frames + ARMYUNIT_KITE_TOLERANCE_EPSILON_FFRAMES >= getReturn(agent)->weapon_cooldown) {

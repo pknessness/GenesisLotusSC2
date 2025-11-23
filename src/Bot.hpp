@@ -992,3 +992,6 @@ struct Bot: sc2::Agent
         //    "(" << building_->tag << ") constructed" << std::endl;
     }
 };
+
+//TODO: TAKE INTO ACCOUNT SHIELD BATTERY
+//TODO: TAKE INTO ACCOUNT UPGRADES FOR DAMAGE/RANGE/ETC
