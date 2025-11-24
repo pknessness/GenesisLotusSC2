@@ -265,7 +265,7 @@ namespace MacroManager {
 		}
 		failedBuildings.clear();
 
-		std::multiset<const MacroAction const*, MacroActionPtrCompare> topActions;
+		std::multiset<const MacroAction*, MacroActionPtrCompare> topActions;
 		//int currentMinerals = Aux::effectiveMinerals;
 		//int currentVespene = Aux::effectiveVespene;
 		//TODO: TAKE INTO ACCOUNT PROBE BUILDING STORAGE
@@ -287,7 +287,7 @@ namespace MacroManager {
 
 		for (auto it = topActions.begin(); it != topActions.end(); it++) {
 			macroProfiler.subScope();
-			const MacroAction const* currentAction = *it;
+			const MacroAction* currentAction = *it;
 
 			if (currentAction->executor == UNIT_TYPEID::PROTOSS_GATEWAY &&
 				agent->Observation()->GetWarpGateCount() > 0 && currentAction->ability != ABILITY_ID::TRAIN_ARCHON) {
