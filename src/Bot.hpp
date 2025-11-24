@@ -852,6 +852,7 @@ struct Bot: sc2::Agent
 
         lastDT = onStepProfiler.getFullDT();
 
+#ifndef BUILD_FOR_LADDER
         if (mspt > 44) {
             long long extra = mspt * 1000 - lastDT - 4000;
             if (extra > 0) {
@@ -863,6 +864,7 @@ struct Bot: sc2::Agent
             printf("");
         }
         DEBUG_DETAILTRIGGER = false;
+#endif
     }
 
     //! Called when a Unit has been created by the player.
