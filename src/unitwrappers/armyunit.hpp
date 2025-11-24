@@ -241,10 +241,11 @@ public:
                 bool hittable = false;
                 for (int i = 0; i < WeaponGrid::unitDamageSources[selfType].size(); i++) {
                     int index = WeaponGrid::unitDamageSources[selfType][i].weaponIndex;
-                    float damage = WeaponGrid::DamageCalculation(index, *it, agent);
+                    Aux::ExtraWeapon w = WeaponGrid::getSelfWeaponFromIndex(index);
+                    float damage = WeaponGrid::DamageCalculation(w, *it, agent);
                     if (damage > damagePerHit) {
                         damagePerHit = damage;
-                        weapon = WeaponGrid::getSelfWeaponFromIndex(index);
+                        weapon = w;
                         hittable = true;
                     }
                 }

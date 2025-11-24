@@ -198,8 +198,7 @@ namespace WeaponGrid {
     
     //passing it in as parameters for speed
     //https://liquipedia.net/starcraft2/Damage_Calculation
-    float DamageCalculation(uint8_t weaponIndex, UnitTypeData* targetStats, CompositionAsTarget c, float shields, int32_t shieldsUpgrade, int32_t armorUpgrade, float energy, bool hallucination, Agent* const agent) {
-        Aux::ExtraWeapon w = getSelfWeaponFromIndex(weaponIndex);
+    float DamageCalculation(Aux::ExtraWeapon w, UnitTypeData* targetStats, CompositionAsTarget c, float shields, int32_t shieldsUpgrade, int32_t armorUpgrade, float energy, bool hallucination, Agent* const agent) {
         if (w.type != CompositionAsTarget::Any && c != CompositionAsTarget::Any && w.type != c) {
             return 0;
         }
@@ -275,12 +274,12 @@ namespace WeaponGrid {
         return total_damage * w.attacks;
     }
 
-    inline float DamageCalculation(uint8_t weaponIndex, relevantTargetDamageInfo info, Agent* const agent) {
-        return DamageCalculation(weaponIndex, info.targetStats, info.c, info.shields, info.shieldsUpgrade, info.armorUpgrade, info.energy, info.hallucination, agent);
+    inline float DamageCalculation(Aux::ExtraWeapon w, relevantTargetDamageInfo info, Agent* const agent) {
+        return DamageCalculation(w, info.targetStats, info.c, info.shields, info.shieldsUpgrade, info.armorUpgrade, info.energy, info.hallucination, agent);
     }
 
-    inline float DamageCalculation(uint8_t weaponIndex, UnitWrapperPtr target, Agent* const agent) {
-        return DamageCalculation(weaponIndex, wrapToTargetInfo(target, agent), agent);
+    inline float DamageCalculation(Aux::ExtraWeapon w, UnitWrapperPtr target, Agent* const agent) {
+        return DamageCalculation(w, wrapToTargetInfo(target, agent), agent);
     }
 
     struct DamageCell {
@@ -316,7 +315,7 @@ namespace WeaponGrid {
                         //TODO: ONLY COUNT WEAPON WHEN HAS ENERGY REQUIRED
                         Aux::ExtraWeapon w = getEnemyWeaponFromIndex(i);
 
-                        float total_damage = DamageCalculation(i, targetInfo, agent);
+                        float total_damage = DamageCalculation(w, targetInfo, agent);
 
                         DPS += (total_damage / w.speed);
                     }
@@ -779,7 +778,7 @@ namespace WeaponGrid {
                 
                 if ((*it2)->getActualType(agent) == UNIT_TYPEID::TERRAN_SIEGETANKSIEGED) {
                     printf("");
-                }
+                } 
 
                 //TODO:
                 // add psi storm (more damage the more time it has left, prioritzed more since its constant dmag)

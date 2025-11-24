@@ -129,6 +129,10 @@ public:
         }
     }
 
+    Unit::Alliance getTeam() {
+        return team;
+    }
+
     inline void get(Agent* const agent) {
         //FUNCTION_LOG();
         uint32_t loop = agent->Observation()->GetGameLoop();
