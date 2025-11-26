@@ -12,6 +12,9 @@ namespace SquadManager {
 
 	std::map<UnitTypeID, int32_t> priorityMap;
 
+	std::map<UnitTypeID, int32_t> baseUnitValueMap;
+
+
 	void init() {
 		// Terran
 		priorityMap[UNIT_TYPEID::TERRAN_WIDOWMINE] = 8;
@@ -269,10 +272,11 @@ namespace SquadManager {
 
 		float getEnemyUnitPriority(UnitWrapperPtr enemyUnit, Agent* const agent) {
 			UnitTypeID id = enemyUnit->getActualType(agent);
-			if (priorityMap.find(id) != priorityMap.end()) {
-				return (float)priorityMap[id];
-			}
-			return 0.0F;
+			//if (priorityMap.find(id) != priorityMap.end()) {
+			//	return (float)priorityMap[id];
+			//}
+			UnitTypeData* stats = Aux::getStats(id, agent);
+			return (stats->mineral_cost + 1.7 * stats->vespene_cost) / 100;
 		}
 	};
 }

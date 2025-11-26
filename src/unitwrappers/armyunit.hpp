@@ -234,6 +234,11 @@ public:
         float priority = 0; //fine because condition is also target == nullptr
         for (auto it = squad->squadTargets.begin(); it != squad->squadTargets.end(); it++) {
             if (squad->squadTargetDamage[(*it)->self] < (*it)->getHealth(agent)) {
+
+                if (getReturn(agent)->is_selected) {
+                    printf("");
+                }
+
                 float p = squad->getEnemyUnitPriority(*it, agent);
                 float damagePerHit = 0;
                 UnitTypeID selfType = getActualType(agent);
@@ -256,10 +261,10 @@ public:
                 float distanceToEnemy = Distance2D((*it)->pos(agent), pos(agent));
                 //float damageLost = (distanceToEnemy > weapon.range) ? (((distanceToEnemy - weapon.range) / Aux::getStats(getActualType(agent), agent).movement_speed) * (damagePerHit / weapon.speed)) : 0.0F;
                 //p -= damageLost / 50; //every 50 damage lost takes a unit down one priority peg;
-                float range = (weapon.range + (*it)->radius(agent));
+                float range = (weapon.range + (*it)->radius(agent) + radius(agent));
 
                 if (distanceToEnemy > range) {
-                    p -= 4 * (distanceToEnemy - range); //every one unit outside of range a unit is, it gets taken down two priority pegs
+                    p -= 4 * (distanceToEnemy - range); //every one unit outside of range a unit is, it gets taken down four priority pegs
                 }
                 //p += damagePerHit / weapon->speed; //each DPS, up one peg of priority
 
@@ -267,7 +272,8 @@ public:
                 if (squad->squadTargetDamage.find((*it)->self) != squad->squadTargetDamage.end()) {
                     enemyHealth -= squad->squadTargetDamage[(*it)->self];
                 }
-                float dtToEnemyDeath_natsec = enemyHealth / ((int)(damagePerHit / weapon.speed) + 1);
+                int hitsToEnemyDeath = std::ceilf(enemyHealth / damagePerHit);
+                float dtToEnemyDeath_natsec = hitsToEnemyDeath * weapon.speed;
                 p /= dtToEnemyDeath_natsec;
 
                 if (enemyHealth < damagePerHit) {
@@ -311,6 +317,7 @@ public:
             }
             else if (moveLocationDPS > prevMoveLocationDPS) {
                 cooldownFrames /= 2;
+                return;
             }
             else {
                 cooldownFrames --;

@@ -398,6 +398,9 @@ namespace WeaponGrid {
         prismaticBeam.addDamageBonus(Attribute::Armored, 4); //TODO: Add prismatic alignment
         addDamageSource(UNIT_TYPEID::PROTOSS_VOIDRAY, Race::Protoss, prismaticBeam);
 
+        Aux::ExtraWeapon interceptorAura(Weapon::TargetType::Any, 5, 16, 12, 2.14F); //carrier aura
+        addDamageSource(UNIT_TYPEID::PROTOSS_CARRIER, Race::Protoss, interceptorAura);
+
         Aux::ExtraWeapon disruptionBeam(Weapon::TargetType::Any, 6, 1, 5, 0.71F); //sentry main
         disruptionBeam.addDamageBonus(Attribute::Invalid, 0); //INVALID 0 IS +4 ON SHIELDS
         addDamageSource(UNIT_TYPEID::PROTOSS_SENTRY, Race::Protoss, disruptionBeam);
