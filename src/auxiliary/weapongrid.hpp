@@ -157,15 +157,15 @@ namespace WeaponGrid {
     //    }
     //}
 
-    Aux::ExtraWeapon getEnemyWeaponFromIndex(uint8_t weaponIndex) {
+    const Aux::ExtraWeapon& getEnemyWeaponFromIndex(uint8_t weaponIndex) {
         if (Aux::opponent == Race::Protoss) {
-            return allWeaponsProtoss[weaponIndex];
+            return allWeaponsProtoss.at(weaponIndex);
         }
         else if (Aux::opponent == Race::Terran) {
-            return allWeaponsTerran[weaponIndex];
+            return allWeaponsTerran.at(weaponIndex);
         }
         else if (Aux::opponent == Race::Zerg) {
-            return allWeaponsZerg[weaponIndex];
+            return allWeaponsZerg.at(weaponIndex);
         }
         else {
             throw 53;
@@ -177,8 +177,8 @@ namespace WeaponGrid {
     //    return &(allWeaponsProtoss[weaponIndex]);
     //}
 
-    const Aux::ExtraWeapon getSelfWeaponFromIndex(uint8_t weaponIndex) {
-        return allWeaponsProtoss[weaponIndex];
+    const Aux::ExtraWeapon& getSelfWeaponFromIndex(uint8_t weaponIndex) {
+        return allWeaponsProtoss.at(weaponIndex);
     }
 
     struct relevantTargetDamageInfo {
@@ -313,7 +313,7 @@ namespace WeaponGrid {
                 for (int i = 0; i < size; i++) {
                     if (weaponCount[i] != 0) {
                         //TODO: ONLY COUNT WEAPON WHEN HAS ENERGY REQUIRED
-                        Aux::ExtraWeapon w = getEnemyWeaponFromIndex(i);
+                        const Aux::ExtraWeapon& w = getEnemyWeaponFromIndex(i);
 
                         float total_damage = DamageCalculation(w, targetInfo, agent);
 
@@ -493,6 +493,9 @@ namespace WeaponGrid {
     }
 
     inline float getRawCellDPS(int x, int y, relevantTargetDamageInfo targetInfo, Agent* const agent) {
+        if (targetInfo.shields < targetInfo.shieldsMax && otherSourceGet(x, y, SHIELDBATTERY_AURA)) {
+            return getRawCell(x, y).getDPS(targetInfo, agent) - 50; //shield battery is 50 shields per second
+        }
         return getRawCell(x, y).getDPS(targetInfo, agent);
     }
 
@@ -506,6 +509,9 @@ namespace WeaponGrid {
     }
 
     inline float getCellDPS(Point2D point, relevantTargetDamageInfo targetInfo, Agent* const agent) {
+        if (targetInfo.shields < targetInfo.shieldsMax && otherSourceGet(int(point.x * DAMAGENET_PRECISION), int(point.y * DAMAGENET_PRECISION), SHIELDBATTERY_AURA)) {
+            return getCell(point).getDPS(targetInfo, agent) - 50; //shield battery is 50 shields per second
+        }
         return getCell(point).getDPS(targetInfo, agent);
     }
 
@@ -683,7 +689,7 @@ namespace WeaponGrid {
         //Profiler profiler("DamageGridF");
         damageMap_modify->clear();
 
-        Weapon w = getEnemyWeaponFromIndex(weaponIndex);
+        const Aux::ExtraWeapon& w = getEnemyWeaponFromIndex(weaponIndex);
         float radius = enemyRadius + w.range;
 
         int xmin = std::max(int((pos.x - radius) * DAMAGENET_PRECISION), 0);
@@ -751,9 +757,6 @@ namespace WeaponGrid {
                 if (imRef(damageMap_modify, i, j)) {
                     //DamageLocation pointDmag = imRef(enemyDamageNet, i, j);
                     dps += getRawCellDPS(i, j, targetInfo, agent);
-                    if (targetInfo.shields < targetInfo.shieldsMax && otherSourceGet(i, j, SHIELDBATTERY_AURA)) {
-                        dps -= 50; //shield battery is 50 shields per second
-                    }
                     count++;
                 }
             }
@@ -822,10 +825,10 @@ namespace WeaponGrid {
             float damage = getRawCellDPS(i, j, TDI, agent);
             int dmg = (int)damage;
             int mult = 255 / maxDamageOnGrid;
-            if (damage < maxDamageOnGrid) {
+            if (damage < maxDamageOnGrid && damage > 0) {
                 c = { (uint8_t)(dmg * mult), (uint8_t)(dmg * mult), 255};
             }
-            else if (damage < (maxDamageOnGrid * 2)) {
+            else if (damage < (maxDamageOnGrid * 2) && damage > 0) {
                 c = { 255, (uint8_t)(255 - (uint8_t)(dmg * mult)), (uint8_t)(255 - (uint8_t)(dmg * mult)) };
             }
             else if (damage < 0) {

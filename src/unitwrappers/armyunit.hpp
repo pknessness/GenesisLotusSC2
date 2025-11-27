@@ -246,7 +246,7 @@ public:
                 bool hittable = false;
                 for (int i = 0; i < WeaponGrid::unitDamageSources[selfType].size(); i++) {
                     int index = WeaponGrid::unitDamageSources[selfType][i].weaponIndex;
-                    Aux::ExtraWeapon w = WeaponGrid::getSelfWeaponFromIndex(index);
+                    const Aux::ExtraWeapon& w = WeaponGrid::getSelfWeaponFromIndex(index);
                     float damage = WeaponGrid::DamageCalculation(w, *it, agent);
                     if (damage > damagePerHit) {
                         damagePerHit = damage;
