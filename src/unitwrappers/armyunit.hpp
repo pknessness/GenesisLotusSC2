@@ -272,7 +272,7 @@ public:
                 if (squad->squadTargetDamage.find((*it)->self) != squad->squadTargetDamage.end()) {
                     enemyHealth -= squad->squadTargetDamage[(*it)->self];
                 }
-                int hitsToEnemyDeath = std::ceilf(enemyHealth / damagePerHit);
+                int hitsToEnemyDeath = std::ceil(enemyHealth / damagePerHit);
                 float dtToEnemyDeath_natsec = hitsToEnemyDeath * weapon.speed;
                 p /= dtToEnemyDeath_natsec;
 
