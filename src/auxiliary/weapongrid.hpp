@@ -792,6 +792,9 @@ namespace WeaponGrid {
                 // add ravager artillery, siege tank AOE
 
                 for (DamageSourceID d : weapons) {
+#ifdef BUILD_FOR_LADDER
+                    printf("%u %s: Weapon %d\n", (*it2)->getActualType(agent), UnitTypeToName((*it2)->getActualType(agent)), d.weaponIndex);
+#endif
                     setEnemyDamageRadius((*it2)->pos(agent), d.weaponIndex, (*it2)->radius(agent));
                 }
             }
