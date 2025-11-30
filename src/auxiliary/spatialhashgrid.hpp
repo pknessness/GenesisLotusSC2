@@ -131,7 +131,7 @@ namespace SpatialHashGrid {
     }
 
     static Bounds fillSpacialMapRadius(Point2D pos, float radius, std::function<void(int, int)> action) {
-        FUNCTION_LOG();
+        //FUNCTION_LOG();
         int x = (int)((pos.x - radius) / spatialCellSize);
         int y = (int)((pos.y - radius) / spatialCellSize);
         int xmax = (int)((pos.x + radius) / spatialCellSize) + 1;

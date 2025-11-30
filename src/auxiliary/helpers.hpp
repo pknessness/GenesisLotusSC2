@@ -1432,7 +1432,7 @@ namespace Aux {
 
 	inline static bool checkStructurePlacement(Point2D pos, UnitTypeID type, bool ignoreBuildingReserve = false) {
 		if (structureDiameter.find(type) == structureDiameter.end()) {
-			printf("What is the radius of unit id %ul", type);
+			printf("What is the radius of unit id %u\n", type);
 			throw 71;
 		}
 		return checkStructurePlacement(pos, structureDiameter[type], ignoreBuildingReserve);
@@ -1440,6 +1440,10 @@ namespace Aux {
 
 	inline static bool checkStructurePlacement(Point2D pos, AbilityID build, bool ignoreBuildingReserve = false) {
 		UnitTypeID type = Aux::buildAbilityToUnit(build);
+		if (type == UNIT_TYPEID::INVALID) {
+			printf("This building is invalid?: %u\n", build);
+			throw 77;
+		}
 		return checkStructurePlacement(pos, type, ignoreBuildingReserve);
 	}
 
