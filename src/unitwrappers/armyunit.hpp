@@ -25,6 +25,15 @@ class ArmyUnit : public UnitWrapper{
 private:
 public:
 
+    enum ActiveActionType {
+        NOTHING,
+        MOV,
+        ATK_MOV,
+        ATK,
+    };
+
+    ActiveActionType activeActionType;
+
     SquadManager::Squad* squad;
 
     float prevMoveLocationDPS = 0.0F;
@@ -39,7 +48,7 @@ public:
 
     bool safetyMode = false;
 
-    ArmyUnit(const Unit* unit, UnitTypeID sType, SquadManager::Squad* squad_) : UnitWrapper(unit, sType), squad(squad_){
+    ArmyUnit(const Unit* unit, UnitTypeID sType, SquadManager::Squad* squad_) : UnitWrapper(unit, sType), squad(squad_), activeActionType(NOTHING){
         squad->squadMainStates[unit->tag] = 'u';
         squad->unitStates[unit->tag] = ' ';
     }
@@ -49,6 +58,7 @@ public:
         if (unit->orders.size() == 0 || unit->orders[0].ability_id != ABILITY_ID::ATTACK || unit->orders[0].target_pos != point) {
             agent->Actions()->UnitCommand(self, ABILITY_ID::ATTACK, point);
             moveLocation = point;
+            activeActionType = ATK_MOV;
         }
     }
 
@@ -57,6 +67,7 @@ public:
         if (unit->orders.size() == 0 || unit->orders[0].ability_id != ABILITY_ID::ATTACK || unit->orders[0].target_unit_tag != target->self) {
             agent->Actions()->UnitCommand(self, ABILITY_ID::ATTACK, target->self);
             moveLocation = Point2D();
+            activeActionType = ATK;
         }
     }
 
@@ -74,6 +85,7 @@ public:
         if (unit->orders.size() == 0 || unit->orders[0].ability_id != ABILITY_ID::GENERAL_MOVE || unit->orders[0].target_pos != point) {
             agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, point, queue);
             moveLocation = point;
+            activeActionType = MOV;
         }
     }
 
@@ -176,7 +188,6 @@ public:
                 distance2 = 0;
             }
         }
-        //TODO: IF POINTS ON THE FASTEST PATH WORK, DON'T CHECK OTHER POINTS
         if (quickEnd) {
             if (unit->is_selected) {
                 DebugPath(agent, path, Colors::Yellow);
@@ -227,7 +238,7 @@ public:
             mov(agent, solution, queue);
         }
         movProfiler.midLog("movSafely.mov");
-        //TODO: add path itself as a weight (what does this mean?)
+        //TODO: add path itself as a weight (what does this mean?) (does it mean to include the length of the path in the calculations? because that is done)
     }
 
     virtual void findTarget(Agent* const agent, Aux::ExtraWeapon& weapon, float& dmagToTarget) {
@@ -246,7 +257,7 @@ public:
                 bool hittable = false;
                 for (int i = 0; i < WeaponGrid::unitDamageSources[selfType].size(); i++) {
                     int index = WeaponGrid::unitDamageSources[selfType][i].weaponIndex;
-                    const Aux::ExtraWeapon& w = WeaponGrid::getSelfWeaponFromIndex(index);
+                    const Aux::ExtraWeapon w = WeaponGrid::getSelfWeaponFromIndex(index, getAttackUpgradeLevel(agent));
                     float damage = WeaponGrid::DamageCalculation(w, *it, agent);
                     if (damage > damagePerHit) {
                         damagePerHit = damage;
@@ -293,23 +304,77 @@ public:
         }
     }
 
-    virtual void executeAttack(Agent* const agent) {
-        FUNCTION_LOG();
-        Profiler armyUnitProfiler("armyu(atk)");
 
-        float moveLocationDPS = WeaponGrid::getRadiusAvgDPS(moveLocation, radius(agent) + 3.5, WeaponGrid::wrapToTargetInfo(shared_from_this(), agent), agent);
+    virtual void hasNoTargetAction_Attack(Agent* const agent) {
+        if (squad->isWithinRadius(pos(agent), agent)) {
+            movSafely(agent, squad->targetPosition, POINT_CHECKS_DEFAULT, 7);
+        }
+        else {
+            movSafely(agent, squad->getCorePosition(agent), POINT_CHECKS_DEFAULT, 7);
+        }
+        cooldownFrames = COOLDOWN_FRAMES;
+    }
 
-        if (getReturn(agent)->is_selected) {
-            WeaponGrid::showDamageGrid(shared_from_this(), agent);
-            std::vector<WeaponGrid::DamageSourceID> weapons = WeaponGrid::getWeapons(getActualType(agent));
-            if (weapons.size() > 0) {
-                if (getReturn(agent)->weapon_cooldown != 0) {
-                    printf("");
-                }
-                float cd_frames = WeaponGrid::getSelfWeaponFromIndex(weapons[0].weaponIndex).speed * native_fps;
-                DebugText(agent, Aux::barToString(1.0F - getReturn(agent)->weapon_cooldown / cd_frames), pos3D(agent) + Point3D{ 0,0,2 });
+    virtual void hasTargetAction_Attack(Agent* const agent, const Aux::ExtraWeapon& weapon, bool radiusOfSafety) {
+#ifdef TARGET_DEBUG
+        DebugLine(agent, pos3D(agent) + Point3D{ 0,0,1 }, target->pos3D(agent) + Point3D{ 0,0,1 }, Colors::Teal);
+        DebugLine(agent, pos3D(agent) + Point3D{ 0,0,1.1 }, target->pos3D(agent) + Point3D{ 0,0,1.1 }, Colors::Yellow);
+#endif
+        float distToAtkEnemy = std::max(0.0F, Distance2D(pos(agent), target->pos(agent)) - (weapon.range + target->radius(agent) + radius(agent)));
+        float dTtoEnemy_frames = distToAtkEnemy / (Aux::getStats(getActualType(agent), agent)->movement_speed / fps);
+
+        if (dTtoEnemy_frames + ARMYUNIT_KITE_TOLERANCE_EPSILON_FFRAMES >= getReturn(agent)->weapon_cooldown) {
+            if (safetyMode && !radiusOfSafety) {
+                movSafely(agent, squad->getCorePosition(agent), 10, 7, 3.5);
+            }
+            else {
+                atk(agent, target);
+            }
+            cooldownFrames = COOLDOWN_FRAMES;
+            if (getStorageType() == UNIT_TYPEID::PROTOSS_COLOSSUS) {
+                cooldownFrames = 1;
+                //movSafely(agent, squad->getCorePosition(agent), 10, 7, 3.5, true);
             }
         }
+        else {
+            if (squad->isWithinRadius(pos(agent), agent)) {
+                movSafely(agent, target->pos(agent), 10, 7);
+            }
+            else {
+                movSafely(agent, squad->getCorePosition(agent), 10, 7);
+            }
+
+            cooldownFrames = COOLDOWN_FRAMES;
+            if (COOLDOWN_FRAMES > getReturn(agent)->weapon_cooldown) {
+                cooldownFrames = (uint8_t)getReturn(agent)->weapon_cooldown;
+            }
+        }
+
+        if (target->getReturn(agent) == nullptr) {
+            if (safetyMode) {
+                movSafely(agent, squad->getCorePosition(agent), 10, 7);
+            }
+            else {
+                atk(agent, target->pos(agent));
+            }
+            cooldownFrames = COOLDOWN_FRAMES;
+        }
+        else {
+
+        }
+    }
+
+    virtual void action_Attack(Agent* const agent, const Aux::ExtraWeapon& weapon, bool radiusOfSafety) {
+        if (target != nullptr) {
+            hasTargetAction_Attack(agent, weapon, radiusOfSafety);
+        }
+        else {
+            hasNoTargetAction_Attack(agent);
+        }
+    }
+
+    virtual void cooldownCheckUpdate(Agent* const agent) {
+        float moveLocationDPS = WeaponGrid::getRadiusAvgDPS(moveLocation, radius(agent) + 3.5, WeaponGrid::wrapToTargetInfo(shared_from_this(), agent), agent);
 
         if (cooldownFrames > 0) {
             if ((target != nullptr && target->isDead()) || getReturn(agent)->orders.size() == 0) {
@@ -320,12 +385,31 @@ public:
                 return;
             }
             else {
-                cooldownFrames --;
+                cooldownFrames--;
                 return;
             }
         }
 
         prevMoveLocationDPS = moveLocationDPS;
+    }
+
+    virtual void executeAttack(Agent* const agent) {
+        FUNCTION_LOG();
+        Profiler armyUnitProfiler("armyu(atk)");
+
+        if (getReturn(agent)->is_selected) {
+            WeaponGrid::showDamageGrid(shared_from_this(), agent);
+            std::vector<WeaponGrid::DamageSourceID> weapons = WeaponGrid::getWeapons(getActualType(agent));
+            if (weapons.size() > 0) {
+                if (getReturn(agent)->weapon_cooldown != 0) {
+                    printf("");
+                }
+                float cd_frames = WeaponGrid::getSelfWeaponFromIndex(weapons[0].weaponIndex, getAttackUpgradeLevel(agent)).speed * native_fps;
+                DebugText(agent, Aux::barToString(1.0F - getReturn(agent)->weapon_cooldown / cd_frames), pos3D(agent) + Point3D{ 0,0,2 });
+            }
+        }
+
+        cooldownCheckUpdate(agent);
 
         moveLocation = Point2D{ -1, -1 };
         target = nullptr;
@@ -348,8 +432,6 @@ public:
 
         armyUnitProfiler.midLog("armyu(atk).findTarget");
 
-        bool attacking = false;
-
         if (squad->squadMainStates[self] == 'u') {
             if (getReturn(agent)->weapon_cooldown > 0) {
                 mov(agent, squad->getCorePosition(agent));
@@ -362,67 +444,9 @@ public:
         }
         else if (squad->squadMainStates[self] == 'j') {
             targetLocation = squad->targetPosition;
-            if (target != nullptr) {
-#ifdef TARGET_DEBUG
-                DebugLine(agent, pos3D(agent) + Point3D{ 0,0,1 }, target->pos3D(agent) + Point3D{ 0,0,1 }, Colors::Teal);
-                DebugLine(agent, pos3D(agent) + Point3D{ 0,0,1.1 }, target->pos3D(agent) + Point3D{ 0,0,1.1 }, Colors::Yellow);
-#endif
-                float distToAtkEnemy = std::max(0.0F, Distance2D(pos(agent), target->pos(agent)) - (weapon.range + target->radius(agent) + radius(agent)));
-                float dTtoEnemy_frames = distToAtkEnemy / (Aux::getStats(getActualType(agent), agent)->movement_speed / fps);
-
-                if (dTtoEnemy_frames + ARMYUNIT_KITE_TOLERANCE_EPSILON_FFRAMES >= getReturn(agent)->weapon_cooldown) {
-                    if (safetyMode && !radiusOfSafety) {
-                        movSafely(agent, squad->getCorePosition(agent), 10, 7, 3.5);
-                    }
-                    else {
-                        atk(agent, target);
-                    }
-                    cooldownFrames = COOLDOWN_FRAMES;
-                    if (getStorageType() == UNIT_TYPEID::PROTOSS_COLOSSUS) {
-                        cooldownFrames = 1;
-                        //movSafely(agent, squad->getCorePosition(agent), 10, 7, 3.5, true);
-                    }
-                    attacking = true;
-                }
-                else {
-                    if (squad->isWithinRadius(pos(agent), agent)) {
-                        movSafely(agent, target->pos(agent), 10, 7);
-                    }
-                    else {
-                        movSafely(agent, squad->getCorePosition(agent), 10, 7);
-                    }
-
-                    cooldownFrames = COOLDOWN_FRAMES;
-                    if (COOLDOWN_FRAMES * fps > getReturn(agent)->weapon_cooldown) {
-                        cooldownFrames = getReturn(agent)->weapon_cooldown / fps;
-                    }
-                }
-
-                if (target->getReturn(agent) == nullptr) {
-                    if (safetyMode) {
-                        movSafely(agent, squad->getCorePosition(agent), 10, 7);
-                    }
-                    else {
-                        atk(agent, target->pos(agent));
-                    }
-                    cooldownFrames = COOLDOWN_FRAMES;
-                }
-                else {
-                    
-                }
-            }
-            else {
-                if (squad->isWithinRadius(pos(agent), agent)) {
-                    movSafely(agent, squad->targetPosition, POINT_CHECKS_DEFAULT, 7);
-                }
-                else {
-                    movSafely(agent, squad->getCorePosition(agent), POINT_CHECKS_DEFAULT, 7);
-                }
-                cooldownFrames = COOLDOWN_FRAMES;
-            }
-            
+            action_Attack(agent, weapon, radiusOfSafety);
         }
-        if (target != nullptr && attacking) {
+        if (target != nullptr && activeActionType == ATK) {
             if (squad->squadTargetDamage.find(target->self) != squad->squadTargetDamage.end()) {
                 squad->squadTargetDamage[target->self] += dmagToTarget;
             }

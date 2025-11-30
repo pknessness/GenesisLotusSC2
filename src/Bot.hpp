@@ -25,6 +25,9 @@
 #include "unitwrappers/nexus.hpp"
 #include "unitwrappers/vespene.hpp"
 #include "unitwrappers/adept.hpp"
+#include "unitwrappers/warpprism.hpp"
+#include "unitwrappers/sentry.hpp"
+#include "unitwrappers/observer.hpp"
 
 #include "auxiliary/armymanager.hpp"
 #include "unitwrappers/armyunit.hpp"
@@ -32,6 +35,8 @@
 #include "auxiliary/visiblemap.hpp"
 #include "auxiliary/weapongrid.hpp"
 #include "auxiliary/primordialstar.hpp"
+
+#include "auxiliary/upgrademanager.hpp"
 
 #define DEBUG
 //#define DAMAGEGRID_DEBUG
@@ -51,7 +56,7 @@ namespace UnitManager {
             if (MacroManager::dataEncoding.find(point) != MacroManager::dataEncoding.end()) {
                 wrap->creationData = MacroManager::dataEncoding.at(point);
                 if (unit_->unit_type != UNIT_TYPEID::PROTOSS_PROBE) {
-                    printf("ENC %u.%u ", wrap->creationData.stepBegin, gl);
+                    //printf("ENC %u.%u ", wrap->creationData.stepBegin, gl);
                 }
                 MacroManager::dataEncoding.erase(point);
             }
@@ -67,7 +72,7 @@ namespace UnitManager {
                 if (DistanceSquared2D((*it).first, point) < 2) {
                     wrap->creationData = MacroManager::dataEncoding.at((*it).first);
                     if (unit_->unit_type != UNIT_TYPEID::PROTOSS_PROBE) {
-                        printf("ENC2 %u.%u ", wrap->creationData.stepBegin, gl);
+                        //printf("ENC2 %u.%u ", wrap->creationData.stepBegin, gl);
                     }
                     MacroManager::dataEncoding.erase((*it).first);
                     encoded = true;
@@ -96,6 +101,30 @@ namespace UnitManager {
                 nexus->init(agent);
                 encode(nexus, unit_, gl);
                 units[stype].insert(nexus);
+            }
+            else if (stype == UNIT_TYPEID::PROTOSS_ADEPT) {
+                AdeptPtr adept = std::make_shared<Adept>(unit_, &ArmyManager::mainAttackSquad);
+                //adept->init(agent);
+                encode(adept, unit_, gl);
+                units[stype].insert(adept);
+                ArmyManager::mainAttackSquad.add(adept);
+
+            }
+            else if (stype == UNIT_TYPEID::PROTOSS_OBSERVER) {
+                ObserverEyePtr obs = std::make_shared<ObserverEye>(unit_, &ArmyManager::mainAttackSquad);
+                //adept->init(agent);
+                encode(obs, unit_, gl);
+                units[stype].insert(obs);
+                ArmyManager::mainAttackSquad.add(obs);
+
+            }
+            else if (stype == UNIT_TYPEID::PROTOSS_WARPPRISM) {
+                WarpPrismPtr prism = std::make_shared<WarpPrism>(unit_, &ArmyManager::mainAttackSquad);
+                //adept->init(agent);
+                encode(prism, unit_, gl);
+                units[stype].insert(prism);
+                ArmyManager::mainAttackSquad.add(prism);
+
             }
             else if (stype == UNIT_TYPEID::PROTOSS_ADEPT) {
                 AdeptPtr adept = std::make_shared<Adept>(unit_, &ArmyManager::mainAttackSquad);
@@ -254,8 +283,8 @@ struct Bot: sc2::Agent
         //strat = StrategyManager::classic_colossus_disruptor;
         //strat = StrategyManager::shit_stalker_colossus;
         //strat = StrategyManager::zuka_proxy_tempest; 
-        //strat = StrategyManager::test_plusone_atk;
-        strat = StrategyManager::pig_colossus_timing;
+        strat = StrategyManager::plusone_glaivedept_allin;
+        //strat = StrategyManager::pig_colossus_timing;
 
         for (int i = 0; i < strat.build_order.size(); i++) {
             MacroManager::addAction(strat.build_order[i]);
@@ -280,6 +309,9 @@ struct Bot: sc2::Agent
         float maxDPSPSp = 0;
 
         int numWeapons = 0;
+
+        FILE* fpMerkMore;
+        fpMerkMore = fopen("data/merkMoreWorths.txt", "w");
 
         FILE* fpa;
         fpa = fopen("data/unitData_all.txt", "w");
@@ -308,6 +340,8 @@ struct Bot: sc2::Agent
                         fprintf(fp, ", ");
                     }
                 }
+                float worth_merkMore = d->mineral_cost + 1.7 * d->vespene_cost;
+                fprintf(fpMerkMore, "%s: %.2f\n", UnitTypeToName(unitLists[f][i]), worth_merkMore);
                 fprintf(fp, "\nMovementSpeed: %.2f\nArmor: %.1f\nWeapons:\n",
                     d->movement_speed * timeSpeed,
                     d->armor);
@@ -354,10 +388,11 @@ struct Bot: sc2::Agent
                         fprintf(fp, ", ");
                     }
                 }
-                fprintf(fp, "\nAlias: %s\nRequirement: %s\nRequireAttached: %c\n---------------\n",
+                fprintf(fp, "\nAlias: %s\nRequirement: %s\nRequireAttached: %c\nMerkMoreWorth: %.2f\n---------------\n",
                     UnitTypeToName(d->unit_alias),
                     UnitTypeToName(d->tech_requirement),
-                    (d->require_attached ? 'Y' : 'N'));
+                    (d->require_attached ? 'Y' : 'N'),
+                    worth_merkMore);
             }
             fclose(fp);
             fp = fopen(strprintf("data/unitData_%s.txt", races[f]).c_str(), "r");
@@ -367,8 +402,10 @@ struct Bot: sc2::Agent
                 c = fgetc(fp);
             }
             fclose(fp);
+            fprintf(fpMerkMore, "\n");
         }
         fclose(fpa);
+        fclose(fpMerkMore);
         //printf("TECHNICALLY MOST EFFECTIVE UNIT: %s @ %.3fdpspsp\nNUMWEAPONS: %d\n", maxDPSPSpName.c_str(), maxDPSPSp, numWeapons);
 
 #endif
@@ -597,6 +634,7 @@ struct Bot: sc2::Agent
                     if (spawnCommandMap.find(arguments[0]) != spawnCommandMap.end()) {
                         Actions()->SendChat("Spawning Ally " + spawnCommandMap[arguments[0]]);
                         DebugCreateUnit(this, spawnCommandMap[arguments[0]], Observation()->GetCameraPos(), 1);
+                        MacroManager::dataEncoding[Observation()->GetCameraPos()] = MacroActionData();
                     }
                     else {
                         Actions()->SendChat("Invalid Unit " + spawnCommandMap[arguments[0]]);
@@ -798,6 +836,13 @@ struct Bot: sc2::Agent
                     DebugSphere(this, (*it2)->pos3D(this), (*it2)->radius(this), Colors::Red);
                     DebugText(this, strprintf("%s", UnitTypeToName((*it2)->getActualType(this))), (*it2)->pos3D(this) + Point3D{0,0,1}, Colors::Red);
                 }
+                else {
+                    float facing = (*it2)->getReturn(this)->facing;
+                    Point3D start = (*it2)->pos3D(this) + Point3D{ 0,0,5 };
+                    Point3D end = start + Point3D{ cos(facing), sin(facing), 0 };
+                    DebugLine(this, start, end, Colors::Purple);
+                    DebugSphere(this, start, 0.2, Colors::Purple);
+                }
             }
         }
 
@@ -937,7 +982,8 @@ struct Bot: sc2::Agent
         FUNCTION_LOG();
         //std::cout << sc2::UpgradeIDToName(id_) << " completed" << std::endl;
         UpgradeData d = Observation()->GetUpgradeData()[id_];
-        //printf("%u %s %s M:%d V:%d\n", d.upgrade_id, d.name.c_str(), AbilityTypeToName(d.ability_id), d.mineral_cost, d.vespene_cost);
+        printf("%u %s %s M:%d V:%d\n", d.upgrade_id, d.name.c_str(), AbilityTypeToName(d.ability_id), d.mineral_cost, d.vespene_cost);
+        UpgradeManager::addSelfUpgrade(id_);
     }
 
     //! Called when the unit in the current observation has lower health or shields than in the previous observation.
@@ -1001,3 +1047,10 @@ struct Bot: sc2::Agent
 //TODO: ANTI-CARRIER TARGETTING
 //TODO: BETTER VOIDRAY MICRO
 //TODO: ADEPT HARRASSING AND ACTUALLY GETTING VALUE (better value system?)
+//TODO: ADD HARASS TEAM
+//TODO: RESULT TRACKING
+//TODO: SENTRY STAY BACK
+//TODO: BETTER MAIN RALLY POINT
+//TODO: FIGHT EVALUATION
+//TODO: ARCHON MERGING
+//TODO: ADD MOTHERSHIP RUSH

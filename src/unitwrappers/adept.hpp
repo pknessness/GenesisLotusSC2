@@ -9,6 +9,9 @@
 #define ADEPT_CHECK_DO_SHADE 30
 #define ADEPT_SHADE_LIFETIME_FRAMES 156
 
+#define ADEPT_SHADE_COOLDOWN_FRAMES 20
+
+
 float adeptAttainmentPriority(Point2D pos, Agent* const agent) {
     return 0;
 }
@@ -98,6 +101,9 @@ public:
     //switch only if less dps and closer to target
     virtual void execute(Agent* const agent) {
         FUNCTION_LOG();
+
+        cooldownCheckUpdate(agent);
+
         if (linkedAdept->target != nullptr && VisibleMap2D::getVisibilityRecency(linkedAdept->target->pos(agent)) < (VISIBILITY_MAX - 5)) {
             mov(agent, linkedAdept->target->pos(agent));
         }
@@ -129,6 +135,8 @@ public:
                 mov(agent, linkedAdept->targetLocation);
             }
         }
+        cooldownFrames = ADEPT_SHADE_COOLDOWN_FRAMES;
+
         lastTime = agent->Observation()->GetGameLoop();
 
         if (lastTime - creationTime > ADEPT_SHADE_LIFETIME_FRAMES) {

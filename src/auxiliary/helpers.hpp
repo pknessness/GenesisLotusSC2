@@ -7,6 +7,7 @@
 #include "map2d.hpp"
 #include "bitmap.hpp"
 #include "profiler.hpp"
+#include "upgrademanager.hpp"
 
 #ifndef FLT_MAX
 #define FLT_MAX 3.402823466e+38F
@@ -63,6 +64,11 @@ constexpr float PYLON_RADIUS = 6.0F;
 constexpr float PYLON_RADIUS_REAL = 6.5F;
 constexpr float PYLON_RADIUS_SQUARED = PYLON_RADIUS * PYLON_RADIUS;
 constexpr float PYLON_RADIUS_SQUARED_REAL = PYLON_RADIUS_REAL * PYLON_RADIUS_REAL;
+
+constexpr float PRISM_RADIUS = 3.25F;
+constexpr float PRISM_RADIUS_REAL = 3.75F;
+constexpr float PRISM_RADIUS_SQUARED = PRISM_RADIUS * PRISM_RADIUS;
+constexpr float PRISM_RADIUS_SQUARED_REAL = PRISM_RADIUS_REAL * PRISM_RADIUS_REAL;
 
 
 constexpr float EPSILON = 0.1; //time between attacks for one time attacks
@@ -200,6 +206,22 @@ namespace Aux {
 		float energyCostPerFrame;
 	};
 
+	inline int damageExtraPerUpgrade(float baseDamage) {
+		if (baseDamage >= 45) {
+			return 5;
+		}
+		else if (baseDamage >= 36) {
+			return 4;
+		}
+		else if (baseDamage >= 24) {
+			return 3;
+		}
+		else if (baseDamage >= 15) {
+			return 2;
+		}
+		return 1;
+	}
+
 	//Weapon::TargetType type_, float damage_, uint32_t attacks_, float range_, float speed_, EnergyCost energyCost_ = { static, per frame }, bool spell_ = false
 	struct ExtraWeapon : Weapon {
 		EnergyCost energyCost;
@@ -243,6 +265,24 @@ namespace Aux {
 			b.attribute = a;
 			b.bonus = bonus;
 			damage_bonus.push_back(b);
+		}
+
+		ExtraWeapon applySelfUpgrades(uint8_t weapon_level) { //OPTIMISE: this copy is expensive
+			ExtraWeapon modified = *(this);
+			modified.damage_ += damageExtraPerUpgrade(modified.damage_) * weapon_level;
+			for (auto& bonus : modified.damage_bonus) {
+				bonus.bonus += damageExtraPerUpgrade(bonus.bonus) * weapon_level;
+			}
+			if (weapon_level != 0) {
+				printf("");
+			}
+			//TODO: ADD COLOSSUS, 
+			return modified;
+		}
+
+		ExtraWeapon applyEnemyUpgrades() { //OPTIMISE: this copy is expensive
+			ExtraWeapon modified = *(this);
+			return modified;
 		}
 	};
 
@@ -585,7 +625,7 @@ namespace Aux {
 	}
 
 	UnitTypeData* getStats(UnitTypeID type, Agent* agent) {
-		FUNCTION_LOG();
+		//FUNCTION_LOG();
 		if (statsMap.find(type) == statsMap.end()) {
 			try {
 				statsMap[type] = allData(agent).at(static_cast<uint32_t>(type));
@@ -1789,19 +1829,6 @@ namespace Aux {
 		}
 		memset(str+full, hal, 1);
 		return std::string(str);
-	}
-
-	inline int damageExtraPerUpgrade(float baseDamage) {
-		if (baseDamage >= 45) {
-			return 5;
-		} else if (baseDamage >= 36) {
-			return 4;
-		} else if (baseDamage >= 24) {
-			return 3;
-		} else if (baseDamage >= 15) {
-			return 2;
-		}
-		return 1;
 	}
 
 	inline static Color randomColor() {

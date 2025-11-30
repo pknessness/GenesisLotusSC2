@@ -179,10 +179,10 @@ namespace MacroManager {
 		bool blocked = false;
 		for (auto it = inRange.begin(); it != inRange.end(); it++) {
 			if (Distance2D(pos, (*it)->pos(agent)) < warpBlockoutUnitRadius + (*it)->radius(agent)) {
-				DebugSphere(agent, AP3D(pos), warpBlockoutUnitRadius, Colors::Red);
-				DebugBox(agent, AP3D(pos) + Point3D{ -0.5, -0.5, 0 }, AP3D(pos) + Point3D{ 0.5, 0.5, 1 }, Colors::Red);
-				DebugBox(agent, (*it)->pos3D(agent) + Point3D{ -0.5, -0.5, 0 }, (*it)->pos3D(agent) + Point3D{ 0.5, 0.5, 1 }, Colors::Red);
-				SendDebug(agent);
+				//DebugSphere(agent, AP3D(pos), warpBlockoutUnitRadius, Colors::Red);
+				//DebugBox(agent, AP3D(pos) + Point3D{ -0.5, -0.5, 0 }, AP3D(pos) + Point3D{ 0.5, 0.5, 1 }, Colors::Red);
+				//DebugBox(agent, (*it)->pos3D(agent) + Point3D{ -0.5, -0.5, 0 }, (*it)->pos3D(agent) + Point3D{ 0.5, 0.5, 1 }, Colors::Red);
+				////SendDebug(agent);
 				blocked = true;
 				break;
 			}
@@ -190,32 +190,66 @@ namespace MacroManager {
 		return !blocked;
 	}
 	
-	Point2D getWarpLocation(Agent* const agent, Point2D pos = { 0,0 }, float radius = 0) { //TODO: ACCOUNT FOR HEIGHT, PYLONS CAN ONLY POWER DOWNWARDS NOT UPWARDS
+	Point2D getWarpLocation(Agent* const agent, Point2D target, UnitTypeID unitType) { //TODO: ACCOUNT FOR HEIGHT, PYLONS CAN ONLY POWER DOWNWARDS NOT UPWARDS
 		FUNCTION_LOG();
-		float r2 = warpBlockoutUnitRadius * warpBlockoutUnitRadius;
-		if (pos == Point2D{ 0, 0 }) {
-			for (int i = 0; i < 10; i++) {
-				UnitWrapperPtr pylon = UnitManager::getRandomSelf(UNIT_TYPEID::PROTOSS_PYLON);
-				if (pylon == nullptr || !pylon->getReturn(agent)->IsBuildFinished()) {
-					return Point2D{ -1, -1 };
-				}
-				Point2D p = Aux::getRandomPointRadius(pylon->pos(agent), 6);
+		//float r2 = warpBlockoutUnitRadius * warpBlockoutUnitRadius;
+		float timeToTarget_frames = FLT_MAX;
+		Point2D pos = Point2D{ -1, -1 };
+		UnitWrappers warpprisms = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_WARPPRISM);
+		UnitWrappers pylons = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_PYLON);
 
-				if (checkWarpLocation(agent, p)) {
-					return p;
+
+		UnitTypeData* stats = Aux::getStats(unitType, agent);
+
+		for (const auto& prism : warpprisms) {
+			if (prism == nullptr || !prism->getReturn(agent)->IsBuildFinished() || prism->getActualType(agent) != UNIT_TYPEID::PROTOSS_WARPPRISMPHASING) {
+				continue;
+			}
+			int attempts = 2;
+			for (int i = 0; i < std::min(attempts, 10); i++) {
+				Point2D p = Aux::getRandomPointRadius(prism->pos(agent), PRISM_RADIUS_REAL);
+				if (!checkWarpLocation(agent, p) ){
+					attempts++;
+					continue;
+				}
+				float timeToTargetPotential_frames = (PrimordialStar::getPathLengthAStar(p, target, 0.5, agent) / (stats->movement_speed / native_fps)) + (5.0F * 22.4F); //5.0 fseconds if warped in with prism
+				if (timeToTarget_frames > timeToTargetPotential_frames) {
+					pos = p;
+					timeToTarget_frames = timeToTargetPotential_frames;
 				}
 			}
 		}
-		else {
-			int numP = (int)((radius + 1) * (radius + 1));
-			for (int i = 0; i < numP; i++) {
-				Point2D p = Aux::getRandomPointRadius(p, radius);
-				if (Aux::checkStructurePlacement(p, 3)) {
-					return p;
+
+
+		for (const auto& pylon : pylons) {
+			if (pylon == nullptr || !pylon->getReturn(agent)->IsBuildFinished()) {
+				continue;
+			}
+
+			bool nearNexus = SpatialHashGrid::findInRadiusSelfLoose(pylon->pos(agent), PYLON_RADIUS).size() > 0;
+				
+			for (int i = 0; i < 1; i++) {
+				Point2D p = Aux::getRandomPointRadius(pylon->pos(agent), PYLON_RADIUS);
+				if (!checkWarpLocation(agent, p)) {
+					continue;
+				}
+				float timeToTargetPotential_frames = PrimordialStar::getPathLengthAStar(p, target, 0.5, agent) / (stats->movement_speed / native_fps); 
+				//16.0 fseconds if warped in with far pylon, 5.0 if near
+				if (nearNexus) {
+					timeToTargetPotential_frames += (5.0F * 22.4F);
+				}
+				else {
+					timeToTargetPotential_frames += (16.0F * 22.4F);
+				}
+				if (timeToTarget_frames > timeToTargetPotential_frames) {
+					pos = p;
+					timeToTarget_frames = timeToTargetPotential_frames;
+					break;
 				}
 			}
 		}
-		return Point2D{ -1, -1 };
+
+		return pos;
 	}
 
 	class MacroActionCompare {
@@ -458,6 +492,7 @@ namespace MacroManager {
 					}
 					else {
 						printf("NO CLUE, SHOULDNT BE POSSIBLE\n");
+					
 						throw 42;
 					}
 				}
@@ -521,7 +556,7 @@ namespace MacroManager {
 					}
 				
 				} else if(currentAction->executor == UNIT_TYPEID::PROTOSS_GATEWAY) {
-					p = getWarpLocation(agent);
+					p = getWarpLocation(agent, Aux::criticalPoints[Aux::ENEMY_STARTLOC_POINT], unitToCreate);
 					//DebugBox(agent, AP3D(p) + Point3D{ -0.5, -0.5, 0 }, AP3D(p) + Point3D{ 0.5, 0.5, 1 }, Colors::Green);
 					//SendDebug(agent);
 				} else{

@@ -60,7 +60,7 @@ namespace StrategyManager {
     Strategy glaive_adept_rush_lightwisdom;
     Strategy glaive_adept_rush_hupsaiya;
 
-    Strategy test_plusone_atk;
+    Strategy plusone_glaivedept_allin; //https://lotv.spawningtool.com/build/93501/
 
     Strategy shit_stalker_colossus;
 
@@ -207,37 +207,74 @@ namespace StrategyManager {
         glaive_adept_rush_hupsaiya.armyAttackNum = 2; //Hit at 4:37 with 14 Adepts
         glaive_adept_rush_hupsaiya.commit = true;
 
-        test_plusone_atk.build_order = {
-            MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::criticalPoints[Aux::SELF_FIRSTPYLON_POINT], MacroActionData("Pylar")),
-            MacroBuilding(ABILITY_ID::BUILD_GATEWAY, Aux::PointDefault(), MacroActionData("Alice")),
-            MacroBuilding(ABILITY_ID::BUILD_FORGE, Aux::PointDefault(), MacroActionData("Frank")),
+        plusone_glaivedept_allin.build_order = {
+            // Early Economy
+            MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::criticalPoints[Aux::SELF_FIRSTPYLON_POINT]),  // 14 @ 0:18
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),                              // 15 @ 0:39
             MacroBuilding(ABILITY_ID::GENERAL_MOVE, Aux::criticalPoints[Aux::ENEMY_STARTLOC_POINT]),
-            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
-            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),
-            MacroBuilding(ABILITY_ID::BUILD_GATEWAY, Aux::PointDefault(), MacroActionData("Bob")),
-            MacroBuilding(ABILITY_ID::BUILD_CYBERNETICSCORE),
-            MacroBuilding(ABILITY_ID::BUILD_PYLON),
-            MacroAction(UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, ABILITY_ID::RESEARCH_WARPGATE),
-            MacroAction(UNIT_TYPEID::PROTOSS_FORGE, ABILITY_ID::RESEARCH_PROTOSSGROUNDWEAPONS),
-            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
-            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
-            MacroBuilding(ABILITY_ID::BUILD_TWILIGHTCOUNCIL),
-            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
-            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
-            MacroBuilding(ABILITY_ID::BUILD_PYLON),
-            MacroAction(UNIT_TYPEID::PROTOSS_TWILIGHTCOUNCIL, ABILITY_ID::RESEARCH_ADEPTRESONATINGGLAIVES),
-            MacroBuilding(ABILITY_ID::BUILD_GATEWAY, Aux::PointDefault(), MacroActionData("Chris")),
-            MacroBuilding(ABILITY_ID::BUILD_GATEWAY, Aux::PointDefault(), MacroActionData("Donna")),
-            MacroBuilding(ABILITY_ID::BUILD_PYLON), //Proxy Pylon near their 3rd base
-            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
-            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
-            MacroBuilding(ABILITY_ID::BUILD_GATEWAY, Aux::PointDefault(), MacroActionData("Edith")),
-            MacroBuilding(ABILITY_ID::BUILD_SHIELDBATTERY),
-            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
-            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
-            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
-            MacroGateway(ABILITY_ID::TRAIN_ADEPT),
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),                         // 16 @ 0:48
+            MacroBuilding(ABILITY_ID::BUILD_ASSIMILATOR),                         // 18 @ 0:58
+
+            // Early Production
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),                              // 19 @ 1:13
+            MacroBuilding(ABILITY_ID::BUILD_CYBERNETICSCORE),                     // 21 @ 1:30
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),                               // 22 @ 1:42
+
+            // Tech & First Units
+            MacroAction(UNIT_TYPEID::PROTOSS_CYBERNETICSCORE, ABILITY_ID::RESEARCH_WARPGATE), // 23 @ 1:59
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER), // 24 @ 2:07
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_SENTRY),  // 24 @ 2:08
+
+            // Expansion Phase
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),                               // 29 @ 2:17
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER), // 28 @ 2:34 (x2)
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_STALKER),
+            MacroBuilding(ABILITY_ID::BUILD_NEXUS), // 32 @ 3:00
+
+            // Robotics Transition
+            MacroBuilding(ABILITY_ID::BUILD_ROBOTICSFACILITY),                    // 32 @ 3:11
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),                               // 35 @ 3:35
+            MacroBuilding(ABILITY_ID::BUILD_SHIELDBATTERY),                       // 35 @ 3:43
+            MacroBuilding(ABILITY_ID::BUILD_PYLON),                               // 36 @ 3:53
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_IMMORTAL), // 36 @ 3:53
+
+            // Upgrades & Support
+            MacroBuilding(ABILITY_ID::BUILD_FORGE),                               // 43 @ 4:20
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_SENTRY),  // 44 @ 4:26
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_OBSERVER), // 48 @ 4:32
+            MacroAction(UNIT_TYPEID::PROTOSS_FORGE, ABILITY_ID::RESEARCH_PROTOSSGROUNDWEAPONS), // 48 @ 4:36
+
+            // Adept Transition
+            MacroBuilding(ABILITY_ID::BUILD_TWILIGHTCOUNCIL),                     // 53 @ 5:03
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_IMMORTAL), // 53 @ 5:05
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),                              // 59 @ 5:17
+            MacroAction(UNIT_TYPEID::PROTOSS_TWILIGHTCOUNCIL, ABILITY_ID::RESEARCH_ADEPTRESONATINGGLAIVES), // 58 @ 5:26
+
+            // Mass Gateway Production
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),                              // 58 @ 5:30 (x2)
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_ADEPT),  // 58 @ 5:35 (x2)
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_ADEPT),
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),                              // 60 @ 5:38
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),                              // 62 @ 5:51
+
+            // Warp Prism & Final Production
+            MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_WARPPRISM), // 62 @ 5:56
+            MacroBuilding(ABILITY_ID::BUILD_GATEWAY),                              // 64 @ 5:57
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_ADEPT),  // 64 @ 6:06 (x2)
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_ADEPT),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_ADEPT),  // 68 @ 6:13
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_ADEPT),  // 70 @ 6:27 (x4)
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_ADEPT),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_ADEPT),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_ADEPT),
+            MacroAction(UNIT_TYPEID::PROTOSS_GATEWAY, ABILITY_ID::TRAIN_ADEPT)   // 78 @ 6:41
         };
+
+        // Unit Composition
+        plusone_glaivedept_allin.unitRatio.adept = 11;
+        plusone_glaivedept_allin.armyAttackNum = 13;  // Push with Immortal + Adept timing
+        plusone_glaivedept_allin.commit = true;
 
         shit_stalker_colossus.build_order = {
             MacroBuilding(ABILITY_ID::BUILD_PYLON, Aux::criticalPoints[Aux::SELF_FIRSTPYLON_POINT]),

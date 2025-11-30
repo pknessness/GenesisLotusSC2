@@ -40,6 +40,8 @@ namespace WeaponGrid {
     static std::vector < Aux::ExtraWeapon > allWeaponsTerran;
     static std::vector < Aux::ExtraWeapon > allWeaponsZerg;
 
+    static uint8_t enemyWeaponUpgrades[STATIC_DAMAGECELL_SIZE];
+
     static void addDamageSource(UnitTypeID unitType, Race race, Aux::ExtraWeapon w) {
         uint8_t index = 255;
         if (race == Race::Protoss) {
@@ -157,15 +159,17 @@ namespace WeaponGrid {
     //    }
     //}
 
-    const Aux::ExtraWeapon& getEnemyWeaponFromIndex(uint8_t weaponIndex) {
+    //need to handle upgrades per-use of this function
+    const Aux::ExtraWeapon getEnemyWeaponFromIndex(uint8_t weaponIndex) {
+        assert(weaponIndex < getEnemyWeaponSize());
         if (Aux::opponent == Race::Protoss) {
-            return allWeaponsProtoss.at(weaponIndex);
+            return allWeaponsProtoss.at(weaponIndex).applyEnemyUpgrades();
         }
         else if (Aux::opponent == Race::Terran) {
-            return allWeaponsTerran.at(weaponIndex);
+            return allWeaponsTerran.at(weaponIndex).applyEnemyUpgrades();
         }
         else if (Aux::opponent == Race::Zerg) {
-            return allWeaponsZerg.at(weaponIndex);
+            return allWeaponsZerg.at(weaponIndex).applyEnemyUpgrades();
         }
         else {
             throw 53;
@@ -177,8 +181,9 @@ namespace WeaponGrid {
     //    return &(allWeaponsProtoss[weaponIndex]);
     //}
 
-    const Aux::ExtraWeapon& getSelfWeaponFromIndex(uint8_t weaponIndex) {
-        return allWeaponsProtoss.at(weaponIndex);
+    //need to handle upgrades per-use of this function
+    const Aux::ExtraWeapon getSelfWeaponFromIndex(uint8_t weaponIndex, uint8_t weaponUpgrades) {
+        return allWeaponsProtoss.at(weaponIndex).applySelfUpgrades(weaponUpgrades);
     }
 
     struct relevantTargetDamageInfo {
@@ -198,7 +203,7 @@ namespace WeaponGrid {
     
     //passing it in as parameters for speed
     //https://liquipedia.net/starcraft2/Damage_Calculation
-    float DamageCalculation(Aux::ExtraWeapon w, UnitTypeData* targetStats, CompositionAsTarget c, float shields, int32_t shieldsUpgrade, int32_t armorUpgrade, float energy, bool hallucination, Agent* const agent) {
+    float DamageCalculation(const Aux::ExtraWeapon& w, UnitTypeData* targetStats, CompositionAsTarget c, float shields, int32_t shieldsUpgrade, int32_t armorUpgrade, float energy, bool hallucination, Agent* const agent) {
         if (w.type != CompositionAsTarget::Any && c != CompositionAsTarget::Any && w.type != c) {
             return 0;
         }
@@ -274,11 +279,11 @@ namespace WeaponGrid {
         return total_damage * w.attacks;
     }
 
-    inline float DamageCalculation(Aux::ExtraWeapon w, relevantTargetDamageInfo info, Agent* const agent) {
+    inline float DamageCalculation(const Aux::ExtraWeapon& w, relevantTargetDamageInfo info, Agent* const agent) {
         return DamageCalculation(w, info.targetStats, info.c, info.shields, info.shieldsUpgrade, info.armorUpgrade, info.energy, info.hallucination, agent);
     }
 
-    inline float DamageCalculation(Aux::ExtraWeapon w, UnitWrapperPtr target, Agent* const agent) {
+    inline float DamageCalculation(const Aux::ExtraWeapon& w, UnitWrapperPtr target, Agent* const agent) {
         return DamageCalculation(w, wrapToTargetInfo(target, agent), agent);
     }
 
@@ -313,7 +318,7 @@ namespace WeaponGrid {
                 for (int i = 0; i < size; i++) {
                     if (weaponCount[i] != 0) {
                         //TODO: ONLY COUNT WEAPON WHEN HAS ENERGY REQUIRED
-                        const Aux::ExtraWeapon& w = getEnemyWeaponFromIndex(i);
+                        const Aux::ExtraWeapon w = getEnemyWeaponFromIndex(i);
 
                         float total_damage = DamageCalculation(w, targetInfo, agent);
 
@@ -689,7 +694,7 @@ namespace WeaponGrid {
         //Profiler profiler("DamageGridF");
         damageMap_modify->clear();
 
-        const Aux::ExtraWeapon& w = getEnemyWeaponFromIndex(weaponIndex);
+        const Aux::ExtraWeapon w = getEnemyWeaponFromIndex(weaponIndex);
         float radius = enemyRadius + w.range;
 
         int xmin = std::max(int((pos.x - radius) * DAMAGENET_PRECISION), 0);
@@ -793,7 +798,9 @@ namespace WeaponGrid {
 
                 for (DamageSourceID d : weapons) {
 #ifdef BUILD_FOR_LADDER
-                    printf("%u %s: Weapon %d\n", (*it2)->getActualType(agent), UnitTypeToName((*it2)->getActualType(agent)), d.weaponIndex);
+                    if (Aux::opponent != Aux::getStats((*it2)->getActualType(agent), agent)->race || d.weaponIndex >= getEnemyWeaponSize()) {
+                        printf("%u %s: Weapon %d\n", (*it2)->getActualType(agent), UnitTypeToName((*it2)->getActualType(agent)), d.weaponIndex);
+                    }
 #endif
                     setEnemyDamageRadius((*it2)->pos(agent), d.weaponIndex, (*it2)->radius(agent));
                 }

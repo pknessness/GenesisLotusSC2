@@ -441,7 +441,7 @@ namespace PrimordialStar {
 				bypass = true;
 			}
 			else {
-				float angle = Aux::atan2f_prim(direction.y, direction.x);
+				float angle = Aux::atan2f_prim(direction.y, direction.x); //OPTIMISE: don't use atan2f, harcode min and max ratios for each interval
 				float angleSections = MY_2PI / DISTANCENODE_DIVISIONS;
 
 				if (angle < 0) angle += MY_2PI;
@@ -907,7 +907,7 @@ namespace PrimordialStar {
 		return getPathLength(getPathDijkstra(start, end, radius, agent));
 	}
 
-	Point2D distanceAlongPath(std::vector<Point2D> path, float distance) {
+	Point2D distanceAlongPath(std::vector<Point2D> path, float distance) { //optimize this functions use in stepPointsAlongPath
 		if (path.size() == 0) return { 0,0 };
 		float travelled = 0;
 		for (int i = 0; i < path.size() - 1; i++) {
