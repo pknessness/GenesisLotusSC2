@@ -102,12 +102,49 @@ int main(int argc, char* argv[])
 
 #else
 
+void atan2MinimizeTest() {
+    printf("Atan2f Minimization Tests\n");
+    for (int i = 0; i < PrimordialStar::DISTANCENODE_DIVISIONS; i++) {
+        float preAngle = i * MY_2PI / PrimordialStar::DISTANCENODE_DIVISIONS;
+        float x = cos(preAngle);
+        float y = sin(preAngle);
+        float slope = y / x;
+        float angle = atan2f(y, x);
+        if (angle < 0) angle += MY_2PI;
+        int resultReal = ANGLE_TO_INDEX(angle);
+        int resultFake = PrimordialStar::yx2IndexSectional(y, x);
+        printf("X:%.2f Y:%.2f S:%.2f A:%.2f Real:%d Fake:%d\n", x, y, slope, angle, resultReal, resultFake);
+    }
+    int count_wrong = 0;
+    constexpr int tests = 9999999;
+    FILE* yx2_index = fopen("data/yx2.csv", "w");
+    for (int i = 0; i < tests; i ++) {
+        float preAngle = i * MY_2PI / tests;
+        float x = cos(preAngle);
+        float y = sin(preAngle);
+        float slope = y / x;
+        float angle = atan2f(y, x);
+        if (angle < 0) angle += MY_2PI;
+        int resultReal = ANGLE_TO_INDEX(angle);
+        int resultFake = PrimordialStar::yx2IndexSectional(y, x);
+        if (resultReal != resultFake) {
+            count_wrong++;
+            printf("X:%.2f Y:%.2f S:%.2f A:%.2f Real:%d Fake:%d\n", x, y, slope, angle, resultReal, resultFake);
+        }
+        fprintf(yx2_index, "%d, %d\n", resultReal, resultFake);
+    }
+    fclose(yx2_index);
+    printf("%d WRONG", count_wrong);
+    throw 2;
+}
+
 int main(int argc, char* argv[])
 {
     backward::SignalHandling sh;
+    PrimordialStar::yx2IndexSectionalLoad();
 
     Aux::atanTest();
-
+    //atan2MinimizeTest();
     //printf("atan2f(0,0) = %f\n", atan2f(0, 0));
 
     Options Options;
@@ -129,7 +166,8 @@ int main(int argc, char* argv[])
         Bot bot;
         sc2::Difficulty diff = sc2::Difficulty::HardVeryHard; //sc2::Difficulty::Hard; //
         sc2::Race race = (sc2::Race)(std::rand() % 4);  //Race::Random; //
-        sc2::AIBuild build = sc2::AIBuild::RandomBuild;
+        //sc2::AIBuild build = sc2::AIBuild::RandomBuild;
+        sc2::AIBuild build = sc2::AIBuild::Rush;
         coordinator.SetParticipants({ CreateParticipant(sc2::Race::Protoss, &bot), CreateComputer(race, diff, build) });
 
 
@@ -143,13 +181,19 @@ int main(int argc, char* argv[])
                                 "AutomatonAIE.SC2Map", "EphemeronAIE.SC2Map",
                                 "InterloperAIE.SC2Map",   "ThunderbirdAIE.SC2Map" };*/
 
-        std::string maps[7] = { "IncorporealAIE_v4.SC2Map",  "LeyLinesAIE_v3.SC2Map",
-                                "PersephoneAIE_v4.SC2Map", "PylonAIE_v4.SC2Map",
-                                "TorchesAIE_v4.SC2Map",   "UltraloveAIE_v2.SC2Map",   
-                                "MagannathaAIE_v2.SC2Map" };
+        std::string maps[7] = { "IncorporealAIE_v4.SC2Map",  
+                                "LeyLinesAIE_v3.SC2Map",
+                                "PersephoneAIE_v4.SC2Map", 
+                                "PylonAIE_v4.SC2Map",
+                                "TorchesAIE_v4.SC2Map",   
+                                "UltraloveAIE_v2.SC2Map",   
+                                "MagannathaAIE_v2.SC2Map" }; 
+        
+        //Generating 849 Path Nodes took 46.908ms with 15136 connections and 161945 quick bypasses #CUSTOM
+        //Generating 849 Path Nodes took 60.003ms with 15136 connections and 161945 quick bypasses #NATTY
 
         int r = std::rand() % 7;
-        //r = 1;
+        r = 6;
         //printf("rand %d [%d %d %d %d %d %d] %d\n", r, std::rand(), std::rand(), std::rand(), std::rand(), std::rand(),
         //    std::rand(), RAND_MAX);
 

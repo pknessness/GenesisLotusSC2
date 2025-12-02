@@ -102,34 +102,17 @@ public:
     virtual void execute(Agent* const agent) {
         FUNCTION_LOG();
 
-        cooldownCheckUpdate(agent);
+        if (cooldownCheckUpdate(agent)) {
+            return;
+        }
 
-        if (linkedAdept->target != nullptr && VisibleMap2D::getVisibilityRecency(linkedAdept->target->pos(agent)) < (VISIBILITY_MAX - 5)) {
+        if (linkedAdept->target != nullptr && VisibleMap2D::getVisibilityRecency(linkedAdept->target->pos(agent)) < (VISIBILITY_MAX - 15)) {
             mov(agent, linkedAdept->target->pos(agent));
         }
-        //else if (linkedAdept->moveLocation != Point2D() && DistanceSquared2D(pos(agent), linkedAdept->moveLocation) / 5.5 > DistanceSquared2D(linkedAdept->pos(agent), linkedAdept->moveLocation) / 3.5) {
-        //    
-        //    mov(agent, linkedAdept->moveLocation);
-        //}
         else {
-            ////copied from armyunit search code
-            //float cost = -1;
-            //if (Aux::withinBounds(moveLocation)) {
-            //    cost = searchCost(moveLocation);
-            //}
-            ////posTarget = { 0,0 };
-            //for (int i = 0; i < 5; i++) {
-            //    Point2D check;
-            //    check = Aux::getRandomPointRadius(pos(agent), 5);
-            //    float cos = searchCost(check);
-            //    if (cos < cost || cost == -1) {
-            //        cost = cos;
-            //        moveLocation = check;
-            //    }
-            //}
-            //mov(agent, moveLocation);
-            if (lastTime - creationTime > 30) { //
-                movSafely(agent, linkedAdept->targetLocation, 3, 8);
+            if (lastTime - creationTime > 30) { 
+                float distToTravel = Aux::getStats(UNIT_TYPEID::PROTOSS_ADEPTPHASESHIFT, agent)->movement_speed / native_fps;
+                movSafely(agent, linkedAdept->targetLocation, 1, distToTravel);
             }
             else {
                 mov(agent, linkedAdept->targetLocation);
