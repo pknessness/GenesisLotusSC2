@@ -150,12 +150,12 @@ namespace Aux {
 		RESERVED_F = 0xF         // 1111: Reserved
 	};
 
-	ObstacleInfo getObstacle(int i, int j) {
+	const inline ObstacleInfo& getObstacle(int i, int j) {
 		return (ObstacleInfo)(imRef(masterMap, i, j) >> 2);
 	}
 
 	bool isPathable(int i, int j) {
-		ObstacleInfo obstacle = getObstacle(i, j);
+		const ObstacleInfo& obstacle = getObstacle(i, j);
 		return !((imRef(masterMap, i, j) & 0x01) || 
 			obstacle == SELF_BUILDINGS || 
 			obstacle == ENEMY_BUILDINGS || 
@@ -176,13 +176,13 @@ namespace Aux {
 	}
 
 	bool isPathableTile(int i, int j) {
-		ObstacleInfo obstacle = getObstacle(i, j);
+		//const ObstacleInfo& obstacle = getObstacle(i, j);
 		return !((imRef(masterMap, i, j) & 0x01));
 	}
 
 	bool isPlacable(int i, int j, bool ignoreBuildingReserve = false) {
-		ObstacleInfo obstacle = getObstacle(i, j);
-		return !((imRef(masterMap, i, j) & 0x02) || 
+		const ObstacleInfo& obstacle = getObstacle(i, j);
+		return !((imRef(masterMap, i, j) & 0x02) ||
 			obstacle == SELF_BUILDINGS ||
 			obstacle == ENEMY_BUILDINGS ||
 			obstacle == CLIFF_UNPATHABLE ||
@@ -1547,7 +1547,7 @@ namespace Aux {
 	}
 
 	Color masterGridColor(int i, int j) {
-		ObstacleInfo obstacle = getObstacle(i, j);
+		const ObstacleInfo& obstacle = getObstacle(i, j);
 		uint8_t p = imRef(masterMap, i, j);
 		if (isPlacable(i, j) && !isPathable(i, j)) {
 			return Color{ 0, 255, 0 };

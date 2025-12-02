@@ -16,13 +16,92 @@ using namespace sc2;
 
 namespace PrimordialStar {
 	
-	constexpr int DISTANCENODE_DIVISIONS = 16;
+	constexpr int DISTANCENODE_DIVISIONS = 16; //must be a multiple of 4
 	constexpr int MAX_CONN_DIST_SQRD = 65025;
 
 	constexpr float CORNER_DISPLACEMENT_EPSILON = 0.1F;
 	constexpr float MICHAEL_VISIBILE_EPSILON = 0.1F;
 
 #define DEBUG_SPECIAL 0
+#define FASTER_CUSTOM_ANGLE_TO_INDEX 1
+
+	constexpr int YX2_INDEX_SECTIONAL_PRELOAD_SIZE = (PrimordialStar::DISTANCENODE_DIVISIONS / 4) - 1;
+	float yx2IndexSectionalPreload[YX2_INDEX_SECTIONAL_PRELOAD_SIZE];
+#define ANGLE_TO_INDEX(angle)  (int)(angle * PrimordialStar::DISTANCENODE_DIVISIONS / MY_2PI)
+
+
+	void yx2IndexSectionalLoad() {
+		for (int i = 1; i < YX2_INDEX_SECTIONAL_PRELOAD_SIZE + 1; i++) {
+			float preAngle = i * MY_2PI / PrimordialStar::DISTANCENODE_DIVISIONS;
+			float x = cos(preAngle);
+			float y = sin(preAngle);
+			float slope = y / x;
+			yx2IndexSectionalPreload[i - 1] = slope;
+		}
+	}
+
+	//returns an index in range [0, PrimordialStar::DISTANCENODE_DIVISIONS)
+	int yx2IndexSectional(float y, float x) {
+		// 2 | 1
+		// -----
+		// 3 | 4
+		if (x == 0) {
+			if (y > 0) { //straight up
+				return PrimordialStar::DISTANCENODE_DIVISIONS / 4;
+			}
+			else if (y < 0) { //straight down
+				return 3 * PrimordialStar::DISTANCENODE_DIVISIONS / 4;
+			}
+		}
+		else if (x > 0) {
+			if (y == 0) { //straight right
+				return 0;
+			}
+			else if (y > 0) { //quad 1
+				float s = y / x; //ABS
+				for (int i = 0; i < YX2_INDEX_SECTIONAL_PRELOAD_SIZE; i++) {
+					if (s < yx2IndexSectionalPreload[i]) {
+						return i;
+					}
+				}
+				return 3;
+			}
+			else { //quad 4
+				float s = -(y / x); //ABS
+				for (int i = 0; i < YX2_INDEX_SECTIONAL_PRELOAD_SIZE; i++) {
+					if (s < yx2IndexSectionalPreload[i]) {
+						return 15 - i;
+					}
+				}
+				return 12;
+			}
+		}
+		else if (x < 0) {
+			if (y == 0) { //straight left
+				return PrimordialStar::DISTANCENODE_DIVISIONS / 2;
+			}
+			else if (y > 0) { //quad 2
+				float s = -(y / x); //ABS
+				for (int i = 0; i < YX2_INDEX_SECTIONAL_PRELOAD_SIZE; i++) {
+					if (s <= yx2IndexSectionalPreload[i]) {
+						return 7 - i;
+					}
+				}
+				return 4;
+			}
+			else if (y < 0) { //quad 3
+				float s = y / x; //ABS
+				for (int i = 0; i < YX2_INDEX_SECTIONAL_PRELOAD_SIZE; i++) {
+					if (s <= yx2IndexSectionalPreload[i]) {
+						return 8 + i;
+					}
+				}
+				return 11;
+			}
+		}
+		//naught
+		return 0;
+	}
 
 	enum Cardinal {
 		INVALID,
@@ -441,6 +520,10 @@ namespace PrimordialStar {
 				bypass = true;
 			}
 			else {
+#if FASTER_CUSTOM_ANGLE_TO_INDEX //if using newer (faster)? indexer
+				int index1 = yx2IndexSectional(direction.y, direction.x);
+				int index2 = (index1 + (DISTANCENODE_DIVISIONS / 2)) % DISTANCENODE_DIVISIONS;
+#else
 				float angle = Aux::atan2f_prim(direction.y, direction.x); //OPTIMISE: don't use atan2f, harcode min and max ratios for each interval
 				float angleSections = MY_2PI / DISTANCENODE_DIVISIONS;
 
@@ -448,7 +531,7 @@ namespace PrimordialStar {
 
 				int index1 = (int)(angle * DISTANCENODE_DIVISIONS / MY_2PI);
 				int index2 = (int)(Aux::floatmod(angle + MY_PI, MY_2PI) * DISTANCENODE_DIVISIONS / MY_2PI);
-
+#endif
 				innerMax = std::max(imRef(furthestWallGrid, intX, intY).distances[index1], imRef(furthestWallGrid, intX, intY).distances[index2]);
 
 				//if (testPos.x > pos.x && testPos.y >= pos.y) {
@@ -958,60 +1041,6 @@ namespace PrimordialStar {
 		float mean;
 		float min;
 		float max;
-
-		//startTime = std::chrono::steady_clock::now();
-		//for (int a = 0; a < NUM_PTS_RT; a++) {
-		//	Point2D from = pts[a];
-		//	DebugSphere(agent, Aux::P3D(agent, from), 0.25, { 61,102,220 });
-		//	for (int b = 0; b < NUM_PTS_RT; b++) {
-		//		Point2D to = pts[b];
-		//		auto path = getPathDijkstra(from, to, 0, agent);
-		//		float dist = getPathLength(path);
-		//		float sc2dist = agent->Query()->PathingDistance(from, to);
-		//		float diff = dist - sc2dist;
-		//		//if (diff < 0) {
-		//		//    printf("S{%.1f,%.1f} E{%.1f,%.1f} D[%.1f]\n", from.x, from.y, to.x, to.y, diff);
-		//		//}
-		//		if (diff > 2 || diff < -2) {
-		//			Color c = Aux::randomColor();
-		//			if (diff < 0) {
-		//				c.r = 0;
-		//			}
-		//			else if (diff > 0) {
-		//				c.g = 0;
-		//			}
-		//			float z = std::rand() * 2.0F / RAND_MAX;
-		//			if (path.size() > 0) {
-		//				for (int i = 0; i < path.size() - 1; i++) {
-		//					DebugLine(agent, Aux::P3D(agent, path[i]) + Point3D{ 0,0,1.5F + z }, Aux::P3D(agent, path[i + 1]) + Point3D{ 0,0,1.5F + z }, c);
-		//				}
-		//			}
-		//			else {
-		//				DebugLine(agent, Aux::P3D(agent, from) + Point3D{ 0,0,1.5F + z }, Aux::P3D(agent, to) + Point3D{ 0,0,1.5F + z }, c);
-		//			}
-		//		}
-		//		differenceInDistance.push_back(diff);
-		//	}
-		//}
-
-		//endTime = std::chrono::steady_clock::now();
-		//dt = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-		//mean = 0;
-		//min = 400;
-		//max = 0;
-		//for (float f : differenceInDistance) {
-		//	if (f < min) {
-		//		min = f;
-		//	}
-		//	if (f > max) {
-		//		max = f;
-		//	}
-		//	mean += f;
-		//	//printf("%.1f\n", f);
-		//}
-		//mean /= differenceInDistance.size();
-		//printf("PATH VERIFICATION SINGLE [%d^2] %.1fs MEAN:%.1f MIN:%.1f MAX:%.1f\n", NUM_PTS_RT, dt / 1000000.0, mean, min, max);
-		//SendDebug(agent);
 
 		startTime = std::chrono::steady_clock::now();
 		for (int a = 0; a < NUM_PTS_RT; a++) {

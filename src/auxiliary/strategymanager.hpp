@@ -234,7 +234,7 @@ namespace StrategyManager {
             // Robotics Transition
             MacroBuilding(ABILITY_ID::BUILD_ROBOTICSFACILITY),                    // 32 @ 3:11
             MacroBuilding(ABILITY_ID::BUILD_PYLON),                               // 35 @ 3:35
-            MacroBuilding(ABILITY_ID::BUILD_SHIELDBATTERY),                       // 35 @ 3:43
+            MacroBuilding(ABILITY_ID::BUILD_SHIELDBATTERY, Aux::criticalPoints[Aux::SELF_SHIELDBATTERY_POINT]),                       // 35 @ 3:43
             MacroBuilding(ABILITY_ID::BUILD_PYLON),                               // 36 @ 3:53
             MacroAction(UNIT_TYPEID::PROTOSS_ROBOTICSFACILITY, ABILITY_ID::TRAIN_IMMORTAL), // 36 @ 3:53
 
