@@ -6,6 +6,9 @@
 #include "../auxiliary/debugging.hpp"
 #include "unitmanager.hpp"
 
+//wall: 50
+//guardian shield: 75
+//hallucination: 50
 class Sentry : public ArmyUnit {
 private:
 public:
@@ -14,12 +17,24 @@ public:
 
     }
 
-    virtual void execute(Agent* const agent) {
-        ArmyUnit::execute(agent);
+    //virtual void execute(Agent* const agent) {
+    //    ArmyUnit::execute(agent);
+    //}
+    
+    virtual void updateCooldownWithWeapon(Agent* const agent) {
     }
 
-    virtual void executeAttack(Agent* const agent) {
-        ArmyUnit::executeAttack(agent);
+    //needs to update cooldownFrames
+    virtual void action_Attack(Agent* const agent, const Aux::ExtraWeapon& weapon, bool radiusOfSafety) {
+        if (target != nullptr && radiusOfSafety) {
+            hasTargetAction_Attack(agent, weapon, radiusOfSafety);
+        }
+        else {
+            hasNoTargetAction_Attack(agent);
+        }
+        if(squad->squadTargets.size() > 5 && getEnergy(agent) > 75){
+            agent->Actions()->UnitCommand(self, ABILITY_ID::EFFECT_GUARDIANSHIELD);
+        }
     }
 };
 

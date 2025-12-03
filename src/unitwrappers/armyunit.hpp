@@ -43,6 +43,7 @@ public:
     float localDPS = 0.0F;
 
     UnitWrapperPtr target;
+    Aux::ExtraWeapon weapon;
 
     int8_t cooldownFrames = 0;
 
@@ -304,7 +305,13 @@ public:
         }
     }
 
+    //target cannot be null
+    float dtToHitEnemy_frames(Agent* const agent) {
+        float distToAtkEnemy = std::max(0.0F, Distance2D(pos(agent), target->pos(agent)) - (weapon.range + target->radius(agent) + radius(agent)));
+        return distToAtkEnemy / (Aux::getStats(getActualType(agent), agent)->movement_speed / native_fps);
+    }
 
+    //called if has no target, needs to update cooldownFrames
     virtual void hasNoTargetAction_Attack(Agent* const agent) {
         if (squad->isWithinRadius(pos(agent), agent)) {
             movSafely(agent, squad->targetPosition, POINT_CHECKS_DEFAULT, 7);
@@ -314,14 +321,14 @@ public:
         }
         cooldownFrames = COOLDOWN_FRAMES;
     }
-
+    
+    //only called if has a target, needs to update cooldownFrames
     virtual void hasTargetAction_Attack(Agent* const agent, const Aux::ExtraWeapon& weapon, bool radiusOfSafety) {
 #ifdef TARGET_DEBUG
         DebugLine(agent, pos3D(agent) + Point3D{ 0,0,1 }, target->pos3D(agent) + Point3D{ 0,0,1 }, Colors::Teal);
         DebugLine(agent, pos3D(agent) + Point3D{ 0,0,1.1 }, target->pos3D(agent) + Point3D{ 0,0,1.1 }, Colors::Yellow);
 #endif
-        float distToAtkEnemy = std::max(0.0F, Distance2D(pos(agent), target->pos(agent)) - (weapon.range + target->radius(agent) + radius(agent)));
-        float dTtoEnemy_frames = distToAtkEnemy / (Aux::getStats(getActualType(agent), agent)->movement_speed / fps);
+        float dTtoEnemy_frames = dtToHitEnemy_frames(agent);
 
         if (dTtoEnemy_frames + ARMYUNIT_KITE_TOLERANCE_EPSILON_FFRAMES >= getReturn(agent)->weapon_cooldown) {
             if (safetyMode && !radiusOfSafety) {
@@ -364,12 +371,22 @@ public:
         }
     }
 
+    //needs to update cooldownFrames
     virtual void action_Attack(Agent* const agent, const Aux::ExtraWeapon& weapon, bool radiusOfSafety) {
         if (target != nullptr) {
             hasTargetAction_Attack(agent, weapon, radiusOfSafety);
         }
         else {
             hasNoTargetAction_Attack(agent);
+        }
+    }
+
+    virtual void updateCooldownWithWeapon(Agent* const agent) {
+        if (target != nullptr) {
+            float framesToTurn = getReturn(agent)->weapon_cooldown - dtToHitEnemy_frames(agent); //big framesToTurn means we have time, low means we have no time
+            if (framesToTurn < cooldownFrames) {
+                cooldownFrames = framesToTurn - 1;
+            }
         }
     }
 
@@ -394,6 +411,18 @@ public:
         return false;
     }
 
+
+    virtual void updateSquadTargetDamage(float dmagToTarget) {
+        if (target != nullptr && activeActionType == ATK) {
+            if (squad->squadTargetDamage.find(target->self) != squad->squadTargetDamage.end()) {
+                squad->squadTargetDamage[target->self] += dmagToTarget;
+            }
+            else {
+                squad->squadTargetDamage[target->self] = dmagToTarget;
+            }
+        }
+    }
+
     virtual void executeAttack(Agent* const agent) {
         FUNCTION_LOG();
         Profiler armyUnitProfiler("armyu(atk)");
@@ -410,13 +439,15 @@ public:
             }
         }
 
+        updateCooldownWithWeapon(agent);
+
         if (cooldownCheckUpdate(agent)) {
             return;
         }
 
         moveLocation = Point2D{ -1, -1 };
         target = nullptr;
-        Aux::ExtraWeapon weapon = WeaponGrid::emptyWeapon;
+        weapon = WeaponGrid::emptyWeapon;
         float dmagToTarget = 0;
 
         bool radiusOfSafety = (WeaponGrid::getRadiusAvgDPS(pos(agent), radius(agent) + 3.5, WeaponGrid::wrapToTargetInfo(shared_from_this(), agent), agent) == 0.0F);
@@ -449,14 +480,7 @@ public:
             targetLocation = squad->targetPosition;
             action_Attack(agent, weapon, radiusOfSafety);
         }
-        if (target != nullptr && activeActionType == ATK) {
-            if (squad->squadTargetDamage.find(target->self) != squad->squadTargetDamage.end()) {
-                squad->squadTargetDamage[target->self] += dmagToTarget;
-            }
-            else {
-                squad->squadTargetDamage[target->self] = dmagToTarget;
-            }
-        }
+        updateSquadTargetDamage(dmagToTarget);
         armyUnitProfiler.midLog("armyu(atk).executeAction");
     }
 

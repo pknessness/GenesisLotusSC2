@@ -122,7 +122,7 @@ public:
 
         lastTime = agent->Observation()->GetGameLoop();
 
-        if (lastTime - creationTime > ADEPT_SHADE_LIFETIME_FRAMES) {
+                                                                                                                                                                                                                                                                                                                                      if (lastTime - creationTime > ADEPT_SHADE_LIFETIME_FRAMES) {
             float adeptDPS = linkedAdept->getEnemyDPS(linkedAdept->pos(agent), linkedAdept->safetyMode ? 4.0F : 1.0F, agent);
             float shadeDPS = getEnemyDPS(pos(agent), linkedAdept->safetyMode ? 4.0F : 1.0F, agent);
 

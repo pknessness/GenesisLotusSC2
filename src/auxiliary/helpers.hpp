@@ -949,9 +949,12 @@ namespace Aux {
 			// Find a buildable location on the circumference of the sphere
 			float loc = 0.0f;
 			while (loc < 360.0f) {
+				//Point2D point = Point2D(
+				//	((radius * std::cos((loc * MY_PI) / 180.0f)) + center.x),
+				//	((radius * std::sin((loc * MY_PI) / 180.0f)) + center.y));
 				Point2D point = Point2D(
-					(radius * std::cos((loc * MY_PI) / 180.0f)) + center.x,
-					(radius * std::sin((loc * MY_PI) / 180.0f)) + center.y);
+					(int)((radius * std::cos((loc * MY_PI) / 180.0f)) + center.x) + 0.5F,
+					(int)((radius * std::sin((loc * MY_PI) / 180.0f)) + center.y) + 0.5F);
 
 				QueryInterface::PlacementQuery query(ABILITY_ID::BUILD_COMMANDCENTER, point);
 

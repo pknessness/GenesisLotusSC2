@@ -118,6 +118,14 @@ namespace UnitManager {
                 ArmyManager::mainAttackSquad.add(obs);
 
             }
+            else if (stype == UNIT_TYPEID::PROTOSS_SENTRY) {
+                SentryPtr sentry = std::make_shared<Sentry>(unit_, &ArmyManager::mainAttackSquad);
+                //adept->init(agent);
+                encode(sentry, unit_, gl);
+                units[stype].insert(sentry);
+                ArmyManager::mainAttackSquad.add(sentry);
+
+            }
             else if (stype == UNIT_TYPEID::PROTOSS_WARPPRISM) {
                 WarpPrismPtr prism = std::make_shared<WarpPrism>(unit_, &ArmyManager::mainAttackSquad);
                 //adept->init(agent);
@@ -970,7 +978,7 @@ struct Bot: sc2::Agent
         }
         else if (unit_->alliance == Unit::Self) {
             if (unit_->is_building) {
-                MacroManager::addAction(MacroBuilding{ Aux::getStats(unit_->unit_type, this)->ability_id, Aux::PointDefault(), unitWrap->creationData });
+                MacroManager::addAction(MacroBuilding{ Aux::getStats(unit_->unit_type, this)->ability_id, Aux::PointDefault(), unitWrap->creationData, 0, unitWrap->creationData.index });
             }
         }
 
