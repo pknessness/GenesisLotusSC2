@@ -150,7 +150,7 @@ namespace Aux {
 		RESERVED_F = 0xF         // 1111: Reserved
 	};
 
-	const inline ObstacleInfo& getObstacle(int i, int j) {
+	inline ObstacleInfo getObstacle(int i, int j) {
 		return (ObstacleInfo)(imRef(masterMap, i, j) >> 2);
 	}
 

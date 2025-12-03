@@ -529,7 +529,7 @@ namespace MacroManager {
 						VespenePtr vespene = std::static_pointer_cast<Vespene>(vespeneW);
 
 						Point2D pos = vespene->pos(agent);
-						const Aux::ObstacleInfo& obs = Aux::getObstacle((int)pos.x, (int)pos.y);
+						Aux::ObstacleInfo obs = Aux::getObstacle((int)pos.x, (int)pos.y);
 						if (vespene->taken || (hasNexus && !vespene->nearNexus) || obs != Aux::ObstacleInfo::VESPENE) {
 							continue;
 						}
