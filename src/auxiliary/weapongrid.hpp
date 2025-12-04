@@ -161,7 +161,9 @@ namespace WeaponGrid {
 
     //need to handle upgrades per-use of this function
     const Aux::ExtraWeapon getEnemyWeaponFromIndex(uint8_t weaponIndex) {
-        assert(weaponIndex < getEnemyWeaponSize());
+        if (weaponIndex >= getEnemyWeaponSize()) {
+            printf("");
+        }
         if (Aux::opponent == Race::Protoss) {
             return allWeaponsProtoss.at(weaponIndex).applyEnemyUpgrades();
         }
@@ -487,7 +489,7 @@ namespace WeaponGrid {
         //TEMPORALFIELDGROWING = 3,
         //THERMALLANCE = 5,
 
-        //printf("");
+        printf("");
     }
 
     DamageCell getRawCell(int x, int y) {
@@ -780,6 +782,7 @@ namespace WeaponGrid {
             if (Aux::opponent == Random) {
                 UnitTypeData* stats = Aux::getStats(it->first, agent);
                 Aux::opponent = stats->race;
+                printf("RACE IS FOUND TO BE %s\n", Aux::RaceToName(Aux::opponent));
             }
             for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
                 std::vector<DamageSourceID> weapons = getWeapons((*it2)->getActualType(agent));
