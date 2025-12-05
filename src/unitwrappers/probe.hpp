@@ -219,6 +219,10 @@ public:
                 }
                 else { //TODO: ADD REQUIRED ENCODING CONFIRMATION FOR BUILDINGS TO KNOW THEYVE BEEN BUILT, COUNT # of failures and exceeding a certain number of retries, go to failed building
                     //if (agent->Query()->Placement(top.build, top.pos)) {
+                    UnitTypeID type = Aux::buildAbilityToUnit(top.build);
+                    if (type == UNIT_TYPEID::INVALID) {
+                        printf("PROBE 'BUILDING' ERROR: %s [%d] @ {%.2f, %.2f}\n", AbilityTypeToName(top.build), top.build, top.pos.x, top.pos.y);
+                    }
                     if(Aux::checkStructurePlacement(top.pos, top.build, true)) {
 
                         agent->Actions()->UnitCommand(self, top.build, top.pos);

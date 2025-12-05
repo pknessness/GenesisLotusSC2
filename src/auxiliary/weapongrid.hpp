@@ -418,8 +418,8 @@ namespace WeaponGrid {
 
         Aux::ExtraWeapon volatileBurst(Weapon::TargetType::Ground, 16, 1, 2.2, EPSILON); //baneling
         volatileBurst.addDamageBonus(Attribute::Light, 19);
-        addDamageSource(UNIT_TYPEID::ZERG_BANELING, Race::Terran, volatileBurst);
-        addDamageSource(UNIT_TYPEID::ZERG_BANELINGBURROWED, Race::Terran, volatileBurst);
+        addDamageSource(UNIT_TYPEID::ZERG_BANELING, Race::Zerg, volatileBurst);
+        addDamageSource(UNIT_TYPEID::ZERG_BANELINGBURROWED, Race::Zerg, volatileBurst);
 
         Aux::ExtraWeapon ATSLaserBattery(Weapon::TargetType::Ground, 8, 1, 6, 0.16); //battlecruiser gnd
         addDamageSource(UNIT_TYPEID::TERRAN_BATTLECRUISER, Race::Terran, ATSLaserBattery);
