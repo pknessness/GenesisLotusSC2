@@ -3,7 +3,7 @@
 This bot is built off cpp-sc2's blank-bot from pure scratch in c++
 # blank-bot
 
-[![Build](https://github.com/cpp-sc2/blank-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/cpp-sc2/blank-bot/actions/workflows/ci.yml)
+[![Build](https://github.com/pknessness/GenesisLotusSC2/actions/workflows/upload.yml/badge.svg)](https://github.com/pknessness/GenesisLotusSC2/actions/workflows/upload.yml)
 
 Starter bot for StarCraft II with integrated cpp-sc2.
 
