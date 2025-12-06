@@ -110,6 +110,10 @@ std::map<std::string, UnitTypeID> spawnCommandMap = {
     {"photoncannon", UNIT_TYPEID::PROTOSS_PHOTONCANNON},
     {"shieldbattery", UNIT_TYPEID::PROTOSS_SHIELDBATTERY},
 
+    {"gateway", UNIT_TYPEID::PROTOSS_GATEWAY},
+    {"warpgate", UNIT_TYPEID::PROTOSS_WARPGATE},
+
+
     {"marine", UNIT_TYPEID::TERRAN_MARINE},
     {"marauder", UNIT_TYPEID::TERRAN_MARAUDER},
     {"reaper", UNIT_TYPEID::TERRAN_REAPER},

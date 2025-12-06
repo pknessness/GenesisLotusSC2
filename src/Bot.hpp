@@ -972,7 +972,7 @@ struct Bot: sc2::Agent
             if (unit_->unit_type == UNIT_TYPEID::PROTOSS_WARPGATE) { //I think this is the 1518 bug, because warpgates have "morph warpgate" listed as their 
                 MacroManager::addAction(MacroBuilding{ ABILITY_ID::BUILD_GATEWAY, Aux::PointDefault(), unitWrap->creationData });
             }
-            if (unit_->is_building) {
+            else if (unit_->is_building) {
                 MacroManager::addAction(MacroBuilding{ Aux::getStats(unit_->unit_type, this)->ability_id, Aux::PointDefault(), unitWrap->creationData });
             }
         }
