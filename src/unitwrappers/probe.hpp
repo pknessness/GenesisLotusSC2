@@ -221,25 +221,28 @@ public:
                     //if (agent->Query()->Placement(top.build, top.pos)) {
                     UnitTypeID type = Aux::buildAbilityToUnit(top.build);
                     if (type == UNIT_TYPEID::INVALID) {
-                        printf("PROBE 'BUILDING' ERROR: %s [%d] @ {%.2f, %.2f}\n", AbilityTypeToName(top.build), top.build, top.pos.x, top.pos.y);
-                    }
-                    if(Aux::checkStructurePlacement(top.pos, top.build, true)) {
-
-                        agent->Actions()->UnitCommand(self, top.build, top.pos);
-                        MacroManager::dataEncoding[top.pos].stepBegin = agent->Observation()->GetGameLoop();
-
-                        if (patrolCenter != Point2D()) {
-                            agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, patrolCenter + Point2D{ -1,0 }, true);
-                            agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_PATROL, patrolCenter + Point2D{ 1,0 }, true);
-                        }
+                        printf("PROBE 'BUILDING' ERROR: %s [%d] @ {%.2f, %.2f}\n", AbilityTypeToName(top.build), top.build, top.pos.x, top.pos.y); //remove this once i figure out the 1518 bug
+                        throw 81;
                     }
                     else {
-                        Point3D p = AP3D(buildings.begin()->pos);
-                        DebugBox(agent, p - Point3D{ 1.5,1.5,0 }, p + Point3D{ 1.5,1.5,3 }, Colors::Red);
-                        SendDebug(agent);
-                        failedBuildings.push_back(*buildings.begin());
-                        buildings.erase(buildings.begin());
-                        return;
+                        if (Aux::checkStructurePlacement(top.pos, top.build, true)) {
+
+                            agent->Actions()->UnitCommand(self, top.build, top.pos);
+                            MacroManager::dataEncoding[top.pos].stepBegin = agent->Observation()->GetGameLoop();
+
+                            if (patrolCenter != Point2D()) {
+                                agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, patrolCenter + Point2D{ -1,0 }, true);
+                                agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_PATROL, patrolCenter + Point2D{ 1,0 }, true);
+                            }
+                        }
+                        else {
+                            Point3D p = AP3D(buildings.begin()->pos);
+                            DebugBox(agent, p - Point3D{ 1.5,1.5,0 }, p + Point3D{ 1.5,1.5,3 }, Colors::Red);
+                            SendDebug(agent);
+                            failedBuildings.push_back(*buildings.begin());
+                            buildings.erase(buildings.begin());
+                            return;
+                        }
                     }
                 }
                 buildings.erase(buildings.begin());
