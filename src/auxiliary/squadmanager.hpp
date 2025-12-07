@@ -216,12 +216,17 @@ namespace SquadManager {
 			squadTargets.clear();
 			squadTargetDamage.clear();
 			Circles c = {};
-			for (auto it = armyContents.begin(); it != armyContents.end(); it++) {
-				if (squadMainStates[(*it)->self] == 'u') {
-					continue;
+			if (squadMode == DEFEND) {
+				c.push_back({ targetPosition, 30 });
+			}
+			else {
+				for (auto it = armyContents.begin(); it != armyContents.end(); it++) {
+					if (squadMainStates[(*it)->self] == 'u') {
+						continue;
+					}
+					float radius = Aux::getStats((*it)->getActualType(agent), agent)->sight_range + 1;
+					c.push_back({ (*it)->pos(agent), radius });
 				}
-				float radius = Aux::getStats((*it)->getActualType(agent), agent)->sight_range + 1;
-				c.push_back({ (*it)->pos(agent), radius });
 			}
 			UnitWrappers wraps = SpatialHashGrid::findInRadiiEnemyLoose(c);
 			squadTargets.insert(wraps.begin(), wraps.end());

@@ -468,7 +468,8 @@ public:
 
     virtual void executeDefend(Agent* const agent) {
         FUNCTION_LOG();
-        atk(agent, squad->targetPosition);
+        //atk(agent, squad->targetPosition);
+        executeAttack(agent);
     }
 
     float searchCost(Point2D p) {

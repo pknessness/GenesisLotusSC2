@@ -38,7 +38,15 @@ public:
         prevMoveLocationDPS = moveLocationDPS;
 
         //ArmyUnit::execute(agent);
-        if (DistanceSquared2D(pos(agent), squad->getCorePosition(agent)) > 300 || getEnemyDPS(pos(agent), 3.0F, agent) > 0 ) {
+        bool unitsWarpingInRange = false;
+        UnitWrappers wraps = SpatialHashGrid::findInRadiusSelfLoose(pos(agent), PRISM_RADIUS_REAL);
+        for (const auto& wrap : wraps) {
+            if (!wrap->getReturn(agent)->is_building && !wrap->getReturn(agent)->IsBuildFinished()) {
+                unitsWarpingInRange = true;
+                break;
+            }
+        }
+        if ((DistanceSquared2D(pos(agent), squad->getCorePosition(agent)) > 300 && !unitsWarpingInRange) || getEnemyDPS(pos(agent), 3.0F, agent) > 0 ) {
             bool unmorph = getActualType(agent) == UNIT_TYPEID::PROTOSS_WARPPRISMPHASING;
             if (unmorph){
                 agent->Actions()->UnitCommand(self, ABILITY_ID::MORPH_WARPPRISMTRANSPORTMODE);
@@ -46,7 +54,7 @@ public:
             movSafely(agent, squad->getCorePosition(agent), 10, 14, 5.0F, unmorph);
             agent->Actions()->UnitCommand(self, ABILITY_ID::MORPH_WARPPRISMPHASINGMODE, true);
         }
-        else if (DistanceSquared2D(pos(agent), squad->getCorePosition(agent)) < 200) {
+        else if (DistanceSquared2D(pos(agent), squad->getCorePosition(agent)) < 200 && getActualType(agent) != UNIT_TYPEID::PROTOSS_WARPPRISMPHASING) {
             agent->Actions()->UnitCommand(self, ABILITY_ID::MORPH_WARPPRISMPHASINGMODE);
         }
         cooldownFrames = WARPPRISM_COOLDOWN_FRAMES;
