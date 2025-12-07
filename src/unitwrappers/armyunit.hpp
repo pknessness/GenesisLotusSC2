@@ -321,7 +321,7 @@ public:
         DebugLine(agent, pos3D(agent) + Point3D{ 0,0,1.1 }, target->pos3D(agent) + Point3D{ 0,0,1.1 }, Colors::Yellow);
 #endif
         float distToAtkEnemy = std::max(0.0F, Distance2D(pos(agent), target->pos(agent)) - (weapon.range + target->radius(agent) + radius(agent)));
-        float dTtoEnemy_frames = distToAtkEnemy / (Aux::getStats(getActualType(agent), agent)->movement_speed / fps);
+        float dTtoEnemy_frames = distToAtkEnemy / (Aux::getStats(getActualType(agent), agent)->movement_speed / native_fps);
 
         if (dTtoEnemy_frames + ARMYUNIT_KITE_TOLERANCE_EPSILON_FFRAMES >= getReturn(agent)->weapon_cooldown) {
             if (safetyMode && !radiusOfSafety) {
@@ -373,7 +373,8 @@ public:
         }
     }
 
-    virtual void cooldownCheckUpdate(Agent* const agent) {
+    //returns true if cooldown is not met
+    virtual bool cooldownCheckUpdate(Agent* const agent) {
         float moveLocationDPS = WeaponGrid::getRadiusAvgDPS(moveLocation, radius(agent) + 3.5, WeaponGrid::wrapToTargetInfo(shared_from_this(), agent), agent);
 
         if (cooldownFrames > 0) {
@@ -382,15 +383,16 @@ public:
             }
             else if (moveLocationDPS > prevMoveLocationDPS) {
                 cooldownFrames /= 2;
-                return;
+                return true;
             }
             else {
                 cooldownFrames--;
-                return;
+                return true;
             }
         }
 
         prevMoveLocationDPS = moveLocationDPS;
+        return false;
     }
 
     virtual void executeAttack(Agent* const agent) {
@@ -409,7 +411,9 @@ public:
             }
         }
 
-        cooldownCheckUpdate(agent);
+        if (cooldownCheckUpdate(agent)) {
+            return;
+        }
 
         moveLocation = Point2D{ -1, -1 };
         target = nullptr;

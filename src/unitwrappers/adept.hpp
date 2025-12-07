@@ -102,7 +102,9 @@ public:
     virtual void execute(Agent* const agent) {
         FUNCTION_LOG();
 
-        cooldownCheckUpdate(agent);
+        if (cooldownCheckUpdate(agent)) {
+            return;
+        }
 
         if (linkedAdept->target != nullptr && VisibleMap2D::getVisibilityRecency(linkedAdept->target->pos(agent)) < (VISIBILITY_MAX - 5)) {
             mov(agent, linkedAdept->target->pos(agent));
