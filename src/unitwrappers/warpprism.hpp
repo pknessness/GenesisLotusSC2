@@ -41,7 +41,7 @@ public:
         bool unitsWarpingInRange = false;
         UnitWrappers wraps = SpatialHashGrid::findInRadiusSelfLoose(pos(agent), PRISM_RADIUS_REAL);
         for (const auto& wrap : wraps) {
-            if (!wrap->getReturn(agent)->is_building && !wrap->getReturn(agent)->IsBuildFinished()) {
+            if (wrap->getReturn(agent) != nullptr && !wrap->getReturn(agent)->is_building && !wrap->getReturn(agent)->IsBuildFinished()) {
                 unitsWarpingInRange = true;
                 break;
             }
