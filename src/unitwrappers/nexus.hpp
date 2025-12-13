@@ -55,8 +55,10 @@ public:
             if (DistanceSquared2D(targetWrap->pos(agent), pos(agent)) < 100) {
                 if (targetWrap->getStorageType() == UNIT_TYPEID::NEUTRAL_MINERALFIELD) {
                     addMineral(targetWrap);
+                    std::static_pointer_cast<ProbeTarget>(targetWrap)->addNexus(shared_from_this());
                 } else if (targetWrap->getStorageType() == UNIT_TYPEID::PROTOSS_ASSIMILATOR) {
                     addAssimilator(targetWrap);
+                    std::static_pointer_cast<ProbeTarget>(targetWrap)->addNexus(shared_from_this());
                 } else {
                     throw 10;
                 }

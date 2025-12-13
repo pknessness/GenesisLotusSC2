@@ -127,12 +127,15 @@ int main(int argc, char* argv[])
         // coordinator.SetRealtime(true);
 
         Bot bot;
-        sc2::Difficulty diff = sc2::Difficulty::VeryHard;//sc2::Difficulty::HardVeryHard; //sc2::Difficulty::Hard; //
         sc2::Race race = (sc2::Race)(std::rand() % 4);  //Race::Random; //
+#ifdef SPEED_MINING_TESTS
+        sc2::Difficulty diff = sc2::Difficulty::VeryEasy;
+#else
+        sc2::Difficulty diff = sc2::Difficulty::VeryHard;//sc2::Difficulty::HardVeryHard; //sc2::Difficulty::Hard; //
+#endif // SPEED_MINING_TESTS
+
         sc2::AIBuild build = sc2::AIBuild::RandomBuild;
         coordinator.SetParticipants({ CreateParticipant(sc2::Race::Protoss, &bot), CreateComputer(race, diff, build) });
-
-
 
         coordinator.LaunchStarcraft();
         //std::string maps[6] = { "5_13/Oceanborn513AIE.SC2Map",  "5_13/Equilibrium513AIE.SC2Map",
@@ -149,7 +152,7 @@ int main(int argc, char* argv[])
                                 "MagannathaAIE_v2.SC2Map" };
 
         int r = std::rand() % 7;
-        //r = 1;
+        r = 0;
         //printf("rand %d [%d %d %d %d %d %d] %d\n", r, std::rand(), std::rand(), std::rand(), std::rand(), std::rand(),
         //    std::rand(), RAND_MAX);
 

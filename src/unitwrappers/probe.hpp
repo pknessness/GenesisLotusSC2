@@ -6,6 +6,9 @@
 #include "unitmanager.hpp"
 #include "../auxiliary/debugging.hpp"
 #include "vespene.hpp"
+#include "../auxiliary/spatialhashgrid.hpp"
+//#include "nexus.hpp"
+#include "probetarget.hpp"
 
 struct Building {
     AbilityID build;
@@ -26,6 +29,7 @@ class Probe : public UnitWrapper {
 private:
 
     UnitWrapperPtr target;
+
     float ignoreFrames;
     Point2D patrolCenter;
 
@@ -48,7 +52,45 @@ public:
             probeTargetting[newTarget->self] += 1;
         }
         target = newTarget;
+        //gatherPoint = Point2D();
+        //nexus = nullptr;
     }
+
+    //UnitWrapperPtr getNexus(Agent* const agent) {
+    //    if (nexus == nullptr) {
+    //        if (getTargetTag(agent) == nullptr || target->getReturn(agent) == nullptr) {
+    //            return nullptr;
+    //        }
+    //        UnitWrapperPtr nearest = nullptr;
+    //        float nearestDistance2 = -1;
+    //        for (const auto& unit : UnitManager::getSelf(UNIT_TYPEID::PROTOSS_NEXUS)) {
+    //            float dist2 = DistanceSquared2D(unit->pos(agent), target->pos(agent));
+    //            if (nearest == nullptr || dist2 < nearestDistance2) {
+    //                nearestDistance2 = dist2;
+    //                nearest = unit;
+    //            }
+    //        }
+    //        nexus = nearest;
+    //        nexusDistance2 = nearestDistance2;
+    //    }
+    //    return nexus;
+    //}
+
+    //Point2D getGatherPoint(Agent* const agent) {
+    //    UnitWrapperPtr nexus = getNexus(agent);
+    //    if (gatherPoint == Point2D() && getTargetTag(agent) != nullptr && nexus != nullptr) {
+    //        gatherPoint = SpeedMining::calculateGatherPoint(agent, target->pos(agent), nexus->pos(agent));
+    //    }
+    //    return gatherPoint;
+    //}
+
+    //Point2D getReturnPoint(Agent* const agent) {
+    //    UnitWrapperPtr nexus = getNexus(agent);
+    //    if (nexusReturnPoint == Point2D() && getTargetTag(agent) != nullptr && nexus != nullptr) {
+    //        nexusReturnPoint = SpeedMining::calculateReturnPoint(agent, getGatherPoint(agent), nexus->pos(agent));
+    //    }
+    //    return nexusReturnPoint;
+    //}
 
     UnitWrapperPtr rawTargetTag() {
         return target;
@@ -261,6 +303,94 @@ public:
                 }
             }
         }
+#ifdef SPEEDMINING
+        //no buildings, potentially speedmining time
+        else if (buildings.size() == 0) {
+            //if no orders: speedmine ||
+            //if one order: and that order is not harvest or unit is not NEAR gatherPoint, speedmine || (if the order is harvest directly, just speedharvest)
+            //if one order: and that order is not return or unit is not NEAR returnPoint, speedmine || (if the order is return directly, just speedreturn)
+            //if two orders: and first order is not a move command to gatherPoint or speedPoint, speedmine (maybe i can ignore this)
+            
+            std::vector<UnitOrder> orders = unit->orders;
+
+            
+            UnitWrapperPtr targ = getTargetTag(agent);
+            ProbeTargetPtr probetarg = std::static_pointer_cast<ProbeTarget>(targ);
+            //UnitWrapperPtr nexus = getNexus(agent);
+
+            if (getReturn(agent)->is_selected) {
+                printf("");
+            }
+
+            char speedmode = 0;
+            if (orders.size() == 0){
+                AvailableAbilities unitAbilities = agent->Query()->GetAbilitiesForUnit(getReturn(agent));
+                bool hasMinerals = false;
+                for (int a = 0; a < unitAbilities.abilities.size(); a++) {
+                    if (unitAbilities.abilities[a].ability_id == ABILITY_ID::HARVEST_RETURN) {
+                        hasMinerals = true;
+                        break;
+                    }
+                }
+                if (hasMinerals) {
+                    if (probetarg->nexus != nullptr && probetarg->nexus->getReturn(agent)->build_progress == 1.0F) {
+                        agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, probetarg->returnPoint);
+                        agent->Actions()->UnitCommand(self, ABILITY_ID::SMART, probetarg->nexus->self, true);
+                    }
+                    else {
+                        agent->Actions()->UnitCommand(self, ABILITY_ID::HARVEST_RETURN);
+                    }
+                }
+                else {
+                    if (probetarg->gatherPoint != Point2D()) {
+                        agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, probetarg->gatherPoint);
+                        agent->Actions()->UnitCommand(self, ABILITY_ID::HARVEST_GATHER, targ->self, true);
+                    }
+                    else {
+                        agent->Actions()->UnitCommand(self, ABILITY_ID::HARVEST_GATHER, targ->self);
+                    }
+
+                }
+            }
+            else if (orders.size() == 1) {
+                if (unit->orders[0].ability_id == ABILITY_ID::HARVEST_GATHER &&
+                    unit->orders[0].target_unit_tag != targ->self) {
+                    agent->Actions()->UnitCommand(self, ABILITY_ID::HARVEST_GATHER, targ->self);
+                }
+                else { 
+                    //UnitWrappers inRange = SpatialHashGrid::findInRadiusSelfLoose(target->pos(agent), 8);
+                    //bool foundNexus = false;
+                    //for (const auto& unit : inRange) {
+                    //    if (unit->getStorageType() == UNIT_TYPEID::PROTOSS_NEXUS) {
+                    //        foundNexus = true;
+                    //        break;
+                    //    }
+                    //}
+                    if (probetarg->nexus != nullptr) { //URGENT: FIGURE OUT WHY MINERALS DONT HAVE THEIR NEXUSES MARKED
+                        float distFromHarvest = DistanceSquared2D(probetarg->gatherPoint, pos(agent));
+                        float distFromReturn = DistanceSquared2D(probetarg->returnPoint, pos(agent));
+                        bool notAtHarvest = orders[0].ability_id == ABILITY_ID::HARVEST_GATHER && distFromHarvest > SpeedMining::GATHER_RANGE;
+                        bool notAtReturn = orders[0].ability_id == ABILITY_ID::HARVEST_RETURN && distFromReturn > SpeedMining::GATHER_RANGE;
+                        if (notAtHarvest && distFromHarvest < SpeedMining::DECCEL_RANGE_2 && probetarg->gatherPoint != Point2D()) {
+                            agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, probetarg->gatherPoint);
+                            agent->Actions()->UnitCommand(self, ABILITY_ID::HARVEST_GATHER, targ->self, true);
+                        }
+                        else if (notAtReturn && distFromReturn < SpeedMining::DECCEL_RANGE_2 && probetarg->nexus != nullptr) {
+                            agent->Actions()->UnitCommand(self, ABILITY_ID::GENERAL_MOVE, probetarg->returnPoint);
+                            agent->Actions()->UnitCommand(self, ABILITY_ID::SMART, probetarg->nexus->self, true);
+                        }
+                    }
+                }
+            }
+            //else if (orders.size() == 2) {
+            //    if (orders[0].ability_id == ABILITY_ID::GENERAL_MOVE && (orders[1].ability_id == ABILITY_ID::HARVEST_GATHER || orders[1].ability_id == ABILITY_ID::HARVEST_RETURN)) {
+            //        if (found) { //make sure that this persists until lad is no longer in range
+            //            agent->Actions()->UnitCommand(self, ABILITY_ID::SMART, probetarg->nexus->self, true);
+            //        }
+            //    }
+            //}
+        }
+#else
         //if unit has no buildings
         //and if unit has either no orders, or the order is harvest
         else if((unit->orders.size() == 0 || unit->orders[0].ability_id == ABILITY_ID::HARVEST_GATHER) && buildings.size() == 0) {
@@ -271,6 +401,36 @@ public:
                 unit->orders[0].target_unit_tag != targ->self))) {
                 agent->Actions()->UnitCommand(self, ABILITY_ID::HARVEST_GATHER, targ->self);
             }
+        }
+#endif
+
+        //render the pos
+        if (target != nullptr) {
+            UnitWrapperPtr targ = getTargetTag(agent);
+            ProbeTargetPtr probetarg = std::static_pointer_cast<ProbeTarget>(targ);
+
+            float epsilon = 0.03;
+            if (getReturn(agent)->is_selected) {
+                printf("");
+                epsilon = 1.5;
+            }
+            Point2D pt = probetarg->gatherPoint;
+            DebugBox(agent, AP3D(pt) + Point3D{ -0.1, -0.1, -0.1 }, AP3D(pt) + Point3D{ 0.1, 0.1, epsilon });
+
+            Point3D targetPos = target->pos3D(agent);
+            DebugBox(agent, targetPos + Point3D{ -1.375, -0.875, -0.1 }, targetPos + Point3D{ 1.375, 0.875, 0.02 }, Colors::Red);
+
+            UnitWrapperPtr nexus = probetarg->nexus;
+            if (nexus != nullptr) {
+                Point2D rt = SpeedMining::calculateReturnPoint(agent, pt, nexus->pos(agent));
+                DebugBox(agent, AP3D(rt) + Point3D{ -0.1, -0.1, -0.1 }, AP3D(rt) + Point3D{ 0.1, 0.1, epsilon }, Colors::Teal);
+                //SendDebug(agent);
+            }
+        }
+        if (getReturn(agent)->orders.size() != 0 && getReturn(agent)->orders[0].ability_id == ABILITY_ID::HARVEST_GATHER) {
+            DebugBox(agent, pos3D(agent) + Point3D{ -0.15,-0.15,1 - 0.15 }, pos3D(agent) + Point3D{ 0.15,0.15,1 + 0.15 }, Colors::Purple);
+        }else if (getReturn(agent)->orders.size() != 0 && getReturn(agent)->orders[0].ability_id == ABILITY_ID::HARVEST_RETURN) {
+            DebugBox(agent, pos3D(agent) + Point3D{ -0.15,-0.15,1 - 0.15 }, pos3D(agent) + Point3D{ 0.15,0.15,1 + 0.15 }, Colors::Yellow);
         }
     }
 

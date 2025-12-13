@@ -154,6 +154,7 @@ namespace Aux {
 		return (ObstacleInfo)(imRef(masterMap, i, j) >> 2);
 	}
 
+	//returns false for obstacles
 	bool isPathable(int i, int j) {
 		ObstacleInfo obstacle = getObstacle(i, j);
 		return !((imRef(masterMap, i, j) & 0x01) || 
@@ -175,6 +176,7 @@ namespace Aux {
 		return p.x > 0 && p.y > 0 && p.x < mapWidth_cache && p.y < mapHeight_cache;
 	}
 
+	//does not return false for obstacles
 	bool isPathableTile(int i, int j) {
 		ObstacleInfo obstacle = getObstacle(i, j);
 		return !((imRef(masterMap, i, j) & 0x01));

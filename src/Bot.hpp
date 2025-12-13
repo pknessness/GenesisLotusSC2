@@ -47,6 +47,10 @@
 #define ADEPT_RUSH
 //#define STALKER_COLOSSUS_TIMING
 
+#define SPEED_MINING_TESTS
+
+Point2D probe_pos_slowdown_cache;
+
 namespace UnitManager {
     void encode(UnitWrapperPtr wrap, const Unit* unit_, uint32_t gl) {
         FUNCTION_LOG();
@@ -143,11 +147,13 @@ namespace UnitManager {
 
             }
             else if (stype == UNIT_TYPEID::PROTOSS_ASSIMILATOR) {
-                UnitWrapperPtr assimilator = std::make_shared<UnitWrapper>(unit_, stype);
+                ProbeTargetPtr assimilator = std::make_shared<ProbeTarget>(unit_, stype);
+                assimilator->init(agent);
                 UnitWrappers nexuses = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_NEXUS);
                 for (UnitWrapperPtr nexus : nexuses) {
                     if (DistanceSquared2D(assimilator->pos(agent), nexus->pos(agent)) < 100) {
                         std::static_pointer_cast<Nexus>(nexus)->addAssimilator(assimilator);
+                        assimilator->addNexus(nexus);
                         break;
                     }
                 }
@@ -175,11 +181,13 @@ namespace UnitManager {
                 units[stype].insert(std::make_shared<Vespene>(unit_, stype));
             }
             else if (stype == UNIT_TYPEID::NEUTRAL_MINERALFIELD) {
-                UnitWrapperPtr mineral = std::make_shared<UnitWrapper>(unit_, stype);
+                ProbeTargetPtr mineral = std::make_shared<ProbeTarget>(unit_, stype);
+                mineral->init(agent);
                 UnitWrappers nexuses = UnitManager::getSelf(UNIT_TYPEID::PROTOSS_NEXUS);
                 for (UnitWrapperPtr nexus : nexuses) {
                     if (DistanceSquared2D(mineral->pos(agent), nexus->pos(agent)) < 100) {
                         std::static_pointer_cast<Nexus>(nexus)->addMineral(mineral);
+                        mineral->addNexus(nexus);
                         break;
                     }
                 }
@@ -342,7 +350,7 @@ struct Bot: sc2::Agent
                 }
                 float worth_merkMore = d->mineral_cost + 1.7 * d->vespene_cost;
                 fprintf(fpMerkMore, "%s: %.2f\n", UnitTypeToName(unitLists[f][i]), worth_merkMore);
-                fprintf(fp, "\nMovementSpeed: %.2f\nArmor: %.1f\nWeapons:\n",
+                fprintf(fp, "\nMovementSpeed: %.4f\nArmor: %.1f\nWeapons:\n",
                     d->movement_speed * timeSpeed,
                     d->armor);
                 for (int w = 0; w < d->weapons.size(); w++) {
@@ -410,6 +418,10 @@ struct Bot: sc2::Agent
 
 #endif
         printf("%s\n", Aux::gameInfo_cache.map_name.c_str());
+
+        FILE* probeFile;
+        probeFile = fopen("data/probeData.txt", "w");
+        fclose(probeFile);
     }
 
     //! Called when a game has ended.
@@ -516,8 +528,9 @@ struct Bot: sc2::Agent
 
         onStepProfiler.midLog("oS-probe");
 
+#ifndef SPEED_MINING_TESTS
         MacroManager::execute(this);
-
+#endif
         onStepProfiler.midLog("oS-macroExec");
 
         VisibleMap2D::update(this);
@@ -711,7 +724,7 @@ struct Bot: sc2::Agent
 
         DebugText(this, strprintf("%.3fms %u", lastDT / 1000.0, gl));
 
-        Aux::displayExpansions(this);
+        //Aux::displayExpansions(this);
 
         MacroManager::displayMacroActions(this);
 
@@ -891,6 +904,44 @@ struct Bot: sc2::Agent
 
         onStepProfiler.midLog("oS-logging");
 
+#ifdef SPEED_MINING_TESTS
+
+        FILE* probeFile;
+        probeFile = fopen("data/probeData.txt", "a");
+        fprintf(probeFile, "%u\n", Observation()->GetMinerals());
+        fclose(probeFile);
+
+        if (Observation()->GetGameLoop() == 10000) {
+            throw 10;
+        }
+#endif
+
+        //if (select != nullptr) {
+        //    if (select->getStorageType() == UNIT_TYPEID::PROTOSS_PROBE) {
+        //        ProbePtr probe = std::static_pointer_cast<Probe>(select);
+        //        //if (select->getReturn(this)->orders.size() == 0) {
+        //        //    DebugText(this, strprintf("%.4f", Distance2D(select->pos(this), probe_pos_slowdown_cache)), select->pos3D(this) + Point3D{ 0,0,2 }, Colors::Blue);
+        //        //}
+        //        //else if (select->getReturn(this)->orders[0].target_pos != Point2D()) {
+        //        //    DebugText(this, strprintf("%.4f, %.4f", Distance2D(select->pos(this), probe_pos_slowdown_cache), Distance2D(select->pos(this), select->getReturn(this)->orders[0].target_pos)), select->pos3D(this) + Point3D{ 0,0,2 }, Colors::Blue);
+        //        //}
+        //        //else if (select->getReturn(this)->orders[0].target_unit_tag != NullTag) {
+        //        //    DebugText(this, strprintf("%.4f, %.4f", Distance2D(select->pos(this), probe_pos_slowdown_cache), Distance2D(select->pos(this), Observation()->GetUnit(select->getReturn(this)->orders[0].target_unit_tag)->pos)), select->pos3D(this) + Point3D{ 0,0,2 }, Colors::Blue);
+        //        //}
+        //        DebugText(this, 
+        //            strprintf("%.4f, [G:%.2f R:%.2f]", 
+        //                Distance2D(select->pos(this), probe_pos_slowdown_cache), 
+        //                Distance2D(select->pos(this), probe->getGatherPoint(this)), 
+        //                Distance2D(select->pos(this), probe->getReturnPoint(this))), 
+        //            select->pos3D(this) + Point3D{ 0,0,2 }, 
+        //            Colors::Blue);
+
+        //        probe_pos_slowdown_cache = select->pos(this);
+        //    }
+        //}
+
+        //onStepProfiler.midLog("speedMining-tests");
+
         SendDebug(this);
 
         onStepProfiler.midLog("oS-SendDebug");
@@ -1044,9 +1095,7 @@ struct Bot: sc2::Agent
     }
 };
 
-//TODO: TAKE INTO ACCOUNT SHIELD BATTERY
 //TODO: TAKE INTO ACCOUNT UPGRADES FOR DAMAGE/RANGE/ETC
-//TODO: WARP PRISM MICRO + WARPING THROUJGH IT FOR FAST REINFORCEMENTS
 //TODO: ANTI-CARRIER TARGETTING
 //TODO: BETTER VOIDRAY MICRO
 //TODO: ADEPT HARRASSING AND ACTUALLY GETTING VALUE (better value system?)
@@ -1057,3 +1106,4 @@ struct Bot: sc2::Agent
 //TODO: FIGHT EVALUATION
 //TODO: ARCHON MERGING
 //TODO: ADD MOTHERSHIP RUSH
+//TODO: MICRO WITH https://www.reddit.com/r/starcraft/comments/q8wd5y/til_that_follow_removes_collision_between_the/ ???

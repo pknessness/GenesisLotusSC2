@@ -123,6 +123,19 @@ namespace UnitManager {
         return get(&self_units, type);
     }
 
+    //inline UnitWrapperPtr getSelfNearest(Agent* const agent, UnitTypeID type, Point2D pos) {
+    //    UnitWrapperPtr nearest = nullptr;
+    //    float nearestDistance2 = -1;
+    //    for (const auto& unit : get(&self_units, type)) {
+    //        float dist2 = DistanceSquared2D(unit->pos(agent), pos);
+    //        if (nearest == nullptr || dist2 < nearestDistance2) {
+    //            nearestDistance2 = dist2;
+    //            nearest = unit;
+    //        }
+    //    }
+    //    return nearest;
+    //}
+
     UnitWrapperPtr getRandomSelf(UnitTypeID type) {
         UnitWrappers all = getSelf(type);
         if (all.size() == 0) {
@@ -137,6 +150,19 @@ namespace UnitManager {
     UnitWrappers getNeutral(UnitTypeID type) {
         return get(&neutral_units, type);
     }
+
+    //inline UnitWrapperPtr getNeutralNearest(Agent* const agent, UnitTypeID type, Point2D pos) {
+    //    UnitWrapperPtr nearest = nullptr;
+    //    float nearestDistance2 = -1;
+    //    for (const auto& unit : get(&neutral_units, type)) {
+    //        float dist2 = DistanceSquared2D(unit->pos(agent), pos);
+    //        if (nearest == nullptr || dist2 < nearestDistance2) {
+    //            nearestDistance2 = dist2;
+    //            nearest = unit;
+    //        }
+    //    }
+    //    return nearest;
+    //}
 
     UnitWrappers getMinerals() {
         return getNeutral(UNIT_TYPEID::NEUTRAL_MINERALFIELD);

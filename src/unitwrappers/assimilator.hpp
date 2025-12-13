@@ -37,4 +37,4 @@ public:
     //}
 };
 
-typedef std::shared_ptr<Nexus> NexusPtr;
+typedef std::shared_ptr<Assimilator> AssimilatorPtr;
