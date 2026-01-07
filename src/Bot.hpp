@@ -270,6 +270,7 @@ struct Bot: sc2::Agent
 
         StrategyManager::load();
 
+
         SpatialHashGrid::init();
         VisibleMap2D::init();
         WeaponGrid::init(this);
